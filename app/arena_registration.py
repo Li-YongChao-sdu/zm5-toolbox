@@ -3,6 +3,8 @@
 客户端依据 EveryWeekSetting.applyForArenaTime / applyForPetArenaTime 判断是否已报名：
 大于 0 视为本周已报名（见 ArenaModule.as 报名图标逻辑）。
 """
+from datetime import datetime, timedelta, timezone
+
 ROUTES = {'arena': 'scene.arenaHandler.applyFor',
           'petArena': 'scene.petArenaHandler.applyFor'}
 FIELDS = {'arena': 'applyForArenaTime', 'petArena': 'applyForPetArenaTime'}
@@ -19,7 +21,7 @@ def applied_time(info, handler):
 
 
 def entry_info(flow, slot=None):
-    """重新读一次存档 info（报名状态只在 entry 的 everyWeekSetting 里可靠）。"""
+    """重新读一次存档 info；报名状态也可能出现在 getArenaInfo 回包里。"""
     if slot is None:
         from daily_auto import RECORD_INDEX
         slot = RECORD_INDEX
@@ -30,21 +32,75 @@ def entry_info(flow, slot=None):
     return {}
 
 
-def ensure(flow, handler, label=None, info=None, index=0, slot=None):
-    """未报名则发送报名；返回 True=已报名可用，False=无法报名。
+def _rank(info):
+    """读取当前存档排名；未上榜/未报名通常是 -1。"""
+    try:
+        value = ((info or {}).get('self') or {}).get('rank')
+        return int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
 
-    不改任何本地文件；已报名时不会重复发请求。
+
+def enrolled(info, handler):
+    """本周已报名：报名时间>0，或已进入榜单(rank>=0)。"""
+    if applied_time(info, handler) > 0:
+        return True
+    rank = _rank(info)
+    return rank is not None and rank >= 0
+
+
+def registration_open(now=None):
+    """报名时段：周五16:00至周日22:00（北京时间）。"""
+    now = now or datetime.now(timezone(timedelta(hours=8)))
+    weekday = now.weekday()
+    if weekday == 4:      # 周五
+        return now.hour >= 16
+    if weekday == 5:      # 周六
+        return True
+    if weekday == 6:      # 周日
+        return now.hour < 22
+    return False
+
+
+def _merge_home(flow, handler, info):
+    """合并 getArenaInfo 的报名状态；部分账号的 everyWeekSetting 只在竞技场回包里。"""
+    home = flow.request('scene.%sHandler.getArenaInfo' % handler, {})
+    if not isinstance(home, dict) or home.get('error'):
+        return info
+    merged = dict(info or {})
+    weekly = dict(merged.get('everyWeekSetting') or {})
+    weekly.update(home.get('everyWeekSetting') or {})
+    merged['everyWeekSetting'] = weekly
+    if home.get('self') is not None:
+        merged['self'] = home['self']
+    if not merged.get('petTeam') and home.get('petTeam'):
+        merged['petTeam'] = home['petTeam']
+    return merged
+
+
+def ensure(flow, handler, label=None, info=None, index=0, slot=None):
+    """先检测报名，未报名且处于报名时段才发送报名；返回 True=可挑战。
+
+    不改任何本地文件；已报名时不会重复发请求。报名回包不再直接当作成功，
+    会重新读取状态确认；时段外未报名则明确停止，不进入对战。
     """
     if handler not in ROUTES:
         raise ValueError('未知报名类型')
     label = label or LABELS[handler]
     if info is None:
         info = entry_info(flow, slot)
-    if applied_time(info, handler) > 0:
-        print('[%s] 本周已报名，跳过报名' % label)
+    info = info or {}
+    if not enrolled(info, handler):
+        info = _merge_home(flow, handler, info)
+    if enrolled(info, handler):
+        print('[%s] 报名状态：本周已报名，跳过报名' % label)
         return True
     if handler == 'petArena' and not (info.get('petTeam') or []):
         print('[%s] 斗宠阵容未设置（请先在游戏内设置斗宠阵容），跳过报名' % label)
+        return False
+    if not registration_open():
+        print('[%s] 报名状态：本周未报名，当前不在报名时段（周五16:00~周日22:00）；'
+              '已停止，请报名时段内先报名' % label)
         return False
     r = flow.request(ROUTES[handler], {'index': int(index)})
     if not isinstance(r, dict):
@@ -58,9 +114,18 @@ def ensure(flow, handler, label=None, info=None, index=0, slot=None):
             return True
         print('[%s] 报名未成功：%s（可能不在报名时段）' % (label, text))
         return False
-    # 客户端 getApplyBack 只要拿到回包就提示“报名成功”，回包即整份 everyWeekSetting。
-    print('[%s] 报名成功' % label)
-    return True
+    weekly = r.get('everyWeekSetting') or (r.get('info') or {}).get('everyWeekSetting')
+    if weekly and applied_time({'everyWeekSetting': weekly}, handler) > 0:
+        print('[%s] 报名成功' % label)
+        return True
+    fresh = entry_info(flow, slot)
+    if not enrolled(fresh, handler):
+        fresh = _merge_home(flow, handler, fresh)
+    if enrolled(fresh, handler):
+        print('[%s] 报名成功' % label)
+        return True
+    print('[%s] 报名回包未确认成功（可能不在报名时段）；已停止，未进入对战' % label)
+    return False
 
 
 def register(flow, handler, index=0):

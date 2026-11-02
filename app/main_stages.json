@@ -1,0 +1,402 @@
+[
+  {
+    "mid": 30010,
+    "name": "碧玉径",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30020,
+    "name": "邀月廊",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30030,
+    "name": "昆仑宫",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30040,
+    "name": "护城弱水",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30050,
+    "name": "天墉城墙",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30060,
+    "name": "天墉城",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30070,
+    "name": "紫翠丹房",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30080,
+    "name": "珍宝阁",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30090,
+    "name": "玉英宫",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30100,
+    "name": "蟠桃园",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30110,
+    "name": "瑶池酒窖",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30120,
+    "name": "瑶池宫",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30130,
+    "name": "灵蕴境",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30140,
+    "name": "施雨台",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30150,
+    "name": "雷鼓台",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30160,
+    "name": "灭劫天",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30170,
+    "name": "分界廊",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30180,
+    "name": "化世桥",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30190,
+    "name": "雷城官道",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30200,
+    "name": "天雷门",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30210,
+    "name": "雷罚殿",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30220,
+    "name": "暴风海",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30230,
+    "name": "听风崖",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30240,
+    "name": "神霄府",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30250,
+    "name": "汤谷",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30260,
+    "name": "虞渊",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30270,
+    "name": "云上界",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30280,
+    "name": "晓春园",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30290,
+    "name": "秋枫林",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30300,
+    "name": "积雪泉",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30310,
+    "name": "繁星海",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30320,
+    "name": "永月榭",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30330,
+    "name": "重日殿",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30340,
+    "name": "天宫口",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30350,
+    "name": "驱邪院",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30360,
+    "name": "紫微宫",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30370,
+    "name": "血湖莲池",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30380,
+    "name": "引魂路",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30390,
+    "name": "千诵梵音殿",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30400,
+    "name": "大千甘露门",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30410,
+    "name": "四方净土",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30420,
+    "name": "瑞光圣泉",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30430,
+    "name": "万里垂云",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30440,
+    "name": "七宝鹏首",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30450,
+    "name": "鲲腹莲池",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30460,
+    "name": "紫雾霞光顶",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30470,
+    "name": "琅环宝籍院",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30480,
+    "name": "东极妙严宫",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30490,
+    "name": "祖洲",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30500,
+    "name": "元洲",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30510,
+    "name": "玄洲",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30520,
+    "name": "炎洲",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30530,
+    "name": "聚窟洲",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30540,
+    "name": "方丈岛",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30550,
+    "name": "流洲",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30560,
+    "name": "瀛洲",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30570,
+    "name": "昆仑岛",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30580,
+    "name": "生洲",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30590,
+    "name": "凤麟洲",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30600,
+    "name": "长洲",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30610,
+    "name": "蓬丘",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30620,
+    "name": "无极道",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30630,
+    "name": "观乾台",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30640,
+    "name": "穹顶宫",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30650,
+    "name": "幻夜星云",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30660,
+    "name": "流星飞瀑",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30670,
+    "name": "重霄府",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30680,
+    "name": "余晖廊",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30690,
+    "name": "重火坛",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30700,
+    "name": "玄虚殿",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30710,
+    "name": "九云梯",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30720,
+    "name": "琼芝星树",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30730,
+    "name": "游云轩",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30740,
+    "name": "天理回廊",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30750,
+    "name": "银月深竹",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30760,
+    "name": "浮梦阁",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30770,
+    "name": "律令走廊",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30780,
+    "name": "议秤塔",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30790,
+    "name": "辞衡堂",
+    "dailyMax": 2
+  },
+  {
+    "mid": 30800,
+    "name": "七星殿",
+    "dailyMax": 2
+  }
+]

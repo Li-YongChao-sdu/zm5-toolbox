@@ -1,0 +1,467 @@
+{
+  "dailyMax": 2,
+  "stages": [
+    {
+      "mid": 13,
+      "name": "灵蕴境",
+      "monsterId": 906605,
+      "probability": 0.3,
+      "rolelevel": 20
+    },
+    {
+      "mid": 14,
+      "name": "施雨台",
+      "monsterId": 906605,
+      "probability": 0.3,
+      "rolelevel": 20
+    },
+    {
+      "mid": 15,
+      "name": "雷鼓台",
+      "monsterId": 906605,
+      "probability": 0.3,
+      "rolelevel": 20
+    },
+    {
+      "mid": 16,
+      "name": "灭劫天",
+      "monsterId": 906606,
+      "probability": 0.36,
+      "rolelevel": 20
+    },
+    {
+      "mid": 17,
+      "name": "分界廊",
+      "monsterId": 906606,
+      "probability": 0.18,
+      "rolelevel": 20
+    },
+    {
+      "mid": 18,
+      "name": "化世桥",
+      "monsterId": 906606,
+      "probability": 0.36,
+      "rolelevel": 20
+    },
+    {
+      "mid": 19,
+      "name": "雷城官道",
+      "monsterId": 906607,
+      "probability": 0.42,
+      "rolelevel": 20
+    },
+    {
+      "mid": 20,
+      "name": "天雷门",
+      "monsterId": 906607,
+      "probability": 0.42,
+      "rolelevel": 20
+    },
+    {
+      "mid": 21,
+      "name": "雷罚殿",
+      "monsterId": 906607,
+      "probability": 0.42,
+      "rolelevel": 20
+    },
+    {
+      "mid": 22,
+      "name": "暴风海",
+      "monsterId": 906608,
+      "probability": 0.48,
+      "rolelevel": 20
+    },
+    {
+      "mid": 23,
+      "name": "听风崖",
+      "monsterId": 906608,
+      "probability": 0.48,
+      "rolelevel": 20
+    },
+    {
+      "mid": 24,
+      "name": "神霄府",
+      "monsterId": 906608,
+      "probability": 0.48,
+      "rolelevel": 20
+    },
+    {
+      "mid": 25,
+      "name": "汤谷",
+      "monsterId": 906609,
+      "probability": 0.54,
+      "rolelevel": 20
+    },
+    {
+      "mid": 26,
+      "name": "虞渊",
+      "monsterId": 906609,
+      "probability": 0.54,
+      "rolelevel": 20
+    },
+    {
+      "mid": 27,
+      "name": "云上界",
+      "monsterId": 906609,
+      "probability": 0.54,
+      "rolelevel": 20
+    },
+    {
+      "mid": 28,
+      "name": "晓春园",
+      "monsterId": 906610,
+      "probability": 0.6,
+      "rolelevel": 20
+    },
+    {
+      "mid": 29,
+      "name": "秋枫林",
+      "monsterId": 906610,
+      "probability": 0.6,
+      "rolelevel": 20
+    },
+    {
+      "mid": 30,
+      "name": "积雪泉",
+      "monsterId": 906610,
+      "probability": 0.6,
+      "rolelevel": 20
+    },
+    {
+      "mid": 31,
+      "name": "繁星海",
+      "monsterId": 906611,
+      "probability": 0.66,
+      "rolelevel": 20
+    },
+    {
+      "mid": 32,
+      "name": "永月榭",
+      "monsterId": 906611,
+      "probability": 0.66,
+      "rolelevel": 20
+    },
+    {
+      "mid": 33,
+      "name": "重日殿",
+      "monsterId": 906611,
+      "probability": 0.66,
+      "rolelevel": 20
+    },
+    {
+      "mid": 34,
+      "name": "天宫口",
+      "monsterId": 906612,
+      "probability": 0.72,
+      "rolelevel": 20
+    },
+    {
+      "mid": 35,
+      "name": "驱邪院",
+      "monsterId": 906612,
+      "probability": 0.72,
+      "rolelevel": 20
+    },
+    {
+      "mid": 36,
+      "name": "紫微宫",
+      "monsterId": 906612,
+      "probability": 0.72,
+      "rolelevel": 20
+    },
+    {
+      "mid": 37,
+      "name": "血湖莲池",
+      "monsterId": 906613,
+      "probability": 0.78,
+      "rolelevel": 20
+    },
+    {
+      "mid": 38,
+      "name": "引魂路",
+      "monsterId": 906613,
+      "probability": 0.78,
+      "rolelevel": 20
+    },
+    {
+      "mid": 39,
+      "name": "千诵梵音殿",
+      "monsterId": 906613,
+      "probability": 0.26,
+      "rolelevel": 20
+    },
+    {
+      "mid": 40,
+      "name": "大千甘露门",
+      "monsterId": 906614,
+      "probability": 0.28,
+      "rolelevel": 20
+    },
+    {
+      "mid": 41,
+      "name": "四方净土",
+      "monsterId": 906614,
+      "probability": 0.28,
+      "rolelevel": 20
+    },
+    {
+      "mid": 42,
+      "name": "瑞光圣泉",
+      "monsterId": 906614,
+      "probability": 0.84,
+      "rolelevel": 20
+    },
+    {
+      "mid": 43,
+      "name": "万里垂云",
+      "monsterId": 906615,
+      "probability": 0.9,
+      "rolelevel": 20
+    },
+    {
+      "mid": 44,
+      "name": "七宝鹏首",
+      "monsterId": 906615,
+      "probability": 0.9,
+      "rolelevel": 20
+    },
+    {
+      "mid": 45,
+      "name": "鲲腹莲池",
+      "monsterId": 906615,
+      "probability": 0.3,
+      "rolelevel": 20
+    },
+    {
+      "mid": 46,
+      "name": "紫雾霞光顶",
+      "monsterId": 906616,
+      "probability": 0.96,
+      "rolelevel": 20
+    },
+    {
+      "mid": 47,
+      "name": "琅环宝籍院",
+      "monsterId": 906616,
+      "probability": 0.96,
+      "rolelevel": 20
+    },
+    {
+      "mid": 48,
+      "name": "东极妙严宫",
+      "monsterId": 906616,
+      "probability": 0.32,
+      "rolelevel": 20
+    },
+    {
+      "mid": 49,
+      "name": "祖洲",
+      "monsterId": 906617,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 50,
+      "name": "元洲",
+      "monsterId": 906617,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 51,
+      "name": "玄洲",
+      "monsterId": 906617,
+      "probability": 0.34,
+      "rolelevel": 20
+    },
+    {
+      "mid": 52,
+      "name": "炎洲",
+      "monsterId": 906618,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 53,
+      "name": "聚窟洲",
+      "monsterId": 906618,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 54,
+      "name": "方丈岛",
+      "monsterId": 906618,
+      "probability": 0.34,
+      "rolelevel": 20
+    },
+    {
+      "mid": 55,
+      "name": "流洲",
+      "monsterId": 906619,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 56,
+      "name": "瀛洲",
+      "monsterId": 906619,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 57,
+      "name": "昆仑岛",
+      "monsterId": 906619,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 58,
+      "name": "生洲",
+      "monsterId": 906620,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 59,
+      "name": "凤麟洲",
+      "monsterId": 906620,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 60,
+      "name": "长洲",
+      "monsterId": 906620,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 62,
+      "name": "无极道",
+      "monsterId": 906622,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 63,
+      "name": "观乾台",
+      "monsterId": 906622,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 64,
+      "name": "穹顶宫",
+      "monsterId": 906622,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 65,
+      "name": "幻夜星云",
+      "monsterId": 906623,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 66,
+      "name": "流星飞瀑",
+      "monsterId": 906623,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 67,
+      "name": "重霄府",
+      "monsterId": 906623,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 68,
+      "name": "余晖廊",
+      "monsterId": 906624,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 69,
+      "name": "重火坛",
+      "monsterId": 906624,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 70,
+      "name": "玄虚殿",
+      "monsterId": 906624,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 71,
+      "name": "九云梯",
+      "monsterId": 906625,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 72,
+      "name": "琼芝星树",
+      "monsterId": 906625,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 73,
+      "name": "游云轩",
+      "monsterId": 906625,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 74,
+      "name": "天理回廊",
+      "monsterId": 906626,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 75,
+      "name": "银月深竹",
+      "monsterId": 906626,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 76,
+      "name": "浮梦阁",
+      "monsterId": 906626,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 77,
+      "name": "律令走廊",
+      "monsterId": 906627,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 78,
+      "name": "议秤塔",
+      "monsterId": 906627,
+      "probability": 1,
+      "rolelevel": 20
+    },
+    {
+      "mid": 79,
+      "name": "辞衡堂",
+      "monsterId": 906627,
+      "probability": 1,
+      "rolelevel": 20
+    }
+  ]
+}

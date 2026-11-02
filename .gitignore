@@ -1,0 +1,42 @@
+# 账号与密钥（绝对不能提交）
+app/account.local.json*
+app/accounts/
+app/accounts.pwd
+**/*.private.py
+**/_full_cookies.json
+**/run_cookie.log
+
+# 游戏数据与反编译产物（不随源码分发）
+app/cg_config_out_*/
+app/decompiled_*/
+app/feature_config/
+app/v4750_damage_*/
+data/*
+!data/.gitkeep
+
+# 本机状态与运行输出
+app/ui_settings.json
+app/my_daily_favorites.json
+app/halo_team.json
+app/dice_farm_log.json
+app/logs/
+app/*_reports/
+app/pet_training_batches/
+app/pet_training_cycles/
+app/pet_training_retained/
+app/fairy_feed_cache/
+
+# 构建与历史产物
+发布包_*/
+audit_*/
+exe_*/
+build_*/
+*.rar
+*.exe
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/

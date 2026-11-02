@@ -1,0 +1,35 @@
+{
+  "world": [
+    {"id": 960101, "name": "极·金之祖巫"},
+    {"id": 960201, "name": "极·木之祖巫"},
+    {"id": 960301, "name": "极·水之祖巫"},
+    {"id": 960401, "name": "极·火之祖巫"},
+    {"id": 960501, "name": "极·土之祖巫"},
+    {"id": 960601, "name": "极·风之祖巫"},
+    {"id": 960701, "name": "极·雨之祖巫"},
+    {"id": 960801, "name": "极·雷之祖巫"},
+    {"id": 960901, "name": "极·电之祖巫"},
+    {"id": 961001, "name": "极·天气祖巫"},
+    {"id": 961101, "name": "极·空间祖巫"},
+    {"id": 961201, "name": "极·时间祖巫"},
+    {"id": 961301, "name": "极·五行祖巫"},
+    {"id": 961401, "name": "极·四象祖巫"},
+    {"id": 961501, "name": "极·三才祖巫"}
+  ],
+  "union": [
+    {"level": 1, "dungeonId": 800101, "monsterId": 902101, "hpMax": 152000000},
+    {"level": 2, "dungeonId": 800102, "monsterId": 902201, "hpMax": 273000000},
+    {"level": 3, "dungeonId": 800103, "monsterId": 902301, "hpMax": 457000000},
+    {"level": 4, "dungeonId": 800104, "monsterId": 902401, "hpMax": 661000000},
+    {"level": 5, "dungeonId": 800105, "monsterId": 902501, "hpMax": 896000000},
+    {"level": 6, "dungeonId": 800106, "monsterId": 902601, "hpMax": 1236000000},
+    {"level": 7, "dungeonId": 800107, "monsterId": 902701, "hpMax": 1655000000},
+    {"level": 8, "dungeonId": 800108, "monsterId": 902801, "hpMax": 2271150000},
+    {"level": 9, "dungeonId": 800109, "monsterId": 902901, "hpMax": 2910600000},
+    {"level": 10, "dungeonId": 800110, "monsterId": 903001, "hpMax": 3664500000},
+    {"level": 11, "dungeonId": 800111, "monsterId": 903101, "hpMax": 6106800000},
+    {"level": 12, "dungeonId": 800112, "monsterId": 903201, "hpMax": 7446600000},
+    {"level": 13, "dungeonId": 800113, "monsterId": 903301, "hpMax": 8950700000},
+    {"level": 14, "dungeonId": 800114, "monsterId": 903401, "hpMax": 12242000000}
+  ]
+}

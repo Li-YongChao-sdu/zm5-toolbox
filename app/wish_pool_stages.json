@@ -1,0 +1,6511 @@
+{
+ "wishMax": 3,
+ "world": {
+  "彻悟池": [
+   {
+    "id": 10300001,
+    "pool": "彻悟池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 3,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     1000,
+     2000,
+     4000,
+     8000,
+     16000,
+     32000,
+     64000,
+     128000,
+     256000,
+     512000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101026001,
+     "count": 1,
+     "des": "1级宝石盒"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101098001,
+     "count": 1
+    },
+    "weight": 300,
+    "wishCount": 10,
+    "countAdd": 30,
+    "icon": "3.png"
+   },
+   {
+    "id": 10300002,
+    "pool": "彻悟池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 3,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     3000,
+     6000,
+     12000,
+     24000,
+     48000,
+     96000,
+     192000,
+     384000,
+     768000,
+     1536000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101026002,
+     "count": 3,
+     "des": "蓝色羽毛"
+    },
+    "reward": {
+     "type": "feather",
+     "subType": 160000002,
+     "count": 1
+    },
+    "weight": 100,
+    "wishCount": 10,
+    "countAdd": 70,
+    "icon": "3.png"
+   },
+   {
+    "id": 10300003,
+    "pool": "彻悟池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 3,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     3000,
+     6000,
+     12000,
+     24000,
+     48000,
+     96000,
+     192000,
+     384000,
+     768000,
+     1536000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101018001,
+     "count": 1,
+     "des": "万能强化石"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101005001,
+     "count": 1
+    },
+    "weight": 300,
+    "wishCount": 10,
+    "countAdd": 20,
+    "icon": "3.png"
+   },
+   {
+    "id": 10300004,
+    "pool": "彻悟池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 3,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     2000,
+     4000,
+     8000,
+     16000,
+     32000,
+     64000,
+     128000,
+     256000,
+     512000,
+     1024000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101017001,
+     "count": 1,
+     "des": "火灵葫芦"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101017002,
+     "count": 1
+    },
+    "weight": 600,
+    "wishCount": 10,
+    "countAdd": 20,
+    "icon": "3.png"
+   },
+   {
+    "id": 10300005,
+    "pool": "彻悟池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 3,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     2000,
+     4000,
+     8000,
+     16000,
+     32000,
+     64000,
+     128000,
+     256000,
+     512000,
+     1024000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101017001,
+     "count": 1,
+     "des": "紫金葫芦"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101017003,
+     "count": 1
+    },
+    "weight": 50,
+    "wishCount": 10,
+    "countAdd": 60,
+    "icon": "3.png"
+   },
+   {
+    "id": 10300006,
+    "pool": "彻悟池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 3,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     2000,
+     4000,
+     8000,
+     16000,
+     32000,
+     64000,
+     128000,
+     256000,
+     512000,
+     1024000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101026001,
+     "count": 1,
+     "des": "性格果"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101708001,
+     "count": 1
+    },
+    "weight": 100,
+    "wishCount": 10,
+    "countAdd": 40,
+    "icon": "3.png"
+   },
+   {
+    "id": 10300007,
+    "pool": "彻悟池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 3,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     2000,
+     4000,
+     8000,
+     16000,
+     32000,
+     64000,
+     128000,
+     256000,
+     512000,
+     1024000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101026002,
+     "count": 1,
+     "des": "启蒙花"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101704004,
+     "count": 1
+    },
+    "weight": 150,
+    "wishCount": 10,
+    "countAdd": 30,
+    "icon": "3.png"
+   },
+   {
+    "id": 10300008,
+    "pool": "彻悟池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 3,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     2000,
+     4000,
+     8000,
+     16000,
+     32000,
+     64000,
+     128000,
+     256000,
+     512000,
+     1024000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101018001,
+     "count": 1,
+     "des": "明灵花"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101704001,
+     "count": 1
+    },
+    "weight": 150,
+    "wishCount": 10,
+    "countAdd": 30,
+    "icon": "3.png"
+   },
+   {
+    "id": 10300009,
+    "pool": "彻悟池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 3,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     2000,
+     4000,
+     8000,
+     16000,
+     32000,
+     64000,
+     128000,
+     256000,
+     512000,
+     1024000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101017001,
+     "count": 1,
+     "des": "去灵花"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101704002,
+     "count": 1
+    },
+    "weight": 300,
+    "wishCount": 10,
+    "countAdd": 20,
+    "icon": "3.png"
+   },
+   {
+    "id": 10300010,
+    "pool": "彻悟池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 3,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     2000,
+     4000,
+     8000,
+     16000,
+     32000,
+     64000,
+     128000,
+     256000,
+     512000,
+     1024000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101017001,
+     "count": 1,
+     "des": "益灵花"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101704003,
+     "count": 1
+    },
+    "weight": 150,
+    "wishCount": 10,
+    "countAdd": 30,
+    "icon": "3.png"
+   },
+   {
+    "id": 10300011,
+    "pool": "彻悟池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 3,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     1000,
+     2000,
+     4000,
+     8000,
+     16000,
+     32000,
+     64000,
+     128000,
+     256000,
+     512000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101026001,
+     "count": 1,
+     "des": "1级宝石盒"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101098001,
+     "count": 1
+    },
+    "weight": 0,
+    "wishCount": 10,
+    "countAdd": 40,
+    "icon": "3.png"
+   },
+   {
+    "id": 10300012,
+    "pool": "彻悟池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 3,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     3000,
+     6000,
+     12000,
+     24000,
+     48000,
+     96000,
+     192000,
+     384000,
+     768000,
+     1536000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101018001,
+     "count": 1,
+     "des": "万能强化石"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101005001,
+     "count": 1
+    },
+    "weight": 0,
+    "wishCount": 10,
+    "countAdd": 40,
+    "icon": "3.png"
+   },
+   {
+    "id": 10300013,
+    "pool": "彻悟池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 3,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     2000,
+     4000,
+     8000,
+     16000,
+     32000,
+     64000,
+     128000,
+     256000,
+     512000,
+     1024000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101017001,
+     "count": 1,
+     "des": "火灵葫芦"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101017002,
+     "count": 1
+    },
+    "weight": 0,
+    "wishCount": 10,
+    "countAdd": 40,
+    "icon": "3.png"
+   },
+   {
+    "id": 10300014,
+    "pool": "彻悟池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 3,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     2000,
+     4000,
+     8000,
+     16000,
+     32000,
+     64000,
+     128000,
+     256000,
+     512000,
+     1024000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101026002,
+     "count": 1,
+     "des": "启蒙花"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101704004,
+     "count": 1
+    },
+    "weight": 0,
+    "wishCount": 10,
+    "countAdd": 40,
+    "icon": "3.png"
+   },
+   {
+    "id": 10300015,
+    "pool": "彻悟池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 3,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     2000,
+     4000,
+     8000,
+     16000,
+     32000,
+     64000,
+     128000,
+     256000,
+     512000,
+     1024000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101018001,
+     "count": 1,
+     "des": "明灵花"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101704001,
+     "count": 1
+    },
+    "weight": 0,
+    "wishCount": 10,
+    "countAdd": 40,
+    "icon": "3.png"
+   },
+   {
+    "id": 10300016,
+    "pool": "彻悟池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 3,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     2000,
+     4000,
+     8000,
+     16000,
+     32000,
+     64000,
+     128000,
+     256000,
+     512000,
+     1024000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101017001,
+     "count": 1,
+     "des": "去灵花"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101704002,
+     "count": 1
+    },
+    "weight": 0,
+    "wishCount": 10,
+    "countAdd": 40,
+    "icon": "3.png"
+   },
+   {
+    "id": 10300017,
+    "pool": "彻悟池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 3,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     2000,
+     4000,
+     8000,
+     16000,
+     32000,
+     64000,
+     128000,
+     256000,
+     512000,
+     1024000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101017001,
+     "count": 1,
+     "des": "益灵花"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101704003,
+     "count": 1
+    },
+    "weight": 0,
+    "wishCount": 10,
+    "countAdd": 40,
+    "icon": "3.png"
+   },
+   {
+    "id": 10300018,
+    "pool": "彻悟池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 3,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     1000,
+     2000,
+     4000,
+     8000,
+     16000,
+     32000,
+     64000,
+     128000,
+     256000,
+     512000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101026002,
+     "count": 1,
+     "des": "妖元"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101035001,
+     "count": 1
+    },
+    "weight": 225,
+    "wishCount": 10,
+    "countAdd": 30,
+    "icon": "3.png"
+   },
+   {
+    "id": 10300019,
+    "pool": "彻悟池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 3,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     1000,
+     2000,
+     4000,
+     8000,
+     16000,
+     32000,
+     64000,
+     128000,
+     256000,
+     512000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101026002,
+     "count": 1,
+     "des": "幻之精华"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101035002,
+     "count": 1
+    },
+    "weight": 150,
+    "wishCount": 10,
+    "countAdd": 20,
+    "icon": "3.png"
+   },
+   {
+    "id": 10300020,
+    "pool": "彻悟池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 3,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     3000,
+     6000,
+     12000,
+     24000,
+     48000,
+     96000,
+     192000,
+     384000,
+     768000,
+     1536000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101018001,
+     "count": 1,
+     "des": "法宝洗炼石"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101301001,
+     "count": 1
+    },
+    "weight": 225,
+    "wishCount": 10,
+    "countAdd": 30,
+    "icon": "3.png"
+   }
+  ],
+  "无量池": [
+   {
+    "id": 10400001,
+    "pool": "无量池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 4,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     6000,
+     12000,
+     24000,
+     48000,
+     96000,
+     192000,
+     384000,
+     768000,
+     1536000,
+     3072000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101006202,
+     "count": 1,
+     "des": "2级宝石盒"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101098002,
+     "count": 1
+    },
+    "weight": 100,
+    "wishCount": 10,
+    "countAdd": 50,
+    "icon": "4.png"
+   },
+   {
+    "id": 10400002,
+    "pool": "无量池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 4,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     10000,
+     20000,
+     40000,
+     80000,
+     160000,
+     320000,
+     640000,
+     1280000,
+     2560000,
+     5120000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101026002,
+     "count": 9,
+     "des": "紫色羽毛"
+    },
+    "reward": {
+     "type": "feather",
+     "subType": 160000003,
+     "count": 1
+    },
+    "weight": 50,
+    "wishCount": 10,
+    "countAdd": 150,
+    "icon": "4.png"
+   },
+   {
+    "id": 10400003,
+    "pool": "无量池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 4,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     10000,
+     20000,
+     40000,
+     80000,
+     160000,
+     320000,
+     640000,
+     1280000,
+     2560000,
+     5120000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101707004,
+     "count": 1,
+     "des": "传心草"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101707005,
+     "count": 1
+    },
+    "weight": 100,
+    "wishCount": 10,
+    "countAdd": 40,
+    "icon": "4.png"
+   },
+   {
+    "id": 10400004,
+    "pool": "无量池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 4,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     7000,
+     14000,
+     28000,
+     56000,
+     112000,
+     224000,
+     448000,
+     896000,
+     1792000,
+     3584000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101026002,
+     "count": 6,
+     "des": "2星转生石"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101705001,
+     "count": 1
+    },
+    "weight": 100,
+    "wishCount": 10,
+    "countAdd": 80,
+    "icon": "4.png"
+   },
+   {
+    "id": 10400005,
+    "pool": "无量池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 4,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     10000,
+     20000,
+     40000,
+     80000,
+     160000,
+     320000,
+     640000,
+     1280000,
+     2560000,
+     5120000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101707004,
+     "count": 1,
+     "des": "体质果"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101709002,
+     "count": 1
+    },
+    "weight": 50,
+    "wishCount": 10,
+    "countAdd": 40,
+    "icon": "4.png"
+   },
+   {
+    "id": 10400006,
+    "pool": "无量池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 4,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     6000,
+     12000,
+     24000,
+     48000,
+     96000,
+     192000,
+     384000,
+     768000,
+     1536000,
+     3072000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101026002,
+     "count": 5,
+     "des": "根骨果"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101709003,
+     "count": 1
+    },
+    "weight": 50,
+    "wishCount": 10,
+    "countAdd": 40,
+    "icon": "4.png"
+   },
+   {
+    "id": 10400007,
+    "pool": "无量池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 4,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     10000,
+     20000,
+     40000,
+     80000,
+     160000,
+     320000,
+     640000,
+     1280000,
+     2560000,
+     5120000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101707004,
+     "count": 1,
+     "des": "潜力果"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101709004,
+     "count": 1
+    },
+    "weight": 50,
+    "wishCount": 10,
+    "countAdd": 40,
+    "icon": "4.png"
+   },
+   {
+    "id": 10400008,
+    "pool": "无量池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 4,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     6000,
+     12000,
+     24000,
+     48000,
+     96000,
+     192000,
+     384000,
+     768000,
+     1536000,
+     3072000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101026002,
+     "count": 5,
+     "des": "生命果"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101710002,
+     "count": 1
+    },
+    "weight": 50,
+    "wishCount": 10,
+    "countAdd": 40,
+    "icon": "4.png"
+   },
+   {
+    "id": 10400009,
+    "pool": "无量池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 4,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     10000,
+     20000,
+     40000,
+     80000,
+     160000,
+     320000,
+     640000,
+     1280000,
+     2560000,
+     5120000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101707004,
+     "count": 1,
+     "des": "攻击果"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101710003,
+     "count": 1
+    },
+    "weight": 50,
+    "wishCount": 10,
+    "countAdd": 40,
+    "icon": "4.png"
+   },
+   {
+    "id": 10400010,
+    "pool": "无量池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 4,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     6000,
+     12000,
+     24000,
+     48000,
+     96000,
+     192000,
+     384000,
+     768000,
+     1536000,
+     3072000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101026002,
+     "count": 5,
+     "des": "防御果"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101710004,
+     "count": 1
+    },
+    "weight": 50,
+    "wishCount": 10,
+    "countAdd": 40,
+    "icon": "4.png"
+   },
+   {
+    "id": 10400011,
+    "pool": "无量池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 4,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     10000,
+     20000,
+     40000,
+     80000,
+     160000,
+     320000,
+     640000,
+     1280000,
+     2560000,
+     5120000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101707004,
+     "count": 1,
+     "des": "回血果"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101710005,
+     "count": 1
+    },
+    "weight": 50,
+    "wishCount": 10,
+    "countAdd": 40,
+    "icon": "4.png"
+   },
+   {
+    "id": 10400012,
+    "pool": "无量池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 4,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     6000,
+     12000,
+     24000,
+     48000,
+     96000,
+     192000,
+     384000,
+     768000,
+     1536000,
+     3072000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101006202,
+     "count": 1,
+     "des": "5级打孔器"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101028002,
+     "count": 1
+    },
+    "weight": 100,
+    "wishCount": 10,
+    "countAdd": 100,
+    "icon": "4.png"
+   },
+   {
+    "id": 10400013,
+    "pool": "无量池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 4,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     2000,
+     4000,
+     8000,
+     16000,
+     32000,
+     64000,
+     128000,
+     256000,
+     512000,
+     1024000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101017001,
+     "count": 1,
+     "des": "灵金石"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101006301,
+     "count": 1
+    },
+    "weight": 150,
+    "wishCount": 10,
+    "countAdd": 40,
+    "icon": "4.png"
+   },
+   {
+    "id": 10400014,
+    "pool": "无量池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 4,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     13000,
+     26000,
+     52000,
+     104000,
+     208000,
+     416000,
+     832000,
+     1664000,
+     3328000,
+     6656000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101301007,
+     "count": 1,
+     "des": "仙玉土"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101301006,
+     "count": 1
+    },
+    "weight": 10,
+    "wishCount": 10,
+    "countAdd": 230,
+    "icon": "4.png"
+   },
+   {
+    "id": 10400015,
+    "pool": "无量池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 4,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     4000,
+     8000,
+     16000,
+     32000,
+     64000,
+     128000,
+     256000,
+     512000,
+     1024000,
+     2048000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101018001,
+     "count": 1,
+     "des": "祝福洗炼石"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101301002,
+     "count": 1
+    },
+    "weight": 50,
+    "wishCount": 10,
+    "countAdd": 40,
+    "icon": "4.png"
+   },
+   {
+    "id": 10400016,
+    "pool": "无量池",
+    "unionType": 0,
+    "camp": 0,
+    "pos": 4,
+    "consumeType": "coin",
+    "consumeSub": "spirit",
+    "consumeCosts": [
+     4000,
+     8000,
+     16000,
+     32000,
+     64000,
+     128000,
+     256000,
+     512000,
+     1024000,
+     2048000
+    ],
+    "base": {
+     "type": "item",
+     "subType": 101018001,
+     "count": 1,
+     "des": "成长洗炼石"
+    },
+    "reward": {
+     "type": "item",
+     "subType": 101301003,
+     "count": 1
+    },
+    "weight": 50,
+    "wishCount": 10,
+    "countAdd": 40,
+    "icon": "4.png"
+   }
+  ]
+ },
+ "camp": {
+  "轮回池": {
+   "1": [
+    {
+     "id": 10711001,
+     "pool": "轮回池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 13,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      1000,
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026001,
+      "count": 1,
+      "des": "1级宝石盒"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101098001,
+      "count": 1
+     },
+     "weight": 300,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10711002,
+     "pool": "轮回池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 13,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      3000,
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 3,
+      "des": "蓝色羽毛"
+     },
+     "reward": {
+      "type": "feather",
+      "subType": 160000002,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 70,
+     "icon": "7.png"
+    },
+    {
+     "id": 10711003,
+     "pool": "轮回池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 13,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      3000,
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "万能强化石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101005001,
+      "count": 1
+     },
+     "weight": 300,
+     "wishCount": 10,
+     "countAdd": 20,
+     "icon": "7.png"
+    },
+    {
+     "id": 10711004,
+     "pool": "轮回池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 13,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "火灵葫芦"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101017002,
+      "count": 1
+     },
+     "weight": 600,
+     "wishCount": 10,
+     "countAdd": 20,
+     "icon": "7.png"
+    },
+    {
+     "id": 10711005,
+     "pool": "轮回池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 13,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "紫金葫芦"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101017003,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 60,
+     "icon": "7.png"
+    },
+    {
+     "id": 10711006,
+     "pool": "轮回池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 13,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026001,
+      "count": 1,
+      "des": "性格果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101708001,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10711007,
+     "pool": "轮回池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 13,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 1,
+      "des": "启蒙花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704004,
+      "count": 1
+     },
+     "weight": 150,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10711008,
+     "pool": "轮回池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 13,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "明灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704001,
+      "count": 1
+     },
+     "weight": 150,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10711009,
+     "pool": "轮回池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 13,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "去灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704002,
+      "count": 1
+     },
+     "weight": 300,
+     "wishCount": 10,
+     "countAdd": 20,
+     "icon": "7.png"
+    },
+    {
+     "id": 10711010,
+     "pool": "轮回池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 13,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "益灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704003,
+      "count": 1
+     },
+     "weight": 150,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10711011,
+     "pool": "轮回池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 13,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      1000,
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026001,
+      "count": 1,
+      "des": "1级宝石盒"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101098001,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10711012,
+     "pool": "轮回池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 13,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      3000,
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "万能强化石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101005001,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10711013,
+     "pool": "轮回池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 13,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "火灵葫芦"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101017002,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10711014,
+     "pool": "轮回池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 13,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 1,
+      "des": "启蒙花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704004,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10711015,
+     "pool": "轮回池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 13,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "明灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704001,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10711016,
+     "pool": "轮回池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 13,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "去灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704002,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10711017,
+     "pool": "轮回池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 13,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "益灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704003,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10711018,
+     "pool": "轮回池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 13,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      1000,
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 1,
+      "des": "妖元"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101035001,
+      "count": 1
+     },
+     "weight": 225,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10711019,
+     "pool": "轮回池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 13,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      1000,
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 1,
+      "des": "幻之精华"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101035002,
+      "count": 1
+     },
+     "weight": 150,
+     "wishCount": 10,
+     "countAdd": 20,
+     "icon": "7.png"
+    },
+    {
+     "id": 10711020,
+     "pool": "轮回池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 13,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      3000,
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "法宝洗炼石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101301001,
+      "count": 1
+     },
+     "weight": 225,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    }
+   ],
+   "2": [
+    {
+     "id": 10712005,
+     "pool": "轮回池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 23,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "紫金葫芦"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101017003,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 60,
+     "icon": "7.png"
+    },
+    {
+     "id": 10712006,
+     "pool": "轮回池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 23,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026001,
+      "count": 1,
+      "des": "性格果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101708001,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10712007,
+     "pool": "轮回池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 23,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 1,
+      "des": "启蒙花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704004,
+      "count": 1
+     },
+     "weight": 150,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10712008,
+     "pool": "轮回池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 23,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "明灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704001,
+      "count": 1
+     },
+     "weight": 150,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10712001,
+     "pool": "轮回池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 23,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      1000,
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026001,
+      "count": 1,
+      "des": "1级宝石盒"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101098001,
+      "count": 1
+     },
+     "weight": 300,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10712002,
+     "pool": "轮回池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 23,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      3000,
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 3,
+      "des": "蓝色羽毛"
+     },
+     "reward": {
+      "type": "feather",
+      "subType": 160000002,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 70,
+     "icon": "7.png"
+    },
+    {
+     "id": 10712003,
+     "pool": "轮回池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 23,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      3000,
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "万能强化石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101005001,
+      "count": 1
+     },
+     "weight": 300,
+     "wishCount": 10,
+     "countAdd": 20,
+     "icon": "7.png"
+    },
+    {
+     "id": 10712004,
+     "pool": "轮回池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 23,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "火灵葫芦"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101017002,
+      "count": 1
+     },
+     "weight": 600,
+     "wishCount": 10,
+     "countAdd": 20,
+     "icon": "7.png"
+    },
+    {
+     "id": 10712013,
+     "pool": "轮回池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 23,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "火灵葫芦"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101017002,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10712014,
+     "pool": "轮回池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 23,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 1,
+      "des": "启蒙花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704004,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10712015,
+     "pool": "轮回池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 23,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "明灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704001,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10712016,
+     "pool": "轮回池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 23,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "去灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704002,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10712009,
+     "pool": "轮回池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 23,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "去灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704002,
+      "count": 1
+     },
+     "weight": 300,
+     "wishCount": 10,
+     "countAdd": 20,
+     "icon": "7.png"
+    },
+    {
+     "id": 10712010,
+     "pool": "轮回池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 23,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "益灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704003,
+      "count": 1
+     },
+     "weight": 150,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10712011,
+     "pool": "轮回池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 23,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      1000,
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026001,
+      "count": 1,
+      "des": "1级宝石盒"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101098001,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10712012,
+     "pool": "轮回池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 23,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      3000,
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "万能强化石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101005001,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10712018,
+     "pool": "轮回池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 23,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      1000,
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 1,
+      "des": "妖元"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101035001,
+      "count": 1
+     },
+     "weight": 225,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10712019,
+     "pool": "轮回池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 23,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      1000,
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 1,
+      "des": "幻之精华"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101035002,
+      "count": 1
+     },
+     "weight": 150,
+     "wishCount": 10,
+     "countAdd": 20,
+     "icon": "7.png"
+    },
+    {
+     "id": 10712020,
+     "pool": "轮回池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 23,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      3000,
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "法宝洗炼石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101301001,
+      "count": 1
+     },
+     "weight": 225,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10712017,
+     "pool": "轮回池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 23,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "益灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704003,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    }
+   ],
+   "3": [
+    {
+     "id": 10713001,
+     "pool": "轮回池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 33,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      1000,
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026001,
+      "count": 1,
+      "des": "1级宝石盒"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101098001,
+      "count": 1
+     },
+     "weight": 300,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10713002,
+     "pool": "轮回池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 33,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      3000,
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 3,
+      "des": "蓝色羽毛"
+     },
+     "reward": {
+      "type": "feather",
+      "subType": 160000002,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 70,
+     "icon": "7.png"
+    },
+    {
+     "id": 10713003,
+     "pool": "轮回池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 33,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      3000,
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "万能强化石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101005001,
+      "count": 1
+     },
+     "weight": 300,
+     "wishCount": 10,
+     "countAdd": 20,
+     "icon": "7.png"
+    },
+    {
+     "id": 10713004,
+     "pool": "轮回池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 33,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "火灵葫芦"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101017002,
+      "count": 1
+     },
+     "weight": 600,
+     "wishCount": 10,
+     "countAdd": 20,
+     "icon": "7.png"
+    },
+    {
+     "id": 10713005,
+     "pool": "轮回池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 33,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "紫金葫芦"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101017003,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 60,
+     "icon": "7.png"
+    },
+    {
+     "id": 10713006,
+     "pool": "轮回池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 33,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026001,
+      "count": 1,
+      "des": "性格果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101708001,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10713007,
+     "pool": "轮回池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 33,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 1,
+      "des": "启蒙花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704004,
+      "count": 1
+     },
+     "weight": 150,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10713008,
+     "pool": "轮回池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 33,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "明灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704001,
+      "count": 1
+     },
+     "weight": 150,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10713009,
+     "pool": "轮回池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 33,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "去灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704002,
+      "count": 1
+     },
+     "weight": 300,
+     "wishCount": 10,
+     "countAdd": 20,
+     "icon": "7.png"
+    },
+    {
+     "id": 10713010,
+     "pool": "轮回池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 33,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "益灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704003,
+      "count": 1
+     },
+     "weight": 150,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10713011,
+     "pool": "轮回池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 33,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      1000,
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026001,
+      "count": 1,
+      "des": "1级宝石盒"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101098001,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10713012,
+     "pool": "轮回池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 33,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      3000,
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "万能强化石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101005001,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10713013,
+     "pool": "轮回池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 33,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "火灵葫芦"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101017002,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10713014,
+     "pool": "轮回池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 33,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 1,
+      "des": "启蒙花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704004,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10713015,
+     "pool": "轮回池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 33,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "明灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704001,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10713016,
+     "pool": "轮回池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 33,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "去灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704002,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10713017,
+     "pool": "轮回池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 33,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "益灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704003,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10713018,
+     "pool": "轮回池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 33,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      1000,
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 1,
+      "des": "妖元"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101035001,
+      "count": 1
+     },
+     "weight": 225,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10713019,
+     "pool": "轮回池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 33,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      1000,
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 1,
+      "des": "幻之精华"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101035002,
+      "count": 1
+     },
+     "weight": 150,
+     "wishCount": 10,
+     "countAdd": 20,
+     "icon": "7.png"
+    },
+    {
+     "id": 10713020,
+     "pool": "轮回池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 33,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      3000,
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "法宝洗炼石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101301001,
+      "count": 1
+     },
+     "weight": 225,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    }
+   ],
+   "4": [
+    {
+     "id": 10714001,
+     "pool": "轮回池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 43,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      1000,
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026001,
+      "count": 1,
+      "des": "1级宝石盒"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101098001,
+      "count": 1
+     },
+     "weight": 300,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10714002,
+     "pool": "轮回池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 43,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      3000,
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 3,
+      "des": "蓝色羽毛"
+     },
+     "reward": {
+      "type": "feather",
+      "subType": 160000002,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 70,
+     "icon": "7.png"
+    },
+    {
+     "id": 10714003,
+     "pool": "轮回池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 43,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      3000,
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "万能强化石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101005001,
+      "count": 1
+     },
+     "weight": 300,
+     "wishCount": 10,
+     "countAdd": 20,
+     "icon": "7.png"
+    },
+    {
+     "id": 10714004,
+     "pool": "轮回池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 43,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "火灵葫芦"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101017002,
+      "count": 1
+     },
+     "weight": 600,
+     "wishCount": 10,
+     "countAdd": 20,
+     "icon": "7.png"
+    },
+    {
+     "id": 10714005,
+     "pool": "轮回池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 43,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "紫金葫芦"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101017003,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 60,
+     "icon": "7.png"
+    },
+    {
+     "id": 10714006,
+     "pool": "轮回池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 43,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026001,
+      "count": 1,
+      "des": "性格果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101708001,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10714007,
+     "pool": "轮回池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 43,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 1,
+      "des": "启蒙花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704004,
+      "count": 1
+     },
+     "weight": 150,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10714008,
+     "pool": "轮回池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 43,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "明灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704001,
+      "count": 1
+     },
+     "weight": 150,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10714009,
+     "pool": "轮回池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 43,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "去灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704002,
+      "count": 1
+     },
+     "weight": 300,
+     "wishCount": 10,
+     "countAdd": 20,
+     "icon": "7.png"
+    },
+    {
+     "id": 10714010,
+     "pool": "轮回池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 43,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "益灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704003,
+      "count": 1
+     },
+     "weight": 150,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10714011,
+     "pool": "轮回池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 43,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      1000,
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026001,
+      "count": 1,
+      "des": "1级宝石盒"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101098001,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10714012,
+     "pool": "轮回池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 43,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      3000,
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "万能强化石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101005001,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10714013,
+     "pool": "轮回池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 43,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "火灵葫芦"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101017002,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10714014,
+     "pool": "轮回池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 43,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 1,
+      "des": "启蒙花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704004,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10714015,
+     "pool": "轮回池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 43,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "明灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704001,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10714016,
+     "pool": "轮回池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 43,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "去灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704002,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10714017,
+     "pool": "轮回池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 43,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "益灵花"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101704003,
+      "count": 1
+     },
+     "weight": 0,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "7.png"
+    },
+    {
+     "id": 10714018,
+     "pool": "轮回池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 43,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      1000,
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 1,
+      "des": "妖元"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101035001,
+      "count": 1
+     },
+     "weight": 225,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    },
+    {
+     "id": 10714019,
+     "pool": "轮回池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 43,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      1000,
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 1,
+      "des": "幻之精华"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101035002,
+      "count": 1
+     },
+     "weight": 150,
+     "wishCount": 10,
+     "countAdd": 20,
+     "icon": "7.png"
+    },
+    {
+     "id": 10714020,
+     "pool": "轮回池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 43,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      3000,
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "法宝洗炼石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101301001,
+      "count": 1
+     },
+     "weight": 225,
+     "wishCount": 10,
+     "countAdd": 30,
+     "icon": "7.png"
+    }
+   ]
+  },
+  "圆满池": {
+   "1": [
+    {
+     "id": 10811001,
+     "pool": "圆满池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 14,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000,
+      3072000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101006202,
+      "count": 1,
+      "des": "2级宝石盒"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101098002,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 50,
+     "icon": "8.png"
+    },
+    {
+     "id": 10811002,
+     "pool": "圆满池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 14,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 9,
+      "des": "紫色羽毛"
+     },
+     "reward": {
+      "type": "feather",
+      "subType": 160000003,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 150,
+     "icon": "8.png"
+    },
+    {
+     "id": 10811003,
+     "pool": "圆满池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 14,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101707004,
+      "count": 1,
+      "des": "传心草"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101707005,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10811004,
+     "pool": "圆满池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 14,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      7000,
+      14000,
+      28000,
+      56000,
+      112000,
+      224000,
+      448000,
+      896000,
+      1792000,
+      3584000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 6,
+      "des": "2星转生石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101705001,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 80,
+     "icon": "8.png"
+    },
+    {
+     "id": 10811005,
+     "pool": "圆满池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 14,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101707004,
+      "count": 1,
+      "des": "体质果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101709002,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10811006,
+     "pool": "圆满池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 14,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000,
+      3072000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 5,
+      "des": "根骨果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101709003,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10811007,
+     "pool": "圆满池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 14,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101707004,
+      "count": 1,
+      "des": "潜力果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101709004,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10811008,
+     "pool": "圆满池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 14,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000,
+      3072000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 5,
+      "des": "生命果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101710002,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10811009,
+     "pool": "圆满池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 14,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101707004,
+      "count": 1,
+      "des": "攻击果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101710003,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10811010,
+     "pool": "圆满池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 14,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000,
+      3072000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 5,
+      "des": "防御果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101710004,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10811011,
+     "pool": "圆满池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 14,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101707004,
+      "count": 1,
+      "des": "回血果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101710005,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10811012,
+     "pool": "圆满池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 14,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000,
+      3072000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101006202,
+      "count": 1,
+      "des": "5级打孔器"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101028002,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 100,
+     "icon": "8.png"
+    },
+    {
+     "id": 10811013,
+     "pool": "圆满池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 14,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "灵金石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101006301,
+      "count": 1
+     },
+     "weight": 150,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10811014,
+     "pool": "圆满池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 14,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      13000,
+      26000,
+      52000,
+      104000,
+      208000,
+      416000,
+      832000,
+      1664000,
+      3328000,
+      6656000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101301007,
+      "count": 1,
+      "des": "仙玉土"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101301006,
+      "count": 1
+     },
+     "weight": 10,
+     "wishCount": 10,
+     "countAdd": 230,
+     "icon": "8.png"
+    },
+    {
+     "id": 10811015,
+     "pool": "圆满池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 14,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000,
+      2048000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "祝福洗炼石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101301002,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10811016,
+     "pool": "圆满池",
+     "unionType": 11,
+     "camp": 1,
+     "pos": 14,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000,
+      2048000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "成长洗炼石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101301003,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    }
+   ],
+   "2": [
+    {
+     "id": 10812004,
+     "pool": "圆满池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 24,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      7000,
+      14000,
+      28000,
+      56000,
+      112000,
+      224000,
+      448000,
+      896000,
+      1792000,
+      3584000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 6,
+      "des": "2星转生石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101705001,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 80,
+     "icon": "8.png"
+    },
+    {
+     "id": 10812005,
+     "pool": "圆满池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 24,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101707004,
+      "count": 1,
+      "des": "体质果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101709002,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10812006,
+     "pool": "圆满池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 24,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000,
+      3072000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 5,
+      "des": "根骨果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101709003,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10812007,
+     "pool": "圆满池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 24,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101707004,
+      "count": 1,
+      "des": "潜力果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101709004,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10812016,
+     "pool": "圆满池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 24,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000,
+      2048000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "成长洗炼石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101301003,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10812008,
+     "pool": "圆满池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 24,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000,
+      3072000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 5,
+      "des": "生命果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101710002,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10812009,
+     "pool": "圆满池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 24,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101707004,
+      "count": 1,
+      "des": "攻击果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101710003,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10812010,
+     "pool": "圆满池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 24,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000,
+      3072000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 5,
+      "des": "防御果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101710004,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10812011,
+     "pool": "圆满池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 24,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101707004,
+      "count": 1,
+      "des": "回血果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101710005,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10812012,
+     "pool": "圆满池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 24,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000,
+      3072000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101006202,
+      "count": 1,
+      "des": "5级打孔器"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101028002,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 100,
+     "icon": "8.png"
+    },
+    {
+     "id": 10812001,
+     "pool": "圆满池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 24,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000,
+      3072000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101006202,
+      "count": 1,
+      "des": "2级宝石盒"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101098002,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 50,
+     "icon": "8.png"
+    },
+    {
+     "id": 10812002,
+     "pool": "圆满池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 24,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 9,
+      "des": "紫色羽毛"
+     },
+     "reward": {
+      "type": "feather",
+      "subType": 160000003,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 150,
+     "icon": "8.png"
+    },
+    {
+     "id": 10812003,
+     "pool": "圆满池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 24,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101707004,
+      "count": 1,
+      "des": "传心草"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101707005,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10812013,
+     "pool": "圆满池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 24,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "灵金石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101006301,
+      "count": 1
+     },
+     "weight": 150,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10812014,
+     "pool": "圆满池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 24,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      13000,
+      26000,
+      52000,
+      104000,
+      208000,
+      416000,
+      832000,
+      1664000,
+      3328000,
+      6656000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101301007,
+      "count": 1,
+      "des": "仙玉土"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101301006,
+      "count": 1
+     },
+     "weight": 10,
+     "wishCount": 10,
+     "countAdd": 230,
+     "icon": "8.png"
+    },
+    {
+     "id": 10812015,
+     "pool": "圆满池",
+     "unionType": 12,
+     "camp": 2,
+     "pos": 24,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000,
+      2048000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "祝福洗炼石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101301002,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    }
+   ],
+   "3": [
+    {
+     "id": 10814003,
+     "pool": "圆满池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 34,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101707004,
+      "count": 1,
+      "des": "传心草"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101707005,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10813001,
+     "pool": "圆满池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 34,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000,
+      3072000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101006202,
+      "count": 1,
+      "des": "2级宝石盒"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101098002,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 50,
+     "icon": "8.png"
+    },
+    {
+     "id": 10813002,
+     "pool": "圆满池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 34,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 9,
+      "des": "紫色羽毛"
+     },
+     "reward": {
+      "type": "feather",
+      "subType": 160000003,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 150,
+     "icon": "8.png"
+    },
+    {
+     "id": 10813003,
+     "pool": "圆满池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 34,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101707004,
+      "count": 1,
+      "des": "传心草"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101707005,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10813004,
+     "pool": "圆满池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 34,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      7000,
+      14000,
+      28000,
+      56000,
+      112000,
+      224000,
+      448000,
+      896000,
+      1792000,
+      3584000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 6,
+      "des": "2星转生石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101705001,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 80,
+     "icon": "8.png"
+    },
+    {
+     "id": 10813005,
+     "pool": "圆满池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 34,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101707004,
+      "count": 1,
+      "des": "体质果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101709002,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10813006,
+     "pool": "圆满池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 34,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000,
+      3072000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 5,
+      "des": "根骨果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101709003,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10813007,
+     "pool": "圆满池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 34,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101707004,
+      "count": 1,
+      "des": "潜力果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101709004,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10813008,
+     "pool": "圆满池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 34,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000,
+      3072000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 5,
+      "des": "生命果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101710002,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10813009,
+     "pool": "圆满池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 34,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101707004,
+      "count": 1,
+      "des": "攻击果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101710003,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10813010,
+     "pool": "圆满池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 34,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000,
+      3072000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 5,
+      "des": "防御果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101710004,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10813011,
+     "pool": "圆满池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 34,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101707004,
+      "count": 1,
+      "des": "回血果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101710005,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10813012,
+     "pool": "圆满池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 34,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000,
+      3072000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101006202,
+      "count": 1,
+      "des": "5级打孔器"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101028002,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 100,
+     "icon": "8.png"
+    },
+    {
+     "id": 10813013,
+     "pool": "圆满池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 34,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "灵金石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101006301,
+      "count": 1
+     },
+     "weight": 150,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10813014,
+     "pool": "圆满池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 34,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      13000,
+      26000,
+      52000,
+      104000,
+      208000,
+      416000,
+      832000,
+      1664000,
+      3328000,
+      6656000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101301007,
+      "count": 1,
+      "des": "仙玉土"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101301006,
+      "count": 1
+     },
+     "weight": 10,
+     "wishCount": 10,
+     "countAdd": 230,
+     "icon": "8.png"
+    },
+    {
+     "id": 10813015,
+     "pool": "圆满池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 34,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000,
+      2048000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "祝福洗炼石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101301002,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10813016,
+     "pool": "圆满池",
+     "unionType": 13,
+     "camp": 3,
+     "pos": 34,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000,
+      2048000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "成长洗炼石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101301003,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    }
+   ],
+   "4": [
+    {
+     "id": 10814001,
+     "pool": "圆满池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 44,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000,
+      3072000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101006202,
+      "count": 1,
+      "des": "2级宝石盒"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101098002,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 50,
+     "icon": "8.png"
+    },
+    {
+     "id": 10814002,
+     "pool": "圆满池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 44,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 9,
+      "des": "紫色羽毛"
+     },
+     "reward": {
+      "type": "feather",
+      "subType": 160000003,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 150,
+     "icon": "8.png"
+    },
+    {
+     "id": 10814004,
+     "pool": "圆满池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 44,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      7000,
+      14000,
+      28000,
+      56000,
+      112000,
+      224000,
+      448000,
+      896000,
+      1792000,
+      3584000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 6,
+      "des": "2星转生石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101705001,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 80,
+     "icon": "8.png"
+    },
+    {
+     "id": 10814005,
+     "pool": "圆满池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 44,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101707004,
+      "count": 1,
+      "des": "体质果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101709002,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10814006,
+     "pool": "圆满池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 44,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000,
+      3072000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 5,
+      "des": "根骨果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101709003,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10814007,
+     "pool": "圆满池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 44,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101707004,
+      "count": 1,
+      "des": "潜力果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101709004,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10814008,
+     "pool": "圆满池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 44,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000,
+      3072000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 5,
+      "des": "生命果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101710002,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10814009,
+     "pool": "圆满池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 44,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101707004,
+      "count": 1,
+      "des": "攻击果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101710003,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10814010,
+     "pool": "圆满池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 44,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000,
+      3072000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101026002,
+      "count": 5,
+      "des": "防御果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101710004,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10814011,
+     "pool": "圆满池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 44,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      10000,
+      20000,
+      40000,
+      80000,
+      160000,
+      320000,
+      640000,
+      1280000,
+      2560000,
+      5120000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101707004,
+      "count": 1,
+      "des": "回血果"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101710005,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10814012,
+     "pool": "圆满池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 44,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      6000,
+      12000,
+      24000,
+      48000,
+      96000,
+      192000,
+      384000,
+      768000,
+      1536000,
+      3072000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101006202,
+      "count": 1,
+      "des": "5级打孔器"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101028002,
+      "count": 1
+     },
+     "weight": 100,
+     "wishCount": 10,
+     "countAdd": 100,
+     "icon": "8.png"
+    },
+    {
+     "id": 10814013,
+     "pool": "圆满池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 44,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101017001,
+      "count": 1,
+      "des": "灵金石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101006301,
+      "count": 1
+     },
+     "weight": 150,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10814014,
+     "pool": "圆满池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 44,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      13000,
+      26000,
+      52000,
+      104000,
+      208000,
+      416000,
+      832000,
+      1664000,
+      3328000,
+      6656000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101301007,
+      "count": 1,
+      "des": "仙玉土"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101301006,
+      "count": 1
+     },
+     "weight": 10,
+     "wishCount": 10,
+     "countAdd": 230,
+     "icon": "8.png"
+    },
+    {
+     "id": 10814015,
+     "pool": "圆满池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 44,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000,
+      2048000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "祝福洗炼石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101301002,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    },
+    {
+     "id": 10814016,
+     "pool": "圆满池",
+     "unionType": 14,
+     "camp": 4,
+     "pos": 44,
+     "consumeType": "coin",
+     "consumeSub": "spirit",
+     "consumeCosts": [
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      128000,
+      256000,
+      512000,
+      1024000,
+      2048000
+     ],
+     "base": {
+      "type": "item",
+      "subType": 101018001,
+      "count": 1,
+      "des": "成长洗炼石"
+     },
+     "reward": {
+      "type": "item",
+      "subType": 101301003,
+      "count": 1
+     },
+     "weight": 50,
+     "wishCount": 10,
+     "countAdd": 40,
+     "icon": "8.png"
+    }
+   ]
+  }
+ }
+}

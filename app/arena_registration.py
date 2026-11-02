@@ -78,11 +78,14 @@ def _merge_home(flow, handler, info):
     return merged
 
 
-def ensure(flow, handler, label=None, info=None, index=0, slot=None):
-    """先检测报名，未报名且处于报名时段才发送报名；返回 True=可挑战。
+def ensure(flow, handler, label=None, info=None, index=0, slot=None,
+           require_registration=True):
+    """先检测报名，未报名时发送报名；返回 True=可继续。
 
     不改任何本地文件；已报名时不会重复发请求。报名回包不再直接当作成功，
-    会重新读取状态确认；时段外未报名则明确停止，不进入对战。
+    会重新读取状态确认。require_registration=False 时（对战前检查）即使不在
+    常规报名时段或报名未确认，也返回 True 继续尝试对战，由服务器判定；
+    报名模块本身仍使用默认 True，时段外未报名会明确停止。
     """
     if handler not in ROUTES:
         raise ValueError('未知报名类型')
@@ -99,13 +102,15 @@ def ensure(flow, handler, label=None, info=None, index=0, slot=None):
         print('[%s] 斗宠阵容未设置（请先在游戏内设置斗宠阵容），跳过报名' % label)
         return False
     if not registration_open():
-        print('[%s] 报名状态：本周未报名，当前不在报名时段（周五16:00~周日22:00）；'
-              '已停止，请报名时段内先报名' % label)
-        return False
+        print('[%s] 报名状态：本周未报名，当前不在常规报名时段（周五16:00~周日22:00）；%s'
+              % (label, '仍尝试报名并对战' if not require_registration
+                 else '已停止，请报名时段内先报名'))
+        if require_registration:
+            return False
     r = flow.request(ROUTES[handler], {'index': int(index)})
     if not isinstance(r, dict):
         print('[%s] 报名未成功：%s' % (label, r))
-        return False
+        return not require_registration
     err = r.get('error')
     if err:
         text = str(err)
@@ -113,7 +118,7 @@ def ensure(flow, handler, label=None, info=None, index=0, slot=None):
             print('[%s] 服务器提示已报名：%s' % (label, text))
             return True
         print('[%s] 报名未成功：%s（可能不在报名时段）' % (label, text))
-        return False
+        return not require_registration
     weekly = r.get('everyWeekSetting') or (r.get('info') or {}).get('everyWeekSetting')
     if weekly and applied_time({'everyWeekSetting': weekly}, handler) > 0:
         print('[%s] 报名成功' % label)
@@ -124,8 +129,9 @@ def ensure(flow, handler, label=None, info=None, index=0, slot=None):
     if enrolled(fresh, handler):
         print('[%s] 报名成功' % label)
         return True
-    print('[%s] 报名回包未确认成功（可能不在报名时段）；已停止，未进入对战' % label)
-    return False
+    print('[%s] 报名回包未确认成功（可能不在报名时段）；%s'
+          % (label, '仍尝试对战' if not require_registration else '已停止，未进入对战'))
+    return not require_registration
 
 
 def register(flow, handler, index=0):

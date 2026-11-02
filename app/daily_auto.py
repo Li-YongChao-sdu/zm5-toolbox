@@ -1512,8 +1512,9 @@ def battle_arena(flow, handler="arena", label="竞技场", max_rounds=None, info
     if handler == 'petArena' and not (info.get('petTeam') or []):
         print("[%s] 斗宠阵容未设置（请先在游戏内设置斗宠阵容），跳过" % label)
         return
-    if not arena_registration.ensure(flow, handler, label, info=info):
-        print("[%s] 未完成报名，跳过对战" % label)
+    if not arena_registration.ensure(flow, handler, label, info=info,
+                                     require_registration=False):
+        print("[%s] 报名未确认且无法继续，跳过对战" % label)
         return
     home = flow.request("scene.%sHandler.getArenaInfo" % handler, {})
     if not isinstance(home, dict) or home.get("error"):

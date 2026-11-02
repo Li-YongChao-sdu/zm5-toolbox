@@ -3180,7 +3180,7 @@ class DailyGUI:
 
 
 
-        ttk.Label(world_damage, text="每秒期望伤害 x:").pack(side=tk.LEFT)
+        ttk.Label(world_damage, text="兜底每秒期望伤害 x:").pack(side=tk.LEFT)
 
 
 
@@ -3236,7 +3236,7 @@ class DailyGUI:
 
 
 
-                  text="每秒伤害在 x/4～7x/4 之间均匀随机；挂机时每秒上报 0～10000。自动进入当前血量最高的存活房间并等待结算。",
+                  text="默认按真实角色面板、真实技能栏和伤害公式逐段累计，每2秒上报；技能CD、蓝耗、暴击、死亡复活按实际节奏。模型不可用时才改用每秒 x/4～7x/4 随机；挂机时每秒上报 0～10000。自动进入当前血量最高的存活房间并等待结算。",
 
 
 

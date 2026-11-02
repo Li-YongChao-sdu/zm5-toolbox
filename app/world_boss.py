@@ -10,13 +10,14 @@ import daily_auto as da
 
 
 from world_boss_damage import sample_hurt, sample_expected_hurt
+from world_boss_model import WorldBossModel
 
 
 def run(boss_id=960101, hurt_min=100000, hurt_max=500000,
         target_percent=5.05, max_seconds=0,
         keepalive_min=0, keepalive_max=10000,
         room_override=None, expected_dps=None, idle_only=False,
-        attack_to_target=True, idle_mode=False):
+        attack_to_target=True, idle_mode=False, real_damage=True):
     if hurt_min < 0 or hurt_max < hurt_min:
         raise ValueError('伤害范围无效')
     if keepalive_min < 0 or keepalive_max < keepalive_min:
@@ -92,6 +93,45 @@ def run(boss_id=960101, hurt_min=100000, hurt_max=500000,
         sent = 0
         idle = idle_only or (idle_mode and not attack_to_target)
         target_reached = False
+        model = None
+        if real_damage and not idle:
+            try:
+                model = WorldBossModel(before, boss_id)
+                print('[世界Boss] 真实伤害：%s' % model.summary(), flush=True)
+                for line in model.skill_lines():
+                    print('[世界Boss]   %s' % line, flush=True)
+                print('[世界Boss] 预计存活 %.0f 秒；每 %.0f 秒累计上报' %
+                      (model.alive_seconds(), model.REPORT_INTERVAL), flush=True)
+            except Exception as exc:
+                print('[世界Boss] 真实伤害模型不可用（%s），改用随机伤害' % exc, flush=True)
+        real = model is not None
+        pending = 0.0
+        failures = 0
+        next_report = time.monotonic()
+        revive_at = 0.0
+        alive_until = time.monotonic() + model.alive_seconds() if model else 0.0
+
+        def send(amount):
+            nonlocal sent, failures
+            if amount <= 0:
+                return True
+            try:
+                result = flow.request('scene.worldBossHandler.attack',
+                                      {'roomId': room_id,
+                                       'hurt': int(round(amount)),
+                                       'bossId': boss_id})
+            except Exception as exc:
+                failures += 1
+                print('[世界Boss] 伤害请求异常(%s/%s)：%s' % (failures, 3, exc), flush=True)
+                return failures < 3
+            if result.get('code') != 200 or result.get('error'):
+                failures += 1
+                print('[世界Boss] 伤害请求停止(%s/%s)：%s' % (failures, 3, result), flush=True)
+                return failures < 3
+            failures = 0
+            sent += 1
+            return True
+
         while time.monotonic() < deadline and not done.is_set():
             if not flow.game._running:
                 print('[世界Boss] 连接已断开，停止上报', flush=True)
@@ -100,22 +140,60 @@ def run(boss_id=960101, hurt_min=100000, hurt_max=500000,
                 target_reached = True
                 if idle_mode:
                     idle = True
+                    real = False
+                    if pending > 0:
+                        send(pending)
+                        pending = 0.0
                     print('[世界Boss] 已达目标，进入挂机模式', flush=True)
                 else:
-                    print('[世界Boss] 已达目标，继续按期望伤害上报', flush=True)
+                    print('[世界Boss] 已达目标，继续按真实伤害上报', flush=True)
             if state['hp'] is not None and state['hp'] <= 0:
                 done.wait(min(1, max(0, deadline - time.monotonic())))
+                continue
+            now = time.monotonic()
+            if real:
+                if now >= next_report:
+                    if pending > 0 and not send(pending):
+                        break
+                    pending = 0.0
+                    next_report = now + model.REPORT_INTERVAL
+                if revive_at and now < revive_at:
+                    done.wait(min(1.0, revive_at - now))
+                    continue
+                if revive_at:
+                    revive_at = 0.0
+                    model.reset_after_revive()
+                    alive_until = now + model.alive_seconds()
+                    print('[世界Boss] 复活，满蓝继续输出', flush=True)
+                if now >= alive_until:
+                    if pending > 0 and not send(pending):
+                        break
+                    pending = 0.0
+                    revive_at = now + random.uniform(30, 33)
+                    print('[世界Boss] 模拟死亡，%.0f 秒后满蓝复活' %
+                          (revive_at - now), flush=True)
+                    continue
+                skill_id = model.choose(now)
+                if skill_id is None:
+                    done.wait(0.15)
+                    continue
+                damage, gap = model.cast(skill_id, now)
+                pending += damage
+                wait = min(gap, 0.6)
+                if next_report > now:
+                    wait = min(wait, next_report - now)
+                done.wait(max(0.05, wait))
                 continue
             hurt = sample_hurt(keepalive_min, keepalive_max) if idle else (
                 sample_expected_hurt(expected_dps) if expected_dps is not None
                 else sample_hurt(hurt_min, hurt_max))
-            result = flow.request('scene.worldBossHandler.attack',
-                                  {'roomId': room_id, 'hurt': hurt, 'bossId': boss_id})
-            if result.get('code') != 200 or result.get('error'):
-                print('[世界Boss] 伤害请求停止：%s' % result, flush=True)
+            if not send(hurt):
                 break
-            sent += 1
             done.wait(1)
+        if pending > 0 and flow.game._running and (
+                state['hp'] is None or state['hp'] > 0):
+            send(pending)
+            pending = 0.0
         print('[世界Boss] 共发送 %s 次，服务器计伤 %.2f；等待本场结算' %
               (sent, state['hit']), flush=True)
         if not done.is_set():
@@ -154,6 +232,8 @@ if __name__ == '__main__':
                         help='不以目标占比作为切换点')
     parser.add_argument('--idle-mode', action='store_true',
                         help='开启挂机伤害；有目标时达标后切换，否则立即挂机')
+    parser.add_argument('--mock-damage', action='store_true',
+                        help='不启用真实面板/技能模型，沿用旧随机伤害')
     args = parser.parse_args()
     if args.slot is not None:
         da.RECORD_INDEX = args.slot
@@ -161,4 +241,5 @@ if __name__ == '__main__':
                       args.target_percent, args.max_seconds,
                       args.keepalive_min, args.keepalive_max, args.room_id,
                       args.expected_dps, args.idle_only,
-                      not args.no_target, args.idle_mode) else 1)
+                      not args.no_target, args.idle_mode,
+                      not args.mock_damage) else 1)

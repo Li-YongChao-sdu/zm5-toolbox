@@ -165,7 +165,8 @@ def _main(argv):
             print('[%s] 斗宠阵容未设置（请先在游戏内设置斗宠阵容），未报名'
                   % LABELS[args.handler])
             return 1
-        return 0 if ensure(flow, args.handler, info=info, index=args.index) else 1
+        return 0 if ensure(flow, args.handler, info=info, index=args.index,
+                           slot=args.expected_slot) else 1
     finally:
         if flow:
             flow.disconnect()

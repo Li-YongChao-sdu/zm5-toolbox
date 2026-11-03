@@ -171,6 +171,7 @@ ACTIVITIES = [
     {"name": "牛魔王",  "normal": 500104, "hard": 500110, "shared": [500104, 500110], "max": 2},
     {"name": "魔龙",    "normal": 500107, "hard": 500108, "shared": [500107, 500108], "max": 2},
     {"name": "GM切磋",  "normal": 500120, "hard": 500127, "shared": [500120, 500127], "max": 2},
+    {"name": "挑战GM",  "normal": 500112, "hard": 500113, "shared": [500112, 500113], "max": 3},
     {"name": "邪·悟空", "normal": 500114, "hard": 500115, "shared": [500114, 500115], "max": 1},
     {"name": "邪·瑶瑶", "normal": 500137, "hard": 500138, "shared": [500137, 500138], "max": 1},
     {"name": "邪·唐僧", "normal": 500116, "hard": 500117, "shared": [500116, 500117], "max": 1},
@@ -186,6 +187,7 @@ RUN_ACT_XINGTIAN = True  # 刑天：普通/噩梦每日共享2次免费
 RUN_ACT_MONKIAN = True
 RUN_ACT_DRAGON = True
 RUN_ACT_GM = False  # GM切磋：每日共享2次免费机会
+RUN_ACT_FIGHT_GM = True  # 挑战GM（挑战萌哥）：普通/噩梦每日共享3次免费
 RUN_ACT_XWUKONG = "RUN_ACT_XWUKONG" in ACTIVE_XIE_SWITCHES
 RUN_ACT_XYAOYAO = "RUN_ACT_XYAOYAO" in ACTIVE_XIE_SWITCHES
 RUN_ACT_XTANG = "RUN_ACT_XTANG" in ACTIVE_XIE_SWITCHES
@@ -2120,10 +2122,12 @@ def clear_activity_once(flow, mid, label):
     if isinstance(r1, dict) and r1.get("error"):
         return False, {}, r1.get("error")
     bag = defaultdict(int)
-    if mid in (500120, 500127):
-        gm_names = {"906701": "汪汪", "906705": "汪汪", "906703": "萌哥", "906707": "萌哥", "906704": "教主", "906708": "教主"}
+    if mid in (500112, 500113, 500120, 500127):
+        gm_names = {"906301": "萌哥", "906302": "萌哥", "906303": "汪汪", "906304": "萌哥", "906305": "礼盒",
+                    "906311": "萌哥", "906312": "萌哥", "906313": "汪汪", "906314": "萌哥", "906315": "礼盒",
+                    "906701": "汪汪", "906705": "汪汪", "906703": "萌哥", "906707": "萌哥", "906704": "教主", "906708": "教主"}
         selected = list(dict.fromkeys(gm_names[str(d.get("monsterId"))] for d in (r1.get("drops") or []) if str(d.get("monsterId")) in gm_names))
-        print("[GM切磋] 本场服务器掉落对应：%s；按实际掉落拾取" % "、".join(selected))
+        print("[%s] 本场服务器掉落对应：%s；按实际掉落拾取" % (label, "、".join(selected)))
     server_rnd = int(r1["rnd"])
     for ordinal, drop in enumerate(r1.get("drops") or []):
         # 正常单人副本的物品由 syncDropInfo 逐个确认拾取；create 返回的 drops 只是地面掉落列表。
@@ -2186,6 +2190,7 @@ def run_activity(flow, info):
         "牛魔王": "RUN_ACT_MONKIAN",
         "魔龙": "RUN_ACT_DRAGON",
         "GM切磋": "RUN_ACT_GM",
+        "挑战GM": "RUN_ACT_FIGHT_GM",
         "邪·悟空": "RUN_ACT_XWUKONG",
         "邪·瑶瑶": "RUN_ACT_XYAOYAO",
         "邪·唐僧": "RUN_ACT_XTANG",

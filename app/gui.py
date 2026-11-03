@@ -603,6 +603,7 @@ TASKS = [
 
 
     ("GM切磋",           "RUN_ACT_GM",       False, False, "每日免费2次，萌哥/汪汪由服务器决定"),
+    ("挑战GM",           "RUN_ACT_FIGHT_GM", True,  False, "挑战萌哥，普通/噩梦每日共享免费3次；优先噩梦"),
 
 
 
@@ -922,7 +923,7 @@ TASK_PAGES = {
 
 
 
-        "RUN_ACT_XINGTIAN", "RUN_ACT_MONKIAN", "RUN_ACT_DRAGON", "RUN_ACT_GM", "RUN_ACT_XWUKONG",
+        "RUN_ACT_XINGTIAN", "RUN_ACT_MONKIAN", "RUN_ACT_DRAGON", "RUN_ACT_GM", "RUN_ACT_FIGHT_GM", "RUN_ACT_XWUKONG",
 
 
 

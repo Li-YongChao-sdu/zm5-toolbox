@@ -132,13 +132,20 @@ class OldActivityPage:
                     canvas.yview_scroll(-int(event.delta/120),'units')
         tab.bind_all('<MouseWheel>',wheel,add='+')
         self.weekly_canvas=canvas
-        ttk.Label(page,text='本期三项：霜降礼包免费；去灵花、幻之精华需消耗灵魂，不花点券。',wraplength=850).pack(anchor='w',pady=(0,8))
         try:
             gifts,labels=load_catalog('FestivalFree')
             soul,_=load_catalog('GlobalBuy')
-            rows=[('FestivalFree',gifts['2069']),('GlobalBuy',soul['90003981']),('GlobalBuy',soul['91000664'])]
         except Exception as exc:
             ttk.Label(page,text='读取本期商品失败：'+str(exc),foreground='red').pack(anchor='w');return
+        rows=[('FestivalFree',cfg) for cfg in gifts.values() if dated_state(cfg)=='商品日期在期内']
+        souls=sorted((('GlobalBuy',cfg) for cfg in soul.values() if dated_state(cfg)=='商品日期在期内'),
+                     key=lambda item:str(item[1].get('underTime')))
+        rows+=souls
+        free=len(rows)-len(souls)
+        ttk.Label(page,text='本期 %d 项：免费节气礼包 %d 个；限时灵魂商品 %d 件（消耗灵魂，不花点券）。'
+                  %(len(rows),free,len(souls)),wraplength=850).pack(anchor='w',pady=(0,8))
+        if not rows:
+            ttk.Label(page,text='当前配置没有在期限内的免费礼包或灵魂商品。',foreground='#a06000').pack(anchor='w');return
         for source,cfg in rows:
             box=ttk.LabelFrame(page,text=cfg['name'],padding=8)
             box.pack(fill='x',pady=6)

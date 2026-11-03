@@ -5824,6 +5824,11 @@ class DailyGUI:
 
 
 
+        cave = getattr(self, 'card_cave_target_page', None)
+        if cave: cave.invalidate()
+
+
+
         try:
 
 
@@ -6695,6 +6700,11 @@ class DailyGUI:
 
 
             control.invalidate()
+
+
+
+        cave = getattr(self, 'card_cave_target_page', None)
+        if cave: cave.invalidate()
 
 
 

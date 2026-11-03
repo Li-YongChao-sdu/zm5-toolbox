@@ -60,10 +60,17 @@ class CardCaveTargetPage:
             if not chosen:raise ValueError('请先选择排行榜中的玩家')
             self.mode.set('指定挑战码');self.code.set(chosen[0]);self.run('query')
         except (ValueError,KeyError) as e:messagebox.showerror('未执行',str(e),parent=self.page)
-    def invalidate(self):self.data=None;self.summary.set('挑战方式或挑战码已变化，请重新查询。')
+    def invalidate(self,message='账号、槽位、挑战方式或挑战码已变化，请重新查询。'):self.data=None;self.summary.set(message)
     def render(self,data):
         if data.get('mode','specified')!=self.mode_key():return
         if self.mode_key()=='specified' and data['code']!=self.code.get().strip():return
+        try:
+            a=json.loads((ROOT/'account.local.json').read_text(encoding='utf-8-sig'))
+            slot=int(self.app.cmb_slot.get())
+        except (OSError,ValueError,KeyError):
+            self.invalidate('无法确认当前账号或槽位，请重新查询。');return
+        if str(data.get('account',''))!=str(a.get('username','')) or int(data.get('slot',-1))!=slot:
+            self.invalidate('账号或槽位已变化，请重新查询。');return
         self.data=data;self.summary.set('槽%s｜洞主：%s｜%s\n%s星｜守备强度%s｜今日剩余免费%s次\n挑战码：%s'%(data['slot'],data['owner'],data['name'],data['stars'],data['strength'],data['remaining'],data['code']))
     def mode_key(self):return 'specified' if self.mode.get()=='指定挑战码' else 'recommend'
     def run(self,action):
@@ -75,7 +82,9 @@ class CardCaveTargetPage:
             args=[str(ROOT/'card_cave_target.py'),'--mode',self.mode_key(),'--code',code]
             if action=='fight':
                 a=json.loads((ROOT/'account.local.json').read_text(encoding='utf-8-sig'));d=self.data
-                if not d or d['account']!=str(a.get('username','')) or d['slot']!=int(self.app.cmb_slot.get()) or d.get('mode')!=self.mode_key() or (self.mode_key()=='specified' and d['code']!=code):raise ValueError('请先查询当前账号、槽位与挑战码')
+                if not d:raise ValueError('请先查询当前账号、槽位与挑战码')
+                if d['account']!=str(a.get('username','')) or d['slot']!=int(self.app.cmb_slot.get()):raise ValueError('账号或槽位已变化，请重新查询')
+                if d.get('mode')!=self.mode_key() or (self.mode_key()=='specified' and d['code']!=code):raise ValueError('挑战方式或挑战码已变化，请重新查询')
                 n=int(self.count.get());wait=float(self.wait.get())
                 if not 1<=n<=5 or not 0<=wait<=3600:raise ValueError('次数须为1～5，等待须为0～3600秒')
                 if d['remaining']<=0:raise ValueError('今天免费次数已用尽')

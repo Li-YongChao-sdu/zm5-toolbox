@@ -3207,6 +3207,13 @@ class DailyGUI:
         ttk.Label(world_damage, text="%").pack(side=tk.LEFT)
 
 
+        self.var_world_auto_boss = tk.BooleanVar(value=True)
+
+
+        ttk.Checkbutton(world_frame, text="按当前账号战力自动选择 Boss（1.2 倍门槛内最高档）",
+                        variable=self.var_world_auto_boss).pack(anchor=tk.W, padx=8, pady=(0, 4))
+
+
 
         self.var_world_attack_target = tk.BooleanVar(value=True)
 
@@ -3236,7 +3243,7 @@ class DailyGUI:
 
 
 
-                  text="默认按真实角色面板、真实技能栏和伤害公式逐段累计，每2秒上报；技能CD、蓝耗、暴击、死亡复活按实际节奏。模型不可用时才改用每秒 x/4～7x/4 随机；挂机时每秒上报 0～10000。自动进入当前血量最高的存活房间并等待结算。",
+                  text="默认按真实角色面板、真实技能栏和伤害公式逐段累计，每2秒上报；技能CD、蓝耗、暴击、死亡复活按实际节奏。模型不可用时才改用每秒 x/4～7x/4 随机；挂机时每秒上报 0～10000。勾选自动选择时按面板战力在1.2倍门槛内选最高档，Boss下拉仅作兜底。自动进入当前血量最高的存活房间并等待结算。",
 
 
 
@@ -8825,6 +8832,12 @@ class DailyGUI:
 
 
                 "--expected-dps", str(dps), "--target-percent", str(target)]
+
+
+        if self.var_world_auto_boss.get():
+
+
+            args.append("--auto-boss")
 
 
 

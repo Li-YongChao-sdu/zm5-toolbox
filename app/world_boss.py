@@ -5,19 +5,35 @@ import random
 import sys
 import threading
 import time
+from pathlib import Path
 from main_farm import _connect, _entry
 import daily_auto as da
 
 
 from world_boss_damage import sample_hurt, sample_expected_hurt
-from world_boss_model import WorldBossModel
+from world_boss_model import WorldBossModel, build_panel
+
+
+def pick_boss(info, fallback=960101, ratio=1.2):
+    """按合成面板战力选档：取门槛不超过战力 ratio 倍的最高 Boss。"""
+    stages = json.loads((Path(__file__).with_name('world_boss_stages.json')
+                         ).read_text(encoding='utf-8-sig'))
+    panel = build_panel(info) or {}
+    power = float(panel.get('_power') or 0)
+    if power <= 0:
+        return int(fallback), stages[0], 0.0
+    fits = [row for row in stages
+            if float(row.get('highPower') or 0) <= power * ratio]
+    row = fits[-1] if fits else stages[0]
+    return int(row['id']), row, power
 
 
 def run(boss_id=960101, hurt_min=100000, hurt_max=500000,
         target_percent=5.05, max_seconds=0,
         keepalive_min=0, keepalive_max=10000,
         room_override=None, expected_dps=None, idle_only=False,
-        attack_to_target=True, idle_mode=False, real_damage=True):
+        attack_to_target=True, idle_mode=False, real_damage=True,
+        auto_boss=False):
     if hurt_min < 0 or hurt_max < hurt_min:
         raise ValueError('伤害范围无效')
     if keepalive_min < 0 or keepalive_max < keepalive_min:
@@ -63,6 +79,14 @@ def run(boss_id=960101, hurt_min=100000, hurt_max=500000,
         count_before = int((before.get('worldBoss') or {}).get('count') or 0)
         if count_before <= 0:
             raise RuntimeError('没有世界 Boss 挑战次数')
+        if auto_boss:
+            picked, stage, power = pick_boss(before, boss_id)
+            if power > 0:
+                print('[世界Boss] 面板战力 %.0f，自动选择 %s %s（门槛 %s）' % (
+                    power, picked, stage.get('name'), stage.get('highPower')), flush=True)
+            else:
+                print('[世界Boss] 面板战力不可用，沿用 Boss %s' % boss_id, flush=True)
+            boss_id = picked
         listed = flow.request('scene.worldBossHandler.getWorldBossRoomList',
                               {'bossId': boss_id, 'type': 0})
         if listed.get('code') != 200 or listed.get('error'):
@@ -234,6 +258,8 @@ if __name__ == '__main__':
                         help='开启挂机伤害；有目标时达标后切换，否则立即挂机')
     parser.add_argument('--mock-damage', action='store_true',
                         help='不启用真实面板/技能模型，沿用旧随机伤害')
+    parser.add_argument('--auto-boss', action='store_true',
+                        help='按面板战力自动选择档位（1.2倍门槛内最高档）')
     args = parser.parse_args()
     if args.slot is not None:
         da.RECORD_INDEX = args.slot
@@ -242,4 +268,4 @@ if __name__ == '__main__':
                       args.keepalive_min, args.keepalive_max, args.room_id,
                       args.expected_dps, args.idle_only,
                       not args.no_target, args.idle_mode,
-                      not args.mock_damage) else 1)
+                      not args.mock_damage, args.auto_boss) else 1)

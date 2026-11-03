@@ -3297,7 +3297,7 @@ class DailyGUI:
 
 
 
-        ttk.Label(union_damage, text="每秒期望伤害 x:").pack(side=tk.LEFT)
+        ttk.Label(union_damage, text="兜底每秒期望伤害 x:").pack(side=tk.LEFT)
 
 
 
@@ -3433,7 +3433,7 @@ class DailyGUI:
 
 
 
-                  text="每秒伤害在 x/4～7x/4 之间均匀随机；挂机时每秒上报 0～10000。留空时 x 按当前阶数每分钟最大血量的 0.2% 计算。",
+                  text="默认按真实角色面板、真实技能栏和伤害公式逐段累计，每2秒上报；技能CD、蓝耗、暴击、死亡复活按实际节奏。模型不可用时才在兜底 x 的 x/4～7x/4 随机；挂机时每秒上报 0～10000。留空时兜底 x 按当前阶数每分钟最大血量的 0.2% 计算。",
 
 
 

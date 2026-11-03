@@ -59,7 +59,8 @@ def minute_packets(hp_max, percent_per_minute=0.2, interval=5):
 def run(level, percent_per_minute=0.2, max_seconds=0,
         expected_dps=None, target_percent=0.2, idle_only=False,
         attack_to_target=True, idle_mode=False, connector=None, entry=None,
-        label=None, finish_at_end=False, participant_count=None, finish_margin=5, finish_power=1):
+        label=None, finish_at_end=False, participant_count=None, finish_margin=5,
+        finish_power=1, real_damage=True):
     def log(*args, **kwargs):
         print(('[' + label + '] ') if label else '', *args, **kwargs)
     if level != 0 and level not in LEVELS:
@@ -132,6 +133,71 @@ def run(level, percent_per_minute=0.2, max_seconds=0,
                                (server_hp_max, expected["hpMax"]))
         rate = expected_dps if expected_dps is not None else damage_per_second(server_hp_max, percent_per_minute)
         goal = server_hp_max * target_percent / 100
+        model = None
+        model_state = None
+        if real_damage and not finish_at_end:
+            try:
+                from world_boss_model import WorldBossModel, _table
+                monster = _table('Monster').get(str(expected['monsterId'])) or {}
+                boss_data = {
+                    'name': '九灵元圣',
+                    'level': monster.get('level'),
+                    'hpMax': server_hp_max,
+                    'phyDef': monster.get('phyDef'),
+                    'atk': monster.get('atk'),
+                    'toughness': monster.get('toughness'),
+                    'guardian': monster.get('guardian'),
+                }
+                model = WorldBossModel(info, 0, boss=boss_data, cd_field='cd')
+                model_state = {
+                    'pending': 0.0,
+                    'next_report': time.monotonic() + model.REPORT_INTERVAL,
+                    'alive_until': time.monotonic() + model.alive_seconds(),
+                    'revive_at': 0.0,
+                    'model_time': 0.0,
+                }
+                log('[联盟Boss] 真实模型：面板攻击 %.0f，Boss等级 %s，暴击 %.0f%%，爆伤 %.2f，预计存活 %.0f 秒' % (
+                    model.panel.get('atk') or 0, model.boss_level,
+                    model.crit_rate * 100, model.crit_mult, model.alive_seconds()), flush=True)
+            except Exception as exc:
+                model = None
+                model_state = None
+                log('[联盟Boss] 真实模型不可用（%s），改用每秒期望伤害' % exc, flush=True)
+
+        def advance_model(now):
+            """按真实技能/CD/蓝耗推进一秒，每 2 秒返回累计伤害。"""
+            if model_state['revive_at']:
+                if now < model_state['revive_at']:
+                    return 0.0
+                model_state['revive_at'] = 0.0
+                model.reset_after_revive()
+                model_state['model_time'] = 0.0
+                model_state['alive_until'] = now + model.alive_seconds()
+                log('[联盟Boss] 复活，满蓝继续输出', flush=True)
+            if now >= model_state['alive_until']:
+                amount = model_state['pending']
+                model_state['pending'] = 0.0
+                model_state['revive_at'] = now + random.uniform(30, 33)
+                log('[联盟Boss] 模拟死亡，%.0f 秒后满蓝复活' %
+                      (model_state['revive_at'] - now), flush=True)
+                return amount
+            limit = model_state['model_time'] + 1.0
+            t = model_state['model_time']
+            while t < limit:
+                skill_id = model.choose(t)
+                if skill_id is None:
+                    t += 0.15
+                    continue
+                damage, gap = model.cast(skill_id, t)
+                model_state['pending'] += damage
+                t += max(gap, 0.15)
+            model_state['model_time'] = t
+            if now >= model_state['next_report']:
+                amount = model_state['pending']
+                model_state['pending'] = 0.0
+                model_state['next_report'] = now + model.REPORT_INTERVAL
+                return amount
+            return 0.0
         log("[联盟Boss] 已入场；最大血量 %.0f，每秒期望 %.2f，目标累计伤害 %.0f" %
               (server_hp_max, rate, goal), flush=True)
         end_seconds = max(0, float(response.get("endTime") or 0) / 1000 - time.time())
@@ -192,7 +258,10 @@ def run(level, percent_per_minute=0.2, max_seconds=0,
                         log('[定时击杀] 剩余血量%.0f，距目标%.1f秒，测试账号%d，每秒期望%.2f' % (state['hp'],seconds_left,count,rate),flush=True)
                         next_finish_log=time.monotonic()+30
             else:
-                hurt = random.uniform(0, 10000) if idle else sample_expected_hurt(rate)
+                if model and not idle:
+                    hurt = advance_model(time.monotonic())
+                else:
+                    hurt = random.uniform(0, 10000) if idle else sample_expected_hurt(rate)
             result = flow.request("scene.leagueHandler.attackBossCopy", {"hurt": hurt})
             if not isinstance(result, dict) or result.get("code") != 200 or result.get("error"):
                 log("[联盟Boss] 伤害上报停止：%s" % result, flush=True)
@@ -231,6 +300,8 @@ if __name__ == "__main__":
     parser.add_argument("--idle-only", action="store_true")
     parser.add_argument("--no-target", action="store_true")
     parser.add_argument("--idle-mode", action="store_true")
+    parser.add_argument("--mock-damage", action="store_true",
+                        help="不启用真实面板/技能模型，沿用每分钟比例控伤")
     parser.add_argument("--batch-file", help="多账号列表文件")
     options = parser.parse_args()
     if options.batch_file:
@@ -239,4 +310,5 @@ if __name__ == "__main__":
     sys.exit(0 if run(options.level, options.percent_per_minute,
                       options.max_seconds, options.expected_dps,
                       options.target_percent, options.idle_only,
-                      not options.no_target, options.idle_mode) else 1)
+                      not options.no_target, options.idle_mode,
+                      real_damage=not options.mock_damage) else 1)

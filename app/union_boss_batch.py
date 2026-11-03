@@ -53,7 +53,8 @@ def run_batch(options):
                          connector=lambda: connect(account, slot)[0],
                          entry=lambda flow: enter(flow, slot), label=label,
                          finish_at_end=getattr(options,'finish_at_end',False),participant_count=participant_count,
-                         finish_power=getattr(options,'finish_power',1))
+                         finish_power=getattr(options,'finish_power',1),
+                         real_damage=not getattr(options,'mock_damage',False))
             print("[%s] %s；奖励请在邮件中领取" %
                   (label, "服务器结算成功" if result else "未取得成功结算"), flush=True)
             return result

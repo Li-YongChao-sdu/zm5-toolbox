@@ -236,22 +236,33 @@ class WorldBossModel:
 
     REPORT_INTERVAL = 2.0
 
-    def __init__(self, info, boss_id):
+    def __init__(self, info, boss_id, boss=None, cd_field='worldBossCD'):
         self.info = info
         self.boss_id = int(boss_id)
+        self.cd_field = cd_field
         self.panel = build_panel(info)
         if not self.panel:
             raise ValueError('角色面板缺少 atk')
-        world = _table('WorldBoss').get(str(self.boss_id)) or {}
-        monster = _table('Monster').get(str(self.boss_id)) or {}
-        self.boss_name = world.get('bossName') or monster.get('name') or str(boss_id)
-        self.boss_level = int(world.get('bossLevel') or monster.get('level') or 0)
-        self.boss_hp_max = _num(monster.get('hpMax'))
-        self.boss_def = _num(monster.get('phyDef'))
-        self.boss_atk = _num(monster.get('atk'))
-        self.high_power = int(_num(world.get('highPower')))
-        self.boss_toughness = _num(monster.get('toughness'))
-        self.boss_guardian = _num(monster.get('guardian'))
+        if boss:
+            self.boss_name = boss.get('name') or str(boss_id)
+            self.boss_level = int(boss.get('level') or 0)
+            self.boss_hp_max = _num(boss.get('hpMax'))
+            self.boss_def = _num(boss.get('phyDef'))
+            self.boss_atk = _num(boss.get('atk'))
+            self.high_power = int(_num(boss.get('highPower')))
+            self.boss_toughness = _num(boss.get('toughness'))
+            self.boss_guardian = _num(boss.get('guardian'))
+        else:
+            world = _table('WorldBoss').get(str(self.boss_id)) or {}
+            monster = _table('Monster').get(str(self.boss_id)) or {}
+            self.boss_name = world.get('bossName') or monster.get('name') or str(boss_id)
+            self.boss_level = int(world.get('bossLevel') or monster.get('level') or 0)
+            self.boss_hp_max = _num(monster.get('hpMax'))
+            self.boss_def = _num(monster.get('phyDef'))
+            self.boss_atk = _num(monster.get('atk'))
+            self.high_power = int(_num(world.get('highPower')))
+            self.boss_toughness = _num(monster.get('toughness'))
+            self.boss_guardian = _num(monster.get('guardian'))
         self.player = info.get(self.panel.get('_pk') or 'p1') or {}
         self.levels = {}
         for skill_id, level in (self.player.get('skill') or {}).items():
@@ -345,7 +356,9 @@ class WorldBossModel:
         if skill_id == self.normal_id and coefficient <= 0 and fixed <= 0:
             coefficient = 1.0
         damage = coefficient > 0 or fixed > 0
-        cd = _by_level(raw.get('worldBossCD'), level)
+        cd = _by_level(raw.get(self.cd_field), level)
+        if cd <= 0 and self.cd_field != 'worldBossCD':
+            cd = _by_level(raw.get('worldBossCD'), level)
         if skill_id == self.normal_id and cd <= 0:
             cd = 1.2
         if cd <= 0:

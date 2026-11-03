@@ -31,6 +31,7 @@ app/fairy_feed_cache/
 audit_*/
 exe_*/
 build_*/
+tools/installer_build/payload/
 *.rar
 *.exe
 *.log

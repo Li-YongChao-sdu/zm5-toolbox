@@ -28,9 +28,9 @@ class CardCaveTargetPage:
         self.summary.set('默认指定挑战码：填写挑战码或从下方榜单选择，查询后确认挑战；两种方式共享每日5次免费额度。')
 
         ttk.Label(self.page,textvariable=self.summary,wraplength=950).pack(anchor='w',pady=8)
-        for text,action in [('查询藏宝洞与免费次数','query'),('确认并正式挑战','fight')]:
+        for text,action in [('查询藏宝洞与免费次数','query'),('确认并正式挑战','fight'),('一键查询并挑战5次','auto')]:
             b=ttk.Button(self.page,text=text,command=lambda a=action:self.run(a));b.pack(anchor='w',pady=5);self.buttons.append(b)
-        ttk.Label(self.page,text='走正式开局和奖励结算；只用每日剩余免费次数。支持自己的已发布藏宝洞。日常任务中的藏宝洞也使用本页的模式、次数和等待设置。默认指定挑战码；推荐模式每局刷新并重新选最高分。',wraplength=950).pack(anchor='w',pady=8)
+        ttk.Label(self.page,text='走正式开局和奖励结算；只用每日剩余免费次数。支持自己的已发布藏宝洞。日常任务中的藏宝洞也使用本页的模式、次数和等待设置。默认指定挑战码；推荐模式每局刷新并重新选最高分。一键挑战会现场查询并连续挑战5局，中途失败即停。',wraplength=950).pack(anchor='w',pady=8)
     def field(self,label,value,var=None):
         row=ttk.Frame(self.page);row.pack(fill='x',pady=5);ttk.Label(row,text=label,width=30).pack(side='left')
         if label=='指定挑战码':self.code_row=row
@@ -80,6 +80,13 @@ class CardCaveTargetPage:
             import re
             if self.mode_key()=='specified' and not re.fullmatch(r'\d+_r\d+_\d+',code):raise ValueError('请输入 UID_r编号_展位编号 格式的挑战码')
             args=[str(ROOT/'card_cave_target.py'),'--mode',self.mode_key(),'--code',code]
+            if action=='auto':
+                wait=float(self.wait.get())
+                if not 0<=wait<=3600:raise ValueError('等待须为0～3600秒')
+                a=json.loads((ROOT/'account.local.json').read_text(encoding='utf-8-sig'))
+                args+=['--matches','5','--wait',str(wait),'--account',str(a.get('username','')),'--slot',str(int(self.app.cmb_slot.get()))]
+                self.data=None;self.summary.set('已启动一键挑战：现场查询目标，连续挑战5局，中途失败即停。')
+                self.app._append_log('[藏宝洞] 一键挑战已启动：%s，5局，间隔%s秒。'%('每局刷新推荐最高守备强度' if self.mode_key()=='recommend' else '指定挑战码',wait))
             if action=='fight':
                 a=json.loads((ROOT/'account.local.json').read_text(encoding='utf-8-sig'));d=self.data
                 if not d:raise ValueError('请先查询当前账号、槽位与挑战码')

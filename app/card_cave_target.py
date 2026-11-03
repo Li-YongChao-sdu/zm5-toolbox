@@ -59,7 +59,7 @@ def select(flow,mode,code=''):
 def run_matches(flow,slot,matches=1,wait=2,mode='recommend',code='',fingerprint='',report_dir=None):
     if not 1<=int(matches)<=5 or not 0<=float(wait)<=3600:raise ValueError('次数须为1～5，等待须为0～3600秒')
     if mode not in ('recommend','specified'):raise ValueError('挑战方式无效')
-    if mode=='specified' and not fingerprint:raise ValueError('指定挑战请先查询并确认目标')
+    if mode=='specified' and not fingerprint:fingerprint=target(flow,code)['fingerprint']
     folder=Path(report_dir) if report_dir else ROOT/'card_cave_target_reports';folder.mkdir(parents=True,exist_ok=True)
     path=folder/(datetime.now().strftime('%Y%m%d_%H%M%S_%f')+'.json');report={'slot':slot,'mode':mode,'rounds':[]}
     def save():path.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')

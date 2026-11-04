@@ -55,6 +55,32 @@ python tests/test_pet_training_toolbox_offline.py
 
 当前保留的离线测试覆盖：抓宠/早停升级工具箱构建、按钮参数、二级密码传递、页签可见性。
 
+## AS 路由对照说明
+
+用 FFdec 反编译的 `scripts`（2026-08-25 版本）与服务端 788 条路由做过一次对照：
+
+- AS 有、服务端没有：36 条
+  - 31 条只在 `ServerConst`、`RouteConst`、`QCConst`、`TeamConst` 里定义，没有调用点，属于历史常量；
+  - 1 条是拼写错误：`cene.petPvpHandler.addSysPetLv`，正确为 `scene.petPvpHandler.addSysPetLv`；
+  - 4 条是 `TeamOperateCmd` 里的旧组队路由。
+- 服务端有、AS 没引用：140 条，主要是版本差（GM、联盟战、迷宫、宠物竞技等新增接口）。
+
+工具箱的组队流程（`halo_solo.py`、`halo_team.py`）已经使用新路由：
+
+- `room.waitingRoomHandler.prepareCreateOnlineCopy`
+- `room.waitingRoomHandler.loadingProgress`
+
+因此不为上述 4 条旧路由增加兼容逻辑，也不为那 31 条历史常量补实现。若以后要复刻旧客户端的组队行为，可按下表映射：
+
+| 旧路由 | 当前路由 |
+|---|---|
+| `room.waitingRoomHandler.createOnlineCopy` | `room.waitingRoomHandler.prepareCreateOnlineCopy` |
+| `scene.copyHandler.ping` | `copy.copyHandler.ping` 或 `room.waitingRoomHandler.ping` |
+| `scene.copyHandler.broadcastMessagePingTime` | `room.waitingRoomHandler.broadcastMessagePingTime` |
+| `copy.copyHandler.getServerTime` | `scene.userHandler.getCurDateTime` |
+
+表中的“当前路由”只是服务端实际注册的替代接口，不代表旧客户端的调用参数可以直接复用。
+
 ## 打包
 
 ```powershell

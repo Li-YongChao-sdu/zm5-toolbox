@@ -3181,7 +3181,17 @@ class DailyGUI:
 
 
 
-        ttk.Label(world_damage, text="兜底每秒期望伤害 x:").pack(side=tk.LEFT)
+        world_mode = ttk.Frame(world_frame)
+        world_mode.pack(fill=tk.X, padx=8, pady=(0, 4), before=world_damage)
+        ttk.Label(world_mode, text="伤害策略：").pack(side=tk.LEFT)
+        self.var_world_damage_mode = tk.StringVar(value="model")
+        ttk.Radiobutton(world_mode, text="真实面板模型", variable=self.var_world_damage_mode,
+                        value="model", command=self._sync_world_damage_mode).pack(side=tk.LEFT, padx=(0, 14))
+        ttk.Radiobutton(world_mode, text="自定义伤害（每秒 x/4～7x/4）", variable=self.var_world_damage_mode,
+                        value="custom", command=self._sync_world_damage_mode).pack(side=tk.LEFT)
+
+        self.lbl_world_dps = ttk.Label(world_damage, text="模型兜底每秒期望伤害 x:")
+        self.lbl_world_dps.pack(side=tk.LEFT)
 
 
 
@@ -3244,7 +3254,7 @@ class DailyGUI:
 
 
 
-                  text="默认按真实角色面板、真实技能栏和伤害公式逐段累计，每2秒上报；技能CD、蓝耗、暴击、死亡复活按实际节奏。模型不可用时才改用每秒 x/4～7x/4 随机；挂机时每秒上报 0～10000。勾选自动选择时按面板战力在1.2倍门槛内选最高档，Boss下拉仅作兜底。自动进入当前血量最高的存活房间并等待结算。",
+                  text="伤害策略可选：真实面板模型＝按真实角色面板、真实技能栏和伤害公式逐段累计，每2秒上报，技能CD、蓝耗、暴击、死亡复活按实际节奏；自定义伤害＝按每秒期望 x 在 x/4～7x/4 随机上报。选模型时 x 仅作模型不可用的兜底。挂机时每秒上报 0～10000。勾选自动选择时按面板战力在1.2倍门槛内选最高档，Boss下拉仅作兜底。自动进入当前血量最高的存活房间并等待结算。",
 
 
 
@@ -3298,7 +3308,17 @@ class DailyGUI:
 
 
 
-        ttk.Label(union_damage, text="兜底每秒期望伤害 x:").pack(side=tk.LEFT)
+        union_mode = ttk.Frame(union_frame)
+        union_mode.pack(fill=tk.X, padx=8, pady=(0, 4), before=union_damage)
+        ttk.Label(union_mode, text="伤害策略：").pack(side=tk.LEFT)
+        self.var_union_damage_mode = tk.StringVar(value="model")
+        ttk.Radiobutton(union_mode, text="真实面板模型", variable=self.var_union_damage_mode,
+                        value="model", command=self._sync_union_damage_mode).pack(side=tk.LEFT, padx=(0, 14))
+        ttk.Radiobutton(union_mode, text="自定义伤害（每秒 x/4～7x/4）", variable=self.var_union_damage_mode,
+                        value="custom", command=self._sync_union_damage_mode).pack(side=tk.LEFT)
+
+        self.lbl_union_dps = ttk.Label(union_damage, text="模型兜底每秒期望伤害 x:")
+        self.lbl_union_dps.pack(side=tk.LEFT)
 
 
 
@@ -3434,7 +3454,7 @@ class DailyGUI:
 
 
 
-                  text="默认按真实角色面板、真实技能栏和伤害公式逐段累计，每2秒上报；技能CD、蓝耗、暴击、死亡复活按实际节奏。模型不可用时才在兜底 x 的 x/4～7x/4 随机；挂机时每秒上报 0～10000。留空时兜底 x 按当前阶数每分钟最大血量的 0.2% 计算。",
+                  text="伤害策略可选：真实面板模型＝按真实角色面板、真实技能栏和伤害公式逐段累计，每2秒上报，技能CD、蓝耗、暴击、死亡复活按实际节奏；自定义伤害＝按每秒期望 x 在 x/4～7x/4 随机上报。选模型时 x 仅作模型不可用的兜底。挂机时每秒上报 0～10000。x 留空时按当前阶数每分钟最大血量的 0.2% 自动计算。",
 
 
 
@@ -8782,6 +8802,12 @@ class DailyGUI:
 
 
 
+    def _sync_world_damage_mode(self):
+        if self.var_world_damage_mode.get() == "custom":
+            self.lbl_world_dps.configure(text="自定义每秒期望伤害 x:")
+        else:
+            self.lbl_world_dps.configure(text="模型兜底每秒期望伤害 x:")
+
     def _start_world_boss(self):
 
 
@@ -8844,6 +8870,9 @@ class DailyGUI:
 
                 "--expected-dps", str(dps), "--target-percent", str(target)]
 
+        if self.var_world_damage_mode.get() == "custom":
+            args.append("--mock-damage")
+
 
         if self.var_world_auto_boss.get():
 
@@ -8875,6 +8904,12 @@ class DailyGUI:
 
 
 
+
+    def _sync_union_damage_mode(self):
+        if self.var_union_damage_mode.get() == "custom":
+            self.lbl_union_dps.configure(text="自定义每秒期望伤害 x:")
+        else:
+            self.lbl_union_dps.configure(text="模型兜底每秒期望伤害 x:")
 
     def _start_union_boss(self):
 
@@ -8945,6 +8980,9 @@ class DailyGUI:
 
 
             args.extend(["--expected-dps", str(dps)])
+
+        if self.var_union_damage_mode.get() == "custom":
+            args.append("--mock-damage")
 
 
 

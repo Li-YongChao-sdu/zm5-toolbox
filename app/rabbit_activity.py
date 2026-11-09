@@ -3,6 +3,8 @@ import json,random,time
 from pathlib import Path
 
 def run(flow,info,slot):
+    from activity_availability import require_open
+    require_open('RUN_MAGIC_RABBIT')
     from teacher_trial import enter
     from daily_auto import _dungeon_rec
     from main_farm import _create,_finish

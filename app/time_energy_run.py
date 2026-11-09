@@ -18,6 +18,15 @@ def refresh(flow, slot):
     return reply['info']
 
 def preflight(daily, info, energy_id, cave_plan, slot):
+    # These copy routes may grant equipment; avoid spending energy with an already full bag.
+    if energy_id in (2, 3, 4, 5, 7):
+        bag = info.get('bag') or {}
+        capacity = bag.get('equipBagMax')
+        equipment = bag.get('equip')
+        if not isinstance(equipment, dict) or type(capacity) is not int or capacity < 1:
+            raise ValueError('无法确认装备背包容量，未兑换')
+        if len(equipment) >= capacity:
+            raise ValueError('装备背包已满，请先清理；未兑换、未使用水晶')
     if energy_id == 6:
         account = daily._ACC
         from my_daily_catalog import validate_plan

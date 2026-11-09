@@ -157,6 +157,7 @@ def run_window(flow,uid,args):
  match_button=ttk.Button(toolbar,text='开始匹配',style='BrawlMatch.TButton',command=lambda:start_match())
  match_button.pack(fill='x')
  status=tk.StringVar(value='点击开始匹配，每次只打一场');ttk.Label(root,textvariable=status,font=('Microsoft YaHei',12)).pack(fill='x',padx=10,pady=8)
+ settlement=tk.StringVar(value='结算后自动刷新战绩和乱斗币');ttk.Label(root,textvariable=settlement,wraplength=1000).pack(fill='x',padx=10,pady=4)
  score=tk.StringVar(value='小局结果：暂无已确认结果');ttk.Label(root,textvariable=score,wraplength=1000,font=('Microsoft YaHei',11,'bold')).pack(fill='x',padx=10,pady=4)
  opponent=tk.StringVar();ttk.Label(root,textvariable=opponent,wraplength=1000).pack(fill='x',padx=10)
  cols=('pet','level','power','elf','basis');tree=ttk.Treeview(root,columns=cols,show='headings',height=10)
@@ -183,10 +184,12 @@ def run_window(flow,uid,args):
   try:
    while True:
     result=outcomes.get_nowait();outcome_text=result['text'];can_match=result['can_match']
+    stats=result.get('stats')
+    if stats:settlement.set(f"战绩：{stats['total']}场 / 胜{stats['win']} / 负{stats['fail']} ｜ 积分{stats['score']} ｜ 乱斗币{stats['coin']} ｜ 今日已获{stats['daily_coin']}")
   except queue.Empty:pass
   s=control.snapshot();me=next((p for p in s['players'] if str(p.get('playerId'))==str(uid)),{});en=next((p for p in s['players'] if str(p.get('playerId'))!=str(uid)),{})
   active=not finished.is_set() and s['stage']==0 and time.monotonic()<s['deadline'];remaining=max(0,math.ceil(s['deadline']-time.monotonic()))
-  phase={0:'准备：请选择宠物和宝符',1:'加载战斗',2:'战斗进行中'}.get(s['stage'],'匹配/入房')
+  phase={0:'准备：请选择宠物和宝符',1:'加载战斗',2:'战斗进行中，等待服务器结果'}.get(s['stage'],'匹配/入房')
   if s['stage']==2 and remaining==0:phase='本小局计时结束，等待服务器结算/下一轮'
   elif s['stage']==0 and remaining==0:phase='选宠计时结束，等待服务器切换阶段'
   status.set(outcome_text if finished.is_set() else f"第{s['session'] or '-'}小局 · {phase} · {remaining if s['stage'] is not None else '-'}秒")
@@ -218,7 +221,7 @@ def run_window(flow,uid,args):
   root.after(150,poll)
  def worker():
   try:
-   result=play_one(flow,events,control,args.match_seconds,args.battle_seconds)
+   result=play_one(flow,events,control,args.match_seconds,args.battle_seconds,slot=getattr(args,'record_index',0))
    outcomes.put(result);messages.put(result['text'])
   except Exception as exc:
    outcomes.put({'text':'匹配异常：'+str(exc),'can_match':False});messages.put(str(exc))

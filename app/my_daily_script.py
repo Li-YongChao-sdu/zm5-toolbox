@@ -23,8 +23,9 @@ def main():
     if target.parent!=ROOT or target.suffix!='.py' or target.name in ('gui.py','my_daily_script.py'):
         raise ValueError('模块脚本不在工具箱内')
     from pypomelo.flow import GameLoginFlow
-    from my_daily_policy import FreeDailyFlow
-    shops=json.loads((ROOT/'cg_config_out_cg1_20261019_1/Shop.json').read_text(encoding='utf-8-sig'))
+    from my_daily_policy import FreeDailyFlow,is_readonly_route
+    from my_daily_execution import load_shops, FATAL_EXIT, is_expected_skip
+    shops=load_shops()
     original=GameLoginFlow.request;guards={};approved=None
     if target.name=='old_shop.py' and '--buy' in args:
         from old_shop import load_catalog,requires_ticket,purchase_request
@@ -37,24 +38,36 @@ def main():
         def request(self,*a,**kw):return original(self.flow,*a,**kw)
     def request(flow,route,params=None,*a,**kw):
         guard=guards.setdefault(flow,FreeDailyFlow(Raw(flow),shops))
-        if (approved is not None and route==approved[0] and params==approved[1]) or non_ticket_exchange(target.name,route,params or {}):
-            if guard.halted:raise RuntimeError('上次请求未确认，已停止')
-            try:reply=original(flow,route,params,*a,**kw)
-            except Exception:guard.halted=True;raise
-            for cost in (reply.get('consume') or []) if isinstance(reply,dict) else []:
-                if str(cost.get('subType','')).lower() in ('ticket','gem'):guard.deny('出现非预期点券消耗')
-        else:reply=guard.request(route,params,*a,**kw)
-        name=route.rsplit('.',1)[-1].lower()
-        readonly=name.startswith(('get','query','entry','auth')) and not any(x in name for x in ('reward','claim','commit'))
-        if isinstance(reply,dict) and reply.get('code',200)!=200 and not readonly:
-            guard.halted=True
+        try:
+            if (approved is not None and route==approved[0] and params==approved[1]) or non_ticket_exchange(target.name,route,params or {}):
+                if guard.halted:raise RuntimeError('上次请求未确认，已停止')
+                try:reply=original(flow,route,params,*a,**kw)
+                except Exception:guard.halted=True;raise
+                for cost in (reply.get('consume') or []) if isinstance(reply,dict) else []:
+                    if str(cost.get('subType','')).lower() in ('ticket','gem'):guard.deny('出现非预期点券消耗')
+            else:reply=guard.request(route,params,*a,**kw)
+        except Exception:
+            if not guard.halted:guard.failed=True
+            raise
+        readonly=is_readonly_route(route)
+        if not isinstance(reply,dict) and not readonly:
+            guard.deny('变更请求回包格式不明')
+        if isinstance(reply,dict) and not readonly:
+            if reply.get('error') or reply.get('code',200) not in (None,200):
+                if not is_expected_skip(reply.get('error') or reply.get('code')):guard.failed=True
+            else:guard.writes=getattr(guard,'writes',0)+1
         return reply
     GameLoginFlow.request=request;sys.argv=[str(target)]+args[1:];exit_code=0
     try:
         try:runpy.run_path(str(target),run_name='__main__')
         except SystemExit as exc:exit_code=exc.code or 0
-        if any(g.halted for g in guards.values()):raise RuntimeError('模块请求被拒绝或结果未确认，停止后续任务')
+        if any(g.halted for g in guards.values()):raise SystemExit(FATAL_EXIT)
         if exit_code:raise SystemExit(exit_code)
+        if any(getattr(g,'failed',False) for g in guards.values()):raise SystemExit(1)
+        if guards and not any(getattr(g,'writes',0) for g in guards.values()):raise SystemExit(3)
+    except BaseException:
+        if any(g.halted for g in guards.values()):raise SystemExit(FATAL_EXIT)
+        raise
     finally:GameLoginFlow.request=original
 
 if __name__=='__main__':main()

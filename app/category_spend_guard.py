@@ -21,6 +21,9 @@ def context():
 
 def quote(route,data):
     # 已验证参数与配置的点券入口。未知点券分支不因三框开启而放行。
+    if route in ('scene.petArenaHandler.buyArenaCount','scene.arenaHandler.buyArenaCount'):
+        # 动态总价必须从当前存档历史日计数核算，不能按一次请求20点券处理。
+        return {'category':'daily','cost':None,'kind':'pet_recovery'}
     if route in ('scene.arenaHandler.beginArenaBattleWithTicket','scene.petArenaHandler.beginArenaBattleWithTicket'):
         return {'category':'daily','cost':int(config('Challenge')['1' if '.arenaHandler.' in route else '2']['challengeAgainTicket']),'kind':'arena'}
     if route in ('scene.shopHandler.buyBlackMarket','scene.shopHandler.buyBlackMarket_activity'):
@@ -143,11 +146,27 @@ def before(flow,route,data):
     if not matched(q['category'],permission.get('bits')):raise RuntimeError('未开启本类独立三框权限：'+CATEGORIES[q['category']][0])
     if str(getattr(flow,'uid',''))!=str(ctx.get('uid')):raise RuntimeError('点券权限不属于当前账号')
     if getattr(flow,'_category_slot',None)!=ctx.get('slot'):raise RuntimeError('点券权限不属于当前存档')
+    recovery_user=None;recovery_info=None
+    if q['kind']=='pet_recovery':
+        from pet_arena_recovery_data import state,plan
+        if type(data.get('day')) is not int or set(data)-{'day','password'}:
+            raise RuntimeError('斗宠找回参数未经核验')
+        recovery_user=raw(flow,'connector.roleHandler.getUserInfo',{}).get('user') or {}
+        recovery_info=raw(flow,'connector.entryHandler.entry',{'index':ctx['slot'],'userAgent':flow.user_agent}).get('info') or {}
+        handler='arena' if route=='scene.arenaHandler.buyArenaCount' else 'petArena'
+        home=raw(flow,'scene.%sHandler.getArenaInfo'%handler,{})
+        s=state(recovery_info,recovery_user,home,handler=handler)
+        batches=plan(s,str(data['day']))['days']
+        if s['remaining'] or len(batches)!=1:raise RuntimeError('先用完当前次数，且历史日必须存在可找回次数')
+        expected=getattr(flow,'_pet_recovery_quote',None)
+        if expected!={'state':s,'batch':batches[0]}:
+            raise RuntimeError('斗宠找回报价或状态已变化，请重新查询确认')
+        q.update(cost=batches[0]['cost'],before=s,batch=batches[0])
     budget=int(permission.get('budget',0));used=_spent.get((token,q['category']),0)
     if q['cost']<=0 or used+q['cost']>budget:raise RuntimeError('本类本次点券预算不足')
-    user=raw(flow,'connector.roleHandler.getUserInfo',{}).get('user') or {}
+    user=recovery_user if recovery_user is not None else raw(flow,'connector.roleHandler.getUserInfo',{}).get('user') or {}
     if user.get('ticket') is None or int(user['ticket'])<q['cost']:raise RuntimeError('点券余额不足或未知')
-    info=raw(flow,'connector.entryHandler.entry',{'index':ctx['slot'],'userAgent':flow.user_agent}).get('info') or {}
+    info=recovery_info if recovery_info is not None else raw(flow,'connector.entryHandler.entry',{'index':ctx['slot'],'userAgent':flow.user_agent}).get('info') or {}
     flow._category_pending_route=route;quota_check(q,info,flow,user,data)
     q.update(token=token,ticket_before=int(user['ticket']),route=route,params=data,phase='pending')
     folder=ROOT/'category_spend_reports';folder.mkdir(exist_ok=True);path=folder/(datetime.now().strftime('%Y%m%d_%H%M%S_%f')+'.json');q['_path']=str(path);save(q)
@@ -155,7 +174,8 @@ def before(flow,route,data):
     return q
 
 def save(q):
-    Path(q['_path']).write_text(json.dumps({k:v for k,v in q.items() if k!='_path'},ensure_ascii=False,indent=2),encoding='utf-8')
+    from pet_arena_recovery_data import redact
+    Path(q['_path']).write_text(json.dumps(redact({k:v for k,v in q.items() if k!='_path'}),ensure_ascii=False,indent=2),encoding='utf-8')
 
 def uncertain(q):
     if q:_halted.add(q['token']);q['phase']='uncertain';save(q)
@@ -174,6 +194,14 @@ def after(flow,route,data,reply,q):
         if ticket is None:raise RuntimeError('点券操作后余额未知')
         delta=q['ticket_before']-int(ticket);success=isinstance(reply,dict) and reply.get('code')==200 and not reply.get('error')
         if delta!=(q['cost'] if success else 0):raise RuntimeError('实际点券消耗与独立预算不一致')
+        if q['kind']=='pet_recovery':
+            from pet_arena_recovery_data import state,recovered,unchanged
+            ctx=context()
+            info=raw(flow,'connector.entryHandler.entry',{'index':ctx['slot'],'userAgent':flow.user_agent}).get('info') or {}
+            handler='arena' if route=='scene.arenaHandler.buyArenaCount' else 'petArena'
+            s=state(info,user,raw(flow,'scene.%sHandler.getArenaInfo'%handler,{}),handler=handler)
+            if success:recovered(q['before'],s,q['batch'])
+            else:unchanged(q['before'],s)
         _spent[(q['token'],q['category'])]=_spent.get((q['token'],q['category']),0)+delta
         q.update(phase='verified',ticket_after=int(ticket),actual_cost=delta);save(q)
     except Exception:

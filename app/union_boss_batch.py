@@ -79,6 +79,8 @@ DOG_NAMES = ('博美汪', '斗牛汪', '蝴蝶汪', '杜宾汪', '金毛汪', '�
 
 def run_dog(account, slot, label, *, flow=None):
     """每账号一次普通抽取；任何未确认的抽卡请求都不自动重发。"""
+    from activity_availability import require_open
+    require_open('RUN_DOG_CARD')
     from datetime import datetime
     from teacher_trial import connect, checked
     folder = Path('运行记录') / ('狗卡_' + datetime.now().strftime('%Y%m%d_%H%M%S_%f'))

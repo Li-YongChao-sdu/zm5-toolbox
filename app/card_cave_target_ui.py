@@ -31,6 +31,19 @@ class CardCaveTargetPage:
         for text,action in [('查询藏宝洞与免费次数','query'),('确认并正式挑战','fight'),('一键查询并挑战5次','auto')]:
             b=ttk.Button(self.page,text=text,command=lambda a=action:self.run(a));b.pack(anchor='w',pady=5);self.buttons.append(b)
         ttk.Label(self.page,text='走正式开局和奖励结算；只用每日剩余免费次数。支持自己的已发布藏宝洞。日常任务中的藏宝洞也使用本页的模式、次数和等待设置。默认指定挑战码；推荐模式每局刷新并重新选最高分。一键挑战会现场查询并连续挑战5局，中途失败即停。',wraplength=950).pack(anchor='w',pady=8)
+        rewards=ttk.LabelFrame(self.page,text='我的关卡 · 已发布收益',padding=8)
+        rewards.pack(fill='x',pady=8)
+        ttk.Label(rewards,text='查询当前存档已发布关卡，领取累计仙魄收益；不消耗藏宝洞挑战次数。结果与到账金额见运行日志。',wraplength=900).pack(anchor='w')
+        actions=ttk.Frame(rewards);actions.pack(anchor='w',pady=(6,0))
+        for text,claim in [('查询我的已发布关卡',False),('领取我的关卡仙魄',True)]:
+            button=ttk.Button(actions,text=text,command=lambda value=claim:self.run_publish_reward(value))
+            button.pack(side='left',padx=(0,10));self.buttons.append(button)
+
+    def run_publish_reward(self,claim=False):
+        if self.app.running or not self.app._save_selected_slot():return
+        args=[str(ROOT/'card_cave_publish_reward.py')]
+        if claim:args.append('--claim')
+        self.app._launch(args)
     def field(self,label,value,var=None):
         row=ttk.Frame(self.page);row.pack(fill='x',pady=5);ttk.Label(row,text=label,width=30).pack(side='left')
         if label=='指定挑战码':self.code_row=row

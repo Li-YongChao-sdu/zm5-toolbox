@@ -24,10 +24,13 @@ class Harvest:
         if self.data.get('finalize',{}).get('status')=='complete':raise RuntimeError('本批已处理完成，不再遗忘')
         self.state=self.data.setdefault('harvest',{'status':'pending','records':[],'pending':None,'flowers':0})
         if self.state.get('pending'):raise RuntimeError('上次遗忘未确认，禁止重发；请先核对记录')
+        self.state.setdefault('flowers',0)
     def save(self):
         atomic_json(self.path,self.data)
     def checked(self,r):
-        if not isinstance(r,dict) or r.get('code')!=200 or r.get('error'):raise RuntimeError('遗忘失败：'+str(r))
+        if not isinstance(r,dict) or r.get('code')!=200 or r.get('error'):
+            if isinstance(r,dict) and r.get('code')==502:raise RuntimeError('遗忘被拒绝（二级密码错误）：请填写正确二级密码后重跑，未重试')
+            raise RuntimeError('遗忘失败：'+str(r))
         return r
     def wallet(self):return self.checked(self.flow.request('connector.roleHandler.getUserInfo',{}))['user']
     def read(self):
@@ -62,8 +65,19 @@ class Harvest:
                     say('遗忘取花','跳过%s的%s级潜能%s：当前VIP遗忘不返益灵花'%(eid,level,skill));continue
                 if eid in protected or pet.get('nickName') or pet.get('equipments'):raise RuntimeError('待遗忘宠物受保护、有昵称或装备')
                 plan.append((eid,str(skill),int(level),count))
-        if quantity(self.info,'bag',101704002)<len(plan):raise RuntimeError('去灵花不足本批遗忘需求；未购买、未开始遗忘')
-        say('遗忘取花','计划遗忘%d个潜能，需去灵花%d朵，现有%d朵；预计返还益灵花%d朵'%(len(plan),len(plan),quantity(self.info,'bag',101704002),sum(r[3] for r in plan)))
+        if plan and not self.password:
+            wallet=self.wallet()
+            if ((wallet.get('secondPassword') or {}).get('havePwd')):
+                raise RuntimeError('该存档已设置二级密码，但本次密码为空：未遗忘任何潜能；请填写正确二级密码后重跑')
+        have=quantity(self.info,'bag',101704002)
+        if have<len(plan):
+            spare=quantity(self.info,'warehouse',101704002)+quantity(self.info,'super',101704002)
+            extra=('；仓库另有%d朵，遗忘只扣背包，请先取回背包'%spare) if spare else ''
+            say('遗忘取花','存档槽%s：去灵花不足（背包%d朵，需%d朵）%s；本轮跳过遗忘，继续保留／放生，不购买去灵花'%(self.account.get('record_index'),have,len(plan),extra))
+            self.state.update(status='skipped',reason='去灵花不足',needed=len(plan),have=have);self.save()
+            self.log('harvest_skipped',{'needed':len(plan),'have':have,'flowers':self.state['flowers']})
+            return self.state
+        say('遗忘取花','计划遗忘%d个潜能，需去灵花%d朵，现有%d朵；预计返还益灵花%d朵'%(len(plan),len(plan),have,sum(r[3] for r in plan)))
         self.state['status']='running';self.save()
         for eid,skill,level,expected in plan:
             if (self.path.parent/'STOP').exists():raise RuntimeError('收到停止标记')

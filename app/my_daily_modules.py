@@ -28,8 +28,6 @@ ACTIONS={
 
  '联盟仓库':{'购买选中材料'},
 
- '刷去益灵花':{'领取今日宝券'},
-
 
 
 
@@ -121,10 +119,6 @@ def discover(app):
             if title=='斗神/乱斗':label+='（12–14；19–21）' if text=='开始斗神挂机' else '（12–14；20–22）'
 
             result[key]={'label':label,'page':title,'command':button.invoke,'button':button,'context':context}
-
-            if title=='刷去益灵花' and text=='领取今日宝券':
-                from old_activity_ui import unlocked
-                result[key]['visible']=lambda:unlocked(flag.get() for flag in app.old_activity_page.flags)
 
             pages.setdefault(title,[]).append(key)
 

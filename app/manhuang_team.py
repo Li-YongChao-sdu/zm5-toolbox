@@ -7,6 +7,9 @@
 - 每人 battleExit 提交 battleResult=4 / bossHp=0 / playerInfo=[] / data=[]。
 - 结算后每人各自 getDungeonTreasureDrop + getDungeonTreasureReward，
   各得 2~3 件材料、各自扣 1 次宝箱次数；2 人房与 3 人房每人掉落一致。
+
+连续次数（--times N）：登录一次后连续打 N 局，每局重新建房/战斗/结算/领宝箱；
+每局开始前重新拉存档核对共享宝箱剩余次数，不足即停，不会多扣次数。
 """
 import argparse
 import json
@@ -65,82 +68,64 @@ def _common_mid(sessions):
     return max(common)
 
 
-def run(accounts, mid=0, log=print, claim_flags=None):
-    """2~3 个账号同房正常开局，各自领取共享宝箱；返回 True 表示全部核对通过。
+def _prepare_round(sessions, mid, log):
+    """刷新各账号存档并核对宝箱次数/关卡；返回 ok / short / fail。"""
+    for session in sessions:
+        fresh = teacher_trial.enter(session["flow"], session["slot"])
+        session["info"].clear()
+        session["info"].update(fresh)
+        session["unlocked"] = _unlocked_mids(fresh)
+        rec = (fresh.get("dungeonTreasure") or {}).get(TREASURE_ID) or {}
+        session["remain"] = int(rec.get("remainCnt") or 0)
+        session["bag"] = _bag_counts(fresh)
+        session["online_evt"] = threading.Event()
+        session["prepared_evt"] = threading.Event()
+        session.pop("online", None)
+        log("[蛮荒组队] %s uid=%s 宝箱次数=%s 已解锁=%s 战力=%s"
+            % (session["tag"], fresh.get("uid"), session["remain"],
+               sorted(session["unlocked"])[-3:] or "无", fresh.get("power")))
 
-    claim_flags: 逐账号领取标记（True=领、False=不领、保留宝箱次数）；None 时全部领取。
-    """
-    if not 2 <= len(accounts) <= 3:
-        raise ValueError("多人蛮荒需要 2~3 个账号，当前 %s 个" % len(accounts))
+    target = int(mid or 0) or _common_mid(sessions)
+    if not target:
+        log("[蛮荒组队] 没有共同已解锁的蛮荒关卡，不建房")
+        return "fail"
+    missing = [s["tag"] for s in sessions if target not in s["unlocked"]]
+    if missing:
+        log("[蛮荒组队] 关卡 %s 未解锁: %s，不建房" % (target, "、".join(missing)))
+        return "fail"
+    short = [s["tag"] for s in sessions if s["remain"] <= 0]
+    if short:
+        log("[蛮荒组队] 宝箱次数不足，停止连续执行: %s" % "、".join(short))
+        return "short"
+    for session in sessions:
+        session["target"] = target
+    log("[蛮荒组队] 使用关卡 %s，%s 人房" % (target, len(sessions)))
+    return "ok"
 
-    sessions = []
+
+def _play_round(sessions, mid, claim_flags, log):
+    """打一局：建房→加入→准备→加载→战斗→结算→领宝箱→核对。返回 ok / short / fail。"""
+    status = _prepare_round(sessions, mid, log)
+    if status != "ok":
+        return status
+
+    target = sessions[0]["target"]
+    host = sessions[0]
     teams = []
     room_id = None
     try:
-        for account in accounts:
-            slot = int(account.get("record_index") or 0)
-            flow, info = teacher_trial.connect(account, slot)
-            sessions.append({"tag": account.get("username") or str(account.get("uid")),
-                             "flow": flow, "info": info, "slot": slot,
-                             "account": account})
-        for session in sessions:
-            fresh = teacher_trial.enter(session["flow"], session["slot"])
-            session["info"].clear()
-            session["info"].update(fresh)
-            session["unlocked"] = _unlocked_mids(fresh)
-            rec = (fresh.get("dungeonTreasure") or {}).get(TREASURE_ID) or {}
-            session["remain"] = int(rec.get("remainCnt") or 0)
-            session["bag"] = _bag_counts(fresh)
-            log("[蛮荒组队] %s uid=%s 宝箱次数=%s 已解锁=%s 战力=%s"
-                % (session["tag"], fresh.get("uid"), session["remain"],
-                   sorted(session["unlocked"])[-3:] or "无", fresh.get("power")))
-
-        target = int(mid or 0) or _common_mid(sessions)
-        if not target:
-            log("[蛮荒组队] 没有三人共同已解锁的蛮荒关卡，不建房")
-            return False
-        missing = [s["tag"] for s in sessions if target not in s["unlocked"]]
-        if missing:
-            log("[蛮荒组队] 关卡 %s 未解锁: %s，不建房" % (target, "、".join(missing)))
-            return False
-        short = [s["tag"] for s in sessions if s["remain"] <= 0]
-        if short:
-            log("[蛮荒组队] 宝箱次数不足，跳过: %s" % "、".join(short))
-            return False
-        log("[蛮荒组队] 使用关卡 %s，%s 人房" % (target, len(sessions)))
-
-        for session in sessions:
-            session["online_evt"] = threading.Event()
-            session["prepared_evt"] = threading.Event()
-
-            def make(event, s=session):
-                def callback(payload):
-                    if not isinstance(payload, dict):
-                        return
-                    if event == "onCreateOnlineCopy":
-                        if int(payload.get("copyType") or 0) == target:
-                            s["online"] = payload
-                            s["online_evt"].set()
-                    elif event == "onPrepareCreateOnlineCopy":
-                        s["prepared_evt"].set()
-                return callback
-
-            for event in ("onCreateOnlineCopy", "onPrepareCreateOnlineCopy"):
-                session["flow"].on(event, make(event))
-
-        host = sessions[0]
         made = host["flow"].request(CREATE_ROOM, {"dungeonId": target, "type": "dungeon3"})
         room = made.get("room") or {}
         room_id = room.get("roomId")
         if made.get("code") != 200 or made.get("error") or not room_id:
             log("[蛮荒组队] 建房失败: %s" % _brief(made))
-            return False
+            return "fail"
         log("[蛮荒组队] 建房 roomId=%s 座位=%s" % (room_id, room.get("seating")))
         for session in sessions[1:]:
             joined = session["flow"].request(JOIN_ROOM, {"roomId": room_id})
             if joined.get("code") != 200 or joined.get("error"):
                 log("[蛮荒组队] %s 加入失败: %s" % (session["tag"], _brief(joined)))
-                return False
+                return "fail"
             log("[蛮荒组队] %s 已加入，座位=%s"
                 % (session["tag"], (joined.get("room") or {}).get("seating")))
 
@@ -150,7 +135,7 @@ def run(accounts, mid=0, log=print, claim_flags=None):
         prepared = host["flow"].request(PREPARE, {"roomId": room_id})
         if prepared.get("code") != 200 or prepared.get("error"):
             log("[蛮荒组队] 准备开局失败: %s" % _brief(prepared))
-            return False
+            return "fail"
         for session in sessions:
             if not session["prepared_evt"].wait(15):
                 log("[蛮荒组队] %s 未收到准备通知，继续加载" % session["tag"])
@@ -162,7 +147,7 @@ def run(accounts, mid=0, log=print, claim_flags=None):
         for session in sessions:
             if not session["online_evt"].wait(30):
                 log("[蛮荒组队] %s 未收到战斗实例" % session["tag"])
-                return False
+                return "fail"
 
         first = sessions[0]["online"]
         for session in sessions[1:]:
@@ -170,12 +155,12 @@ def run(accounts, mid=0, log=print, claim_flags=None):
                 if session["online"].get(key) != first.get(key):
                     log("[蛮荒组队] 实例 %s 不一致: %s vs %s"
                         % (key, session["online"].get(key), first.get(key)))
-                    return False
+                    return "fail"
         rows = [x for x in (first.get("playerInfos") or []) if isinstance(x, dict)]
         order = [str(row.get("uid") or row.get("playerId")) for row in rows]
         if set(order) != {str(s["info"].get("uid")) for s in sessions} or len(order) != len(sessions):
             log("[蛮荒组队] 实例玩家与登录账号不一致: %s" % order)
-            return False
+            return "fail"
         log("[蛮荒组队] 实例 instId=%s ip=%s port=%s 玩家=%s"
             % (first.get("instId"), first.get("ip"), first.get("port"), order))
 
@@ -188,7 +173,7 @@ def run(accounts, mid=0, log=print, claim_flags=None):
             if not connected.wait(12):
                 team.disconnect()
                 log("[蛮荒组队] %s 战斗服握手超时" % session["tag"])
-                return False
+                return "fail"
             session["loaded"] = threading.Event()
             team.on("onAllLoadComplete", lambda _d, s=session: s["loaded"].set())
             uid = str(session["info"].get("uid"))
@@ -199,14 +184,14 @@ def run(accounts, mid=0, log=print, claim_flags=None):
             if entered.get("code") != 200 or entered.get("error"):
                 team.disconnect()
                 log("[蛮荒组队] %s 进入战斗失败: %s" % (session["tag"], _brief(entered)))
-                return False
+                return "fail"
             team.notify("copy.copyHandler.loadComplete", {})
             session["team"] = team
             teams.append(team)
         for session in sessions:
             if not session["loaded"].wait(30):
                 log("[蛮荒组队] %s 未收到 onAllLoadComplete" % session["tag"])
-                return False
+                return "fail"
         time.sleep(2)
 
         for session in sessions:
@@ -217,7 +202,7 @@ def run(accounts, mid=0, log=print, claim_flags=None):
                 % (session["tag"], finished.get("code"), finished.get("error")))
             if finished.get("code") != 200 or finished.get("error"):
                 log("[蛮荒组队] 结算失败: %s" % _brief(finished))
-                return False
+                return "fail"
         time.sleep(3)
 
         all_ok = True
@@ -271,10 +256,10 @@ def run(accounts, mid=0, log=print, claim_flags=None):
                    gained or "无", "✓" if ok else "✗"))
             if not ok:
                 all_ok = False
-        return all_ok
+        return "ok" if all_ok else "fail"
     except Exception as exc:
-        log("[蛮荒组队] 流程失败: %s" % exc)
-        return False
+        log("[蛮荒组队] 本局流程失败: %s" % exc)
+        return "fail"
     finally:
         for team in teams:
             try:
@@ -286,6 +271,61 @@ def run(accounts, mid=0, log=print, claim_flags=None):
                 host["flow"].request(EXIT_ROOM, {"roomId": room_id})
             except Exception:
                 pass
+
+
+def run(accounts, mid=0, log=print, claim_flags=None, times=1):
+    """2~3 个账号同房正常开局，各自领取共享宝箱，连续执行 times 局。
+
+    claim_flags: 逐账号领取标记（True=领、False=不领、保留宝箱次数）；None 时全部领取。
+    times: 连续执行局数；每局开始前按服务器剩余宝箱次数核对，不足即停。
+    返回 True 表示所有执行的局全部核对通过。
+    """
+    if not 2 <= len(accounts) <= 3:
+        raise ValueError("多人蛮荒需要 2~3 个账号，当前 %s 个" % len(accounts))
+    times = max(1, int(times or 1))
+
+    sessions = []
+    try:
+        for account in accounts:
+            slot = int(account.get("record_index") or 0)
+            flow, info = teacher_trial.connect(account, slot)
+            sessions.append({"tag": account.get("username") or str(account.get("uid")),
+                             "flow": flow, "info": info, "slot": slot,
+                             "account": account})
+        for session in sessions:
+            def make(event, s=session):
+                def callback(payload):
+                    if not isinstance(payload, dict):
+                        return
+                    if event == "onCreateOnlineCopy":
+                        if int(payload.get("copyType") or 0) == s.get("target"):
+                            s["online"] = payload
+                            s["online_evt"].set()
+                    elif event == "onPrepareCreateOnlineCopy":
+                        s["prepared_evt"].set()
+                return callback
+
+            for event in ("onCreateOnlineCopy", "onPrepareCreateOnlineCopy"):
+                session["flow"].on(event, make(event))
+
+        for round_index in range(1, times + 1):
+            if times > 1:
+                log("[蛮荒组队] === 第 %d/%d 局 ===" % (round_index, times))
+            status = _play_round(sessions, mid, claim_flags, log)
+            if status == "short":
+                if round_index == 1:
+                    return False
+                log("[蛮荒组队] 服务器剩余次数不足，连续执行到此结束")
+                break
+            if status != "ok":
+                return False
+            if round_index < times:
+                time.sleep(2)
+        return True
+    except Exception as exc:
+        log("[蛮荒组队] 流程失败: %s" % exc)
+        return False
+    finally:
         for session in sessions:
             try:
                 session["flow"].disconnect()
@@ -334,8 +374,11 @@ def main():
     parser.add_argument("--claim", default="",
                         help="逐账号领取标记 1/0，如 1,0,1（顺序对应 --accounts；省略=全部领取）")
     parser.add_argument("--mid", type=int, default=0,
-                        help="副本 id（0=自动选三人共同已解锁的最高关）")
+                        help="副本 id（0=自动选共同已解锁的最高关）")
+    parser.add_argument("--times", type=int, default=1,
+                        help="连续执行局数（默认1）；每局按服务器剩余宝箱次数核对，不足即停")
     args = parser.parse_args()
+    times = max(1, int(args.times or 1))
     names = [x.strip() for x in args.accounts.split(",") if x.strip()]
     accounts = []
     for name in names:
@@ -350,8 +393,8 @@ def main():
               % (account.get("username") or account.get("uid"),
                  int(account.get("record_index") or 0),
                  "领取宝箱" if flag else "不领取宝箱"))
-    
-    ok = run(accounts, mid=args.mid, claim_flags=flags)
+    print("[蛮荒组队] 连续执行次数: %s" % times)
+    ok = run(accounts, mid=args.mid, claim_flags=flags, times=times)
     print("[蛮荒组队] 结束: %s" % ("成功" if ok else "失败"))
     sys.exit(0 if ok else 1)
 

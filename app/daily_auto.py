@@ -14,7 +14,7 @@
 import time, random, json, os
 from arena_selection import MODES as ARENA_MODES, choose_opponent, opponent_power
 from collections import defaultdict
-from game_version import GAME_VERSION, XIE_ROLE_SWITCHES, active_xie_names, active_xie_switches
+from game_version import GAME_VERSION, XIE_ROLE_SWITCHES, active_xie_names, active_xie_switches, xie_status_text
 from daily_task_quota import quota_from_info
 from pypomelo.login4399 import fetch_game_token
 from pypomelo.flow import GameLoginFlow
@@ -147,6 +147,7 @@ HALO_TARGET_SCORE = 3000  # 十绝阵奖励档位：1000 或 3000
 HALO_TEAM_MODE = 'single'  # single=单人；three=三人3000分（日常单账号跳过，用“三人组队开打”）
 # 十绝阵奖励次数每天恢复1次，最多存5次；执行时以服务器返回的剩余次数为准。
 DEMON_TOWER_TARGET_LAYER = 0  # 0=最高已解锁层段；1=1-5、2=11-15、...、16=151-155
+DEMON_TOWER_RUNS = 1  # 镇妖塔连续执行轮数；每轮消耗1次挑战次数，剩余不足即停
 RUN_MANHUANG = True
 # 蛮荒副本列表(按解锁顺序): 荒蛇->白泽->饕餮->混沌->穷奇->诸怀->烛龙->鲲鹏->...->北冥鲲
 # 默认自动打最高已解锁关; 也可在 gui_config.py 用 MANHUANG_MID 指定具体关卡
@@ -208,6 +209,11 @@ ELITE_SELL_MEDICINE = False
 RUN_TEN = True             # 十殿阎罗/五毒炼狱：每日合计共享3次
 RUN_NIGHTMARE_SKY = False  # 噩梦天树王：每周2次，独立于日常天树王
 RUN_SKY = False
+SKY_MODE = "manual"        # 天树王：manual=手打（默认）；sweep=扫荡（每次耗10速通能量）
+NINE_MODE = "manual"       # 九宫玄塔/玲珑塔：manual=手打（默认）；sweep=扫荡（每次耗10速通能量）
+TEN_MODE = "manual"        # 十殿阎罗/五毒炼狱：manual=手打（默认）；sweep=扫荡（每次耗10速通能量）
+ELITE_MODE = "manual"      # 精英关卡：manual=手打（默认）；sweep=扫荡（每次耗10速通能量，服务端自动翻牌）
+NIGHTMARE_MODE = "manual"  # 噩梦关卡：manual=手打（默认）；sweep=扫荡（每次耗1次共享次数+10能量）
 RUN_DEMON_TOWER = True
 RUN_DEMON_TOWER2 = True  # 镇妖塔，独立于噩梦关卡
 NIGHTMARE_CLAIM_FREE_CARD = True
@@ -325,17 +331,14 @@ MY_DAILY_FUN_JOBS = []
 try:
     import gui_config as _gc
     for _k in dir(_gc):
-        if _k.isupper():
+        if _k.isupper() and _k != 'RECORD_INDEX':
             globals()[_k] = getattr(_gc, _k)
 except ImportError:
     pass
 
-# 活动暂未开放；旧版 gui_config.py 即使仍勾选，也不执行该活动。
-RUN_RELIC_TREASURE = False
-
 # 旧GUI配置也不能启动过期活动。
-from activity_availability import WINDOWS as _ACTIVITY_WINDOWS, disabled_reason as _activity_disabled_reason
-for _activity_key in _ACTIVITY_WINDOWS:
+from activity_availability import MANAGED_ACTIVITY_KEYS as _MANAGED_ACTIVITY_KEYS, disabled_reason as _activity_disabled_reason
+for _activity_key in _MANAGED_ACTIVITY_KEYS:
     if _activity_disabled_reason(_activity_key):
         globals()[_activity_key] = False
 
@@ -443,7 +446,7 @@ def forest_selected_materials(flow):
     print("[神兽森林] 提示：只有通关一次或者每日刷新后，才能更新该位置的掉落。")
 
 
-def sweep_forest(flow, info, mid, max_runs=4):
+def sweep_forest(flow, info, mid, max_runs=4, *, raise_power_error=False):
     """扫荡前按需最多补1个水晶，只用神兽森林剩余免费次数。"""
     rec = _dungeon_rec(info, mid)
     if not rec or int(rec.get("passNum") or 0) <= 0:
@@ -485,6 +488,9 @@ def sweep_forest(flow, info, mid, max_runs=4):
         result = flow.request("scene.copyHandler.sweep",
                               {"mid": mid, "type": 0, "passNum": rec["passNum"]})
         if not isinstance(result, dict) or result.get("code") != 200 or result.get("error"):
+            if raise_power_error and completed == 0:
+                from forest_auto import is_power_rejection, ForestPowerInsufficient
+                if is_power_rejection(result):raise ForestPowerInsufficient(mid, result)
             print("[神兽森林] 扫荡停止: %s" % result)
             break
         consume = result.get("consume") or []
@@ -508,6 +514,169 @@ def sweep_forest(flow, info, mid, max_runs=4):
               (completed, energy, result.get("give") or result.get("drops")))
         time.sleep(SLEEP)
     print("[神兽森林] 本次扫荡%d次" % completed)
+    return dict(bag)
+
+
+def sweep_shared(flow, info, mid, max_runs, prefix, pool, limit):
+    """按共享免费次数扫荡：每次耗10速通能量，不足即停，不花点券。"""
+    rec = _dungeon_rec(info, mid)
+    if not rec or int(rec.get("passNum") or 0) <= 0:
+        print("[%s] %s 尚未通关，不能扫荡" % (prefix, mid))
+        return {}
+    if int(max_runs) <= 0:
+        print('[%s] 免费次数用尽，跳过扫荡' % prefix)
+        return {}
+
+    def sweep_ticket_balance():
+        reply = flow.request('connector.roleHandler.getUserInfo', {})
+        value = (reply.get('user') or {}).get('ticket') if isinstance(reply, dict) else None
+        if value is None:
+            raise RuntimeError('[%s] 无法确认点券余额，停止扫荡' % prefix)
+        return int(value)
+
+    ticket_before = sweep_ticket_balance()
+    completed = 0
+    bag = defaultdict(int)
+    for _ in range(max(0, int(max_runs))):
+        fresh = flow.request('connector.entryHandler.entry',
+                             {'index': RECORD_INDEX, 'userAgent': flow.user_agent})
+        current = fresh.get('info') if isinstance(fresh, dict) else None
+        if not isinstance(current, dict) or fresh.get('error'):
+            raise RuntimeError('[%s] 无法读取最新速通能量和免费次数，停止' % prefix)
+        info.clear(); info.update(current)
+        rec = _dungeon_rec(info, mid)
+        if not rec or int(rec.get('passNum') or 0) <= 0:
+            print('[%s] 当前关卡未通关，停止扫荡' % prefix); break
+        if quota_remain(info, pool, limit) <= 0:
+            print('[%s] 免费次数用尽，停止扫荡' % prefix); break
+        if info.get('sweepEnergy') is None:
+            raise RuntimeError('[%s] 无法确认最新速通能量，停止' % prefix)
+        energy = int(info['sweepEnergy'])
+        if sweep_ticket_balance() != ticket_before:
+            raise RuntimeError('[%s] 点券余额变化，停止扫荡' % prefix)
+        if energy < 10:
+            print("[%s] 速通能量不足（当前%d，本轮需10），停止扫荡，不使用点券补足" % (prefix, energy))
+            break
+        result = flow.request("scene.copyHandler.sweep",
+                              {"mid": mid, "type": 0, "passNum": rec["passNum"]})
+        if not isinstance(result, dict) or result.get("code") != 200 or result.get("error"):
+            print("[%s] 扫荡停止: %s" % (prefix, result)); break
+        consume = result.get("consume") or []
+        if any(isinstance(item, dict) and item.get("subType") == "ticket" for item in consume):
+            raise RuntimeError('[%s] 扫荡出现非预期点券消耗，已停止' % prefix)
+        if sweep_ticket_balance() != ticket_before:
+            raise RuntimeError('[%s] 扫荡后点券余额变化，已停止' % prefix)
+        server_rec = result.get("dungeon") or {}
+        if server_rec.get("id") == mid:
+            rec.update(server_rec)
+        else:
+            rec["dailyCount"] = int(rec.get("dailyCount") or 0) + 1
+        energy_left = next((item.get("remian") for item in consume
+                            if isinstance(item, dict) and item.get("subType") == "sweepEnergy"
+                            and item.get("remian") is not None), None)
+        energy = int(energy_left) if energy_left is not None else energy - 10
+        info["sweepEnergy"] = energy
+        completed += 1
+        _agg_drops(bag, result.get("give"))
+        print("[%s] 第%d次扫荡成功，剩余速通能量%d，奖励=%s" %
+              (prefix, completed, energy, result.get("give") or result.get("drops")))
+        time.sleep(SLEEP)
+    print("[%s] 本次扫荡%d次" % (prefix, completed))
+    return dict(bag)
+
+
+def sweep_sky(flow, info, mid, max_runs=2):
+    """天树王扫荡：只用每日共享免费2次；每次耗10速通能量，不足即停，不花点券。"""
+    return sweep_shared(flow, info, mid, max_runs, '天树王', _SKY, 2)
+
+
+_SWEEP_POWER_MIN = None
+
+
+def _sweep_power_min(mid):
+    """Sweep.json 的扫荡战力门槛；该关没有扫荡配置时返回0。"""
+    global _SWEEP_POWER_MIN
+    if _SWEEP_POWER_MIN is None:
+        from pathlib import Path
+        from game_version import latest_config_folder
+        folder = latest_config_folder()
+        rows = []
+        if folder is not None:
+            cfg = json.loads((Path(folder) / 'Sweep.json').read_text(encoding='utf-8-sig'))
+            rows = cfg if isinstance(cfg, list) else list(cfg.values())
+        _SWEEP_POWER_MIN = {int(row['id']): int(row.get('powerMin') or 0)
+                            for row in rows if str(row.get('id')).isdigit()}
+    return _SWEEP_POWER_MIN.get(int(mid), 0)
+
+
+def sweep_nightmare(flow, info, mid, max_runs):
+    """噩梦扫荡：每次消耗1次共享宝箱次数和10速通能量；不足即停，不花点券。"""
+    rec = _dungeon_rec(info, mid)
+    if not rec or int(rec.get("passNum") or 0) <= 0:
+        print("[噩梦] %s 尚未通关，不能扫荡" % mid)
+        return {}
+    if int(max_runs) <= 0:
+        print('[噩梦] 共享次数用尽，跳过扫荡')
+        return {}
+
+    def chest_remain():
+        return int(((info.get("dungeonTreasure") or {}).get("1400200") or {}).get("remainCnt") or 0)
+
+    def ticket_balance():
+        reply = flow.request('connector.roleHandler.getUserInfo', {})
+        value = (reply.get('user') or {}).get('ticket') if isinstance(reply, dict) else None
+        if value is None:
+            raise RuntimeError('[噩梦] 无法确认点券余额，停止扫荡')
+        return int(value)
+
+    ticket_before = ticket_balance()
+    completed = 0
+    bag = defaultdict(int)
+    for _ in range(max(0, int(max_runs))):
+        fresh = flow.request('connector.entryHandler.entry',
+                             {'index': RECORD_INDEX, 'userAgent': flow.user_agent})
+        current = fresh.get('info') if isinstance(fresh, dict) else None
+        if not isinstance(current, dict) or fresh.get('error'):
+            raise RuntimeError('[噩梦] 无法读取最新速通能量和共享次数，停止')
+        info.clear(); info.update(current)
+        rec = _dungeon_rec(info, mid)
+        if not rec or int(rec.get("passNum") or 0) <= 0:
+            print('[噩梦] 当前关卡未通关，停止扫荡'); break
+        if chest_remain() <= 0:
+            print('[噩梦] 共享次数用尽，停止扫荡（不购买次数）'); break
+        power = int(info.get('power') or 0)
+        power_min = _sweep_power_min(mid)
+        if power < power_min:
+            print('[噩梦] 战力不足（%s < %s），停止扫荡；不消耗次数/能量' % (power, power_min)); break
+        energy = int(info.get('sweepEnergy') or 0)
+        if energy < 10:
+            print('[噩梦] 速通能量不足（当前%d，本轮需10），停止扫荡，不使用点券补足' % energy); break
+        if ticket_balance() != ticket_before:
+            raise RuntimeError('[噩梦] 点券余额变化，停止扫荡')
+        result = flow.request("scene.copyHandler.sweep",
+                              {"mid": mid, "type": 0, "passNum": rec["passNum"]})
+        if not isinstance(result, dict) or result.get("code") != 200 or result.get("error"):
+            print('[噩梦] 扫荡停止: %s' % result); break
+        consume = result.get("consume") or []
+        if any(isinstance(item, dict) and item.get("subType") == "ticket" for item in consume):
+            raise RuntimeError('[噩梦] 扫荡出现非预期点券消耗，已停止')
+        if ticket_balance() != ticket_before:
+            raise RuntimeError('[噩梦] 扫荡后点券余额变化，已停止')
+        server_rec = result.get("dungeon") or {}
+        if server_rec.get("id") == mid:
+            rec.update(server_rec)
+        if isinstance(result.get("dungeonTreasure"), dict):
+            info["dungeonTreasure"] = result["dungeonTreasure"]
+        energy_left = next((item.get("remian") for item in consume
+                            if isinstance(item, dict) and item.get("subType") == "sweepEnergy"
+                            and item.get("remian") is not None), None)
+        info["sweepEnergy"] = int(energy_left) if energy_left is not None else energy - 10
+        completed += 1
+        _agg_drops(bag, result.get("give"))
+        print('[噩梦] 第%d次扫荡成功，剩余速通能量%d、共享次数%d，奖励=%s' %
+              (completed, info["sweepEnergy"], chest_remain(), result.get("give") or result.get("drops")))
+        time.sleep(SLEEP)
+    print('[噩梦] 本次扫荡%d次' % completed)
     return dict(bag)
 
 
@@ -726,50 +895,9 @@ _WEEKEND_ONLINE_IDS = (960001, 960002, 960003, 960004, 960005, 960006)
 
 
 def claim_weekend_online(flow, info, part='all'):
-    """周末在线福利（活动230，周五/周六/周日开放）：在线时长领 buff/道具 + 累计5档礼包。
-
-    part='buff' 只领 960001（在线0分钟双倍buff）；
-    part='rest' 领 960002~960006（在线2/5/10/20分钟档 + 累计5档礼包）；
-    part='all' 全领。
-    进一步拆成两段是为了「我的日常」把 buff 提前、后几档放到庆典15分钟之后。
-    领取统一 scene.questHandler.commitQuest {"qId": 960xxx}，仅 status==2 可领。
-    """
-    ids = {'buff': (960001,), 'rest': (960002, 960003, 960004, 960005, 960006)}.get(
-        part, _WEEKEND_ONLINE_IDS)
-
-    def fetch():
-        r = flow.request("scene.questHandler.getQuestList", {})
-        qs = (r.get("quest") if isinstance(r, dict) else None) or []
-        return {int(q.get("id") or 0): q for q in qs}
-
-    by_id = fetch()
-    if not any(by_id.get(i) for i in ids):
-        print("[周末在线] 当前无该活动任务（活动230仅周五/周六/周日开放）")
-        return
-
-    claimed = 0
-    for tid in ids:
-        q = fetch().get(tid)  # 每档前刷新：领完前5档后 960006 由 newQuest 补下发
-        if not q or q.get("status") != 2:
-            continue
-        rr = flow.request("scene.questHandler.commitQuest", {"qId": tid})
-        if isinstance(rr, dict) and rr.get("code") == 200 and not rr.get("error"):
-            claimed += 1
-            buff = [g for g in (rr.get("give") or []) if g.get("type") == "buff"]
-            print("[周末在线] 第%d档领取成功%s" % (
-                tid - 960000, "，双倍buff已激活" if tid == 960001 and buff else ""))
-        else:
-            print("[周末在线] 第%d档领取失败：%s" % (tid - 960000, rr))
-
-    by_id = fetch()
-    waiting = []
-    for tid in ids:
-        q = by_id.get(tid) or {}
-        if q.get("status") == 1:
-            waiting.append("第%d档进度%s" % (tid - 960000, q.get("progress") or {}))
-    print("[周末在线] 本次领取 %d 档；未完成：%s" % (
-        claimed, "；".join(waiting) if waiting else "无"))
-
+    """领取已达标的周末在线奖励；默认不等待，保留真实连接计时。"""
+    from weekend_online import run
+    return run(flow, info, part=part)
 
 
 # 成长挑战-通关主线任务：qId -> 主线关卡 mid（GrowthChallengeTask.json taskType=0, openModule=battle）
@@ -1139,6 +1267,9 @@ def claim_growth_dan_tasks(flow, info):
         status = quest.get("status") if quest else 0
         if status == 3:
             continue
+        if status == 2:
+            _growth_commit(flow, info, qid, label)
+            continue
         # 依次挑第一个“丹引齐全”的配方（同品级 6 种丹药任务都认）
         chosen = None
         miss_all = []
@@ -1381,33 +1512,8 @@ def claim_fashion_signin(flow, info):
 def claim_fashion_online(flow, info):
     """永久时装：仅在线 20 分钟任务 970002 领奖（不挂机等待）。"""
     print("\n=== 永久时装·在线任务 970002 ===")
-    reply = flow.request('scene.questHandler.getQuestList', {})
-    if not isinstance(reply, dict) or reply.get('code') != 200:
-        print("[永久时装] 任务列表读取失败：%s"
-              % (reply.get('error') if isinstance(reply, dict) else reply))
-        return
-    target = 1200
-    for q in reply.get('quest') or []:
-        if str(q.get('id')) != '970002':
-            continue
-        stored = int((q.get('progress') or {}).get('0', 0) or 0)
-        status = int(q.get('status') or 0)
-        print("[永久时装] 在线任务 进度 %d/%d 秒，status=%d" % (stored, target, status))
-        if status == 3:
-            print("[永久时装] 在线任务今日已领取，跳过")
-            return
-        if status != 2 and stored < target:
-            print("[永久时装] 未满 20 分钟，不等待挂机，跳过")
-            return
-        r = flow.request('scene.questHandler.commitQuest', {'qId': 970002})
-        if not isinstance(r, dict) or r.get('error') or r.get('code') != 200:
-            print("[永久时装] 在线任务领奖失败：%s"
-                  % (r.get('error') if isinstance(r, dict) else r))
-            return
-        print("[永久时装] 在线任务领奖成功：%s"
-              % json.dumps(r.get('give') or [], ensure_ascii=False))
-        return
-    print("[永久时装] 未找到在线任务 970002（未开放或已领取）")
+    from fashion_online import claim_online
+    return claim_online(flow,info,RECORD_INDEX)
 
 
 def buy_fashion_shop(flow, info, shop_ids=None, password=None):
@@ -1702,7 +1808,8 @@ def _agg_drops(bag, drops):
 
 
 def clear_dungeon(flow, info, mid, label, open_chest=False, quota=None, claim_card=False,
-                  max_runs=None, sell_boss=False, sell_small=False, sell_medicine=False):
+                  max_runs=None, sell_boss=False, sell_small=False, sell_medicine=False,
+                  raise_forest_power=False):
     if mid in _NINE_POOL[:9]:
         from nine_tower import clear
         return clear(flow, info, mid, label, max_runs=max_runs)
@@ -1739,6 +1846,9 @@ def clear_dungeon(flow, info, mid, label, open_chest=False, quota=None, claim_ca
             cparam["costGem"] = 0
         r1 = flow.request("scene.copyHandler.createSinglePlayerCopy", cparam)
         if isinstance(r1, dict) and r1.get("error"):
+            if is_forest and raise_forest_power and n == 0:
+                from forest_auto import is_power_rejection, ForestPowerInsufficient
+                if is_power_rejection(r1):raise ForestPowerInsufficient(mid, r1)
             print("[%s] 停止: %s" % (label, r1.get("error"))); break
         if FIGHT_DELAY:
             time.sleep(25 if claim_card else 2)
@@ -1895,6 +2005,21 @@ def run_nightmare(flow, info, max_runs=2):
     if mid not in range(40010, 40271, 10):
         print("[噩梦] 关卡设置无效，跳过: %s" % mid)
         return
+    if str(NIGHTMARE_MODE).lower() == "sweep":
+        power_min = _sweep_power_min(mid)
+        if power_min <= 0:
+            print("[噩梦] %s 没有扫荡配置，自动回退手打" % mid)
+        else:
+            power = int(info.get("power") or 0)
+            available = int(((info.get("dungeonTreasure") or {}).get("1400200") or {}).get("remainCnt") or 0)
+            if power < power_min:
+                print("[噩梦] %s 战力不足（%s < %s），跳过扫荡；未消耗次数/能量" % (mid, power, power_min))
+                return
+            if available <= 0:
+                print("[噩梦] 噩梦共享次数已用完（0/2），跳过扫荡；不购买次数、不花点券")
+                return
+            sweep_nightmare(flow, info, mid, min(available, int(max_runs)))
+            return
     rec = _dungeon_rec(info, mid)
     if not rec or int(rec.get("passNum") or 0) <= 0:
         print("[噩梦] %s 尚未通关解锁，跳过" % mid)
@@ -2026,28 +2151,55 @@ def run_dungeons(flow, info):
         mid = int(ov) if ov else pick_highest_cleared(info, grp["stages"])
         label = "%s·%s(最高关)" % (grp["prefix"], mid)
         remain = quota_remain(info, grp["shared"], grp["max"])
-        print("[%s] 选关=%s 今日免费剩余=%s" % (grp["prefix"], mid, remain))
-        _, drops = clear_dungeon(flow, info, mid, label, grp["chest"],
-                                 quota=(grp["shared"], grp["max"]))
+        if grp["key"] == "sky":
+            print("[%s] 选关=%s 今日免费剩余=%s 模式=%s"
+                  % (grp["prefix"], mid, remain,
+                     "扫荡" if str(SKY_MODE).lower() == "sweep" else "手打"))
+            if str(SKY_MODE).lower() == "sweep":
+                drops = sweep_sky(flow, info, mid,
+                                  max_runs=min(grp["max"], remain if remain is not None else grp["max"]))
+            else:
+                _, drops = clear_dungeon(flow, info, mid, label, grp["chest"],
+                                         quota=(grp["shared"], grp["max"]))
+        else:
+            sweep = grp["key"] == "ten" and str(TEN_MODE).lower() == "sweep"
+            print("[%s] 选关=%s 今日免费剩余=%s 模式=%s"
+                  % (grp["prefix"], mid, remain, "扫荡" if sweep else "手打"))
+            if sweep:
+                drops = sweep_shared(flow, info, mid,
+                                     min(grp["max"], remain if remain is not None else grp["max"]),
+                                     grp["prefix"], grp["shared"], grp["max"])
+            else:
+                _, drops = clear_dungeon(flow, info, mid, label, grp["chest"],
+                                         quota=(grp["shared"], grp["max"]))
         if drops:
             grand[label] = drops
     # 精英/主线: 每关【独立】2次/天, 不共享
     if RUN_ELITE:
         multi_mids = sorted({int(mid) for mid in ELITE_MULTI_MIDS if int(mid) in ELITE_STAGES})
+        elite_sweep = str(ELITE_MODE).lower() == "sweep"
+        if multi_mids and elite_sweep and (ELITE_SELL_BOSS or ELITE_SELL_SMALL or ELITE_SELL_MEDICINE):
+            print("[精英多选] 扫荡模式不自动出售材料；本批掉落保留在背包，如需自动出售请改手打")
         if multi_mids:
             # 多选模式：接取在日常任务阶段完成；通关后重新查询任务状态并领奖。
             for emid in multi_mids:
                 elabel = "精英·%s" % emid
                 remain = quota_remain(info, [emid], ELITE_MAX)
-                print("[精英多选] 选关=%s 本关今日剩余=%s(每关独立2次)" % (emid, remain))
+                print("[精英多选] 选关=%s 本关今日剩余=%s(每关独立2次) 模式=%s"
+                      % (emid, remain, "扫荡（自动翻牌）" if elite_sweep else "手打"))
                 if remain is not None and remain <= 0:
                     print("[精英多选] %s 次数已满, 跳过" % emid)
                     continue
-                _, edrops = clear_dungeon(flow, info, emid, elabel, False,
-                                          quota=([emid], ELITE_MAX),
-                                          claim_card=(ELITE_CLAIM_FREE_CARD or RUN_ELITE_STONE),
-                                          sell_boss=ELITE_SELL_BOSS, sell_small=ELITE_SELL_SMALL,
-                                          sell_medicine=ELITE_SELL_MEDICINE)
+                if elite_sweep:
+                    edrops = sweep_shared(flow, info, emid,
+                                          remain if remain is not None else ELITE_MAX,
+                                          '精英·%s' % emid, [emid], ELITE_MAX)
+                else:
+                    _, edrops = clear_dungeon(flow, info, emid, elabel, False,
+                                              quota=([emid], ELITE_MAX),
+                                              claim_card=(ELITE_CLAIM_FREE_CARD or RUN_ELITE_STONE),
+                                              sell_boss=ELITE_SELL_BOSS, sell_small=ELITE_SELL_SMALL,
+                                              sell_medicine=ELITE_SELL_MEDICINE)
                 if edrops:
                     grand[elabel] = edrops
                 _claim_elite_quests(flow, [emid])
@@ -2097,17 +2249,14 @@ def run_forest(flow, info):
     if mode == "preview":
         forest_selected_materials(flow)
         return
-    mid = STAGE_OVERRIDE.get("forest") or pick_highest_cleared(info, _FOREST)
-    mid = int(mid)
-    if mid not in _FOREST:
-        print("[神兽森林] 关卡设置无效: %s" % mid)
-        return
-    if mode == "sweep":
-        drops = sweep_forest(flow, info, mid)
-    else:
-        print("[神兽森林] 固定关卡 %s，最多手打4次（只用剩余免费次数）" % mid)
-        _, drops = clear_dungeon(flow, info, mid, "神兽森林·%s" % mid,
-                                 quota=(_FOREST, 4))
+    from forest_auto import run as run_auto_forest
+    result = run_auto_forest(flow, info, RECORD_INDEX, _FOREST, mode, STAGE_OVERRIDE.get('forest'),
+        clear=lambda mid, count: clear_dungeon(flow, info, mid, '神兽森林·%s' % mid,
+            quota=(_FOREST, 4), max_runs=count, raise_forest_power=True),
+        sweep=lambda mid, count: sweep_forest(flow, info, mid, max_runs=count, raise_power_error=True),
+        max_runs=min(4, MAX_TIMES) if mode == 'manual' else 4)
+    mid, drops = result['mid'], result['drops']
+    print('[神兽森林] 本项结束：%s，完成%s次' % (result['status'], result['completed']))
     if drops:
         with open(DROPS_LOG, "a", encoding="utf-8") as f:
             f.write(json.dumps({"ts": int(time.time()),
@@ -2155,7 +2304,34 @@ def clear_activity_once(flow, mid, label):
     return True, dict(bag), None
 
 
-def activity_bag_ready(info, label, reserve=5):
+def activity_item_space(info, mid):
+    """按可能新增的道具种类预留空间；已有物品叠加不占新格。"""
+    from game_version import latest_config_folder
+    folder = latest_config_folder()
+    if folder is None:
+        raise ValueError('未找到配置')
+    dungeon = json.loads((folder / 'Dungeon.json').read_text(encoding='utf-8-sig'))[str(mid)]
+    drops = json.loads((folder / 'DropSvr.json').read_text(encoding='utf-8-sig'))
+    props = json.loads((folder / 'Prop.json').read_text(encoding='utf-8-sig'))
+    bag = info.get('bag') or {}
+    owned = {str(v.get('id',k)) for k,v in (bag.get('item') or {}).items()
+             if isinstance(v,dict) and int(v.get('count') or 0)>0}
+    possible = set()
+    for drop_id in str(dungeon['dropId']).replace(';',',').split(','):
+        if not drop_id.strip() or drop_id.strip()=='-1':continue
+        drop = drops[drop_id.strip()]
+        if int(drop.get('itemMaxNum') or 0)<=0:continue
+        if 'itemId' not in drop:raise ValueError('缺少道具掉落配置')
+        for item_id in str(drop['itemId']).split(';'):
+            if int(item_id)>0:possible.add(item_id)
+    needed = [0,0]
+    for item_id in possible-owned:
+        cfg = props[item_id]
+        needed[int(bool(int(cfg.get('isConsume') or 0)))] += 1
+    return needed
+
+
+def activity_bag_ready(info, label, reserve=5, mid=None):
     """活动掉落包含材料和消耗品，入场前分别预留两栏空间。"""
     bag = info.get("bag") or {}
     capacity = bag.get("itemBagMax")
@@ -2171,13 +2347,19 @@ def activity_bag_ready(info, label, reserve=5):
     for row in items.values():
         if isinstance(row, dict) and int(row.get("count", 0)) > 0:
             used[int(bool(int(row.get("isConsume", 0) or 0)))] += 1
+    needed = [reserve,reserve]
+    if mid is not None:
+        try:
+            needed = activity_item_space(info, mid)
+        except (OSError, ValueError, KeyError, TypeError):
+            print('[背包检查] %s 掉落配置不完整，沿用每栏预留%s格保护' % (label,reserve))
     ready = True
-    for kind, count, maximum in (("普通材料", used[0], int(capacity)),
-                                 ("消耗品", used[1], int(consumable_capacity))):
+    for kind, count, maximum, required in (("普通材料", used[0], int(capacity),needed[0]),
+                                           ("消耗品", used[1], int(consumable_capacity),needed[1])):
         free = max(0, maximum - count)
         print("[背包检查] %s %s栏 %s/%s，剩余%s格" % (label, kind, count, maximum, free))
-        if free < reserve:
-            print("[背包空间不足] %s %s栏至少预留%s格，请清理该栏后重新执行；本项未入场" % (label, kind, reserve))
+        if free < required:
+            print("[背包空间不足] %s %s栏至少预留%s格，请清理该栏后重新执行；本项未入场" % (label, kind, required))
             ready = False
     return ready
 
@@ -2200,13 +2382,15 @@ def run_activity(flow, info):
         "邪·沙僧": "RUN_ACT_XSHASENG",
         "邪·白龙": "RUN_ACT_XBAILONG",
     }
-    print("[活动] 游戏版本 v%s，本轮邪角色：%s"
-          % (GAME_VERSION, "、".join(active_xie_names())))
+    print("[活动] " + xie_status_text())
     for act in ACTIVITIES:
         name = act["name"]
         # 按独立开关过滤
         _sw = _act_map.get(name)
         if _sw and not globals().get(_sw, True):
+            continue
+        if _sw and _activity_disabled_reason(_sw):
+            print('[活动] %s 当前配置未开放，跳过' % name)
             continue
         max_n = act["max"]
         remain = quota_remain(info, act["shared"], max_n)
@@ -2227,7 +2411,7 @@ def run_activity(flow, info):
                 refreshed = flow.request("connector.entryHandler.entry",
                                          {"index": RECORD_INDEX, "userAgent": flow.user_agent})
                 fresh_info = refreshed.get("info") if isinstance(refreshed, dict) else None
-                if not isinstance(fresh_info, dict) or not activity_bag_ready(fresh_info, label):
+                if not isinstance(fresh_info, dict) or not activity_bag_ready(fresh_info, label, mid=mid):
                     print("[活动] %s 背包检查未通过，停止本项；请查看上方提示" % label)
                     break
                 if quota_remain(fresh_info, act["shared"], max_n) <= 0:
@@ -2408,6 +2592,13 @@ def run_flushou(flow, info):
     can_sweep = int(vip_row.get("flsSweep") or 0) > 0
     print("[福禄寿] VIP%d，执行方式：%s" % (vip, "免费扫荡" if can_sweep else "普通通关"))
     free_max = 2 if vip >= 3 else 1
+    def buff_ticket_balance():
+        reply = flow.request('connector.roleHandler.getUserInfo', {})
+        value = (reply.get('user') or {}).get('ticket') if isinstance(reply, dict) else None
+        if value is None:
+            raise RuntimeError('[福禄寿] 无法确认点券余额，停止扫荡')
+        return int(value)
+    ticket_before = buff_ticket_balance()
     dun = info.setdefault("dungeon", {})
     for mid, name in FLUSHOU_MIDS:
         used = _dungeon_dcount(info, mid)
@@ -2424,10 +2615,17 @@ def run_flushou(flow, info):
                 dun.setdefault(str(mid), {"id": mid})["dailyCount"] = used
                 continue
             rec = _dungeon_rec(info, mid) or {}
+            if buff_ticket_balance() != ticket_before:
+                raise RuntimeError('[福禄寿] 点券余额变化，停止扫荡')
             r = flow.request("scene.copyHandler.sweepBuffCopy",
                              {"mid": mid, "passNum": int(rec.get("passNum") or 0)})
             err = (r.get("error") or ("异常返回：%s" % r if r.get("code") not in (None, 200) else None)) if isinstance(r, dict) else "无有效响应"
             if not err:
+                if any(isinstance(item, dict) and item.get("subType") == "ticket"
+                       for item in (r.get("consume") or [])):
+                    raise RuntimeError('[福禄寿] 扫荡出现非预期点券消耗，已停止')
+                if buff_ticket_balance() != ticket_before:
+                    raise RuntimeError('[福禄寿] 扫荡后点券余额变化，已停止')
                 used += 1
                 rec = dun.setdefault(str(mid), {"id": mid, "dailyCount": 0})
                 server_rec = r.get("dungeon")
@@ -2459,6 +2657,8 @@ def run_flushou(flow, info):
 
 
 def run_mid_autumn(flow, info):
+    if _activity_disabled_reason('RUN_MID_AUTUMN'):
+        print('[中秋博饼] ' + _activity_disabled_reason('RUN_MID_AUTUMN'));return
     # 中秋博饼: 明确只发免费类型, 每日计数预检, 单次请求不重试。
     daily = info.get("everyDaySetting") if isinstance(info, dict) else None
     if not isinstance(daily, dict):
@@ -2515,6 +2715,8 @@ def _jin_qiu_free_reward_id(info, activity_id):
 
 
 def run_jin_qiu(flow, info):
+    if _activity_disabled_reason('RUN_JIN_QIU'):
+        print('[金秋送福] ' + _activity_disabled_reason('RUN_JIN_QIU'));return
     """Claim only 金秋送福's one daily free 金秋蜜意 box; never use paid types."""
     if not isinstance(info, dict):
         print("[金秋送福] 缺少存档信息，无法确认免费状态，跳过")
@@ -2573,6 +2775,8 @@ def run_jin_qiu(flow, info):
 
 
 def run_cloud_ladder(flow, info):
+    if _activity_disabled_reason('RUN_CLOUD_LADDER'):
+        print('[云梯寻宝] ' + _activity_disabled_reason('RUN_CLOUD_LADDER'));return
     """使用当天免费机会，处理额外免费投掷，并领取已到达档位。"""
     thresholds = (6, 40, 80, 120)  # CloudLadderHelp: 奖励索引 0–3
     ladder = info.get("cloudLadder") or {}
@@ -2622,6 +2826,8 @@ def run_cloud_ladder(flow, info):
 
 
 def run_relic_treasure(flow):
+    if _activity_disabled_reason('RUN_RELIC_TREASURE'):
+        print('[遗迹寻宝] ' + _activity_disabled_reason('RUN_RELIC_TREASURE'));return
     # 遗迹寻宝: 开始 -> 直接结束(win=1)
     r = flow.request("scene.activityHandler.beginRelicTreasure", {})
     err = r.get("error") if isinstance(r, dict) else None
@@ -2698,8 +2904,8 @@ def buy_mystery_shop(flow):
         buy = flow.request("scene.shopHandler.buyMysteryShop", {"stallNum":int(sn)})
         if not isinstance(buy,dict) or buy.get('code')!=200 or buy.get('error'):
             reason=buy.get('error') if isinstance(buy,dict) else '结果未知'
-            if '次数' in str(reason) and ('用完' in str(reason) or '上限' in str(reason) or '已购' in str(reason)):
-                print('[神秘商店] 今日次数已用完（%s），正常停止' % reason); break
+            if '次数' in str(reason):
+                print('[神秘商店] 今日次数不足/已用完（%s），正常停止，继续后续任务' % reason); break
             raise RuntimeError('神秘商店购买未完成：%s；停止且不重发'%reason)
         bought += 1
         cost = (buy.get('consume') or [{}])[0].get('count')
@@ -2788,9 +2994,15 @@ def run_nine_tower(flow, info):
     target = int(STAGE_OVERRIDE["nine"]) if STAGE_OVERRIDE.get("nine") \
         else pick_highest_cleared(info, _NINE_POOL)
     remain = quota_remain(info, _NINE_POOL, NINE_TOWER_MAX)
-    print("[九宫玄塔] 选层=%s 今日免费剩余=%s" % (target, remain))
-    _, drops = clear_dungeon(flow, info, target, "九宫玄塔·%s(最高层)" % target,
-                             False, quota=(_NINE_POOL, NINE_TOWER_MAX))
+    sweep = str(NINE_MODE).lower() == "sweep"
+    print("[九宫玄塔] 选层=%s 今日免费剩余=%s 模式=%s" % (target, remain, "扫荡" if sweep else "手打"))
+    if sweep:
+        drops = sweep_shared(flow, info, target,
+                             remain if remain is not None else NINE_TOWER_MAX,
+                             '九宫玄塔', _NINE_POOL, NINE_TOWER_MAX)
+    else:
+        _, drops = clear_dungeon(flow, info, target, "九宫玄塔·%s(最高层)" % target,
+                                 False, quota=(_NINE_POOL, NINE_TOWER_MAX))
     if drops:
         with open(DROPS_LOG, "a", encoding="utf-8") as f:
             f.write(json.dumps({"ts": int(time.time()),
@@ -2799,6 +3011,8 @@ def run_nine_tower(flow, info):
 
 
 def run_xuanta_event(flow, info):
+    if _activity_disabled_reason('RUN_XUANTA_EVENT'):
+        print('[玄塔有灵] ' + _activity_disabled_reason('RUN_XUANTA_EVENT'));return False
     """限时任务玄塔有灵：只使用一次免费九宫玄塔挑战。"""
     qid = 2014
 
@@ -2893,70 +3107,131 @@ def select_demon_tower_layer(flow, info, chosen_layer):
     return None
 
 
+def demon_tower_rune_capacity(info, layer, battles, config_folder=None):
+    """按普通模式各场掉落上限预留灵符格；重复掉落组不能去重。"""
+    from pathlib import Path
+    from game_version import latest_config_folder
+    folder = config_folder or latest_config_folder()
+    if folder is None:
+        raise ValueError("未找到镇妖塔掉落配置")
+    folder = Path(folder)
+    cfg = json.loads((folder / 'DemonTowerChallenge.json').read_text(encoding='utf-8-sig'))
+    drops = json.loads((folder / 'DropSvr.json').read_text(encoding='utf-8-sig'))
+    stages = cfg[str(layer)]['towerDropId'].split(';')
+    if not 1 <= battles <= 5 or len(stages) != 5:
+        raise ValueError("镇妖塔场数或掉落配置不完整")
+    required = 0
+    for stage in stages[:battles]:
+        for drop_id in stage.split(','):
+            row = drops[drop_id.strip()]
+            required += max(0, int(row.get('runeMaxNum') or 0))
+    bag = info.get('bag') or {}
+    capacity = int(bag['runeBagMax'])
+    used = len(bag.get('rune') or {})
+    return {'used': used, 'capacity': capacity, 'required': required,
+            'free': capacity - used}
+
+
 def run_demon_tower(flow, info):
     # 镇妖塔: info.demonTower.count = 今日【剩余挑战次数】(默认5, 不足需付费buyCount)。
     # 一次挑战最多连续5场，只消耗1次；结算掉落需再按dropIndex逐件领取。
-    remain = (info.get("demonTower") or {}).get("count", 0)
-    if remain is None or remain <= 0:
-        print("[镇妖塔] 今日挑战次数为0, 跳过(不花点券)")
+    # 连续执行: DEMON_TOWER_RUNS 轮，每轮消耗1次挑战次数，逐轮按服务器剩余次数核对。
+    runs = max(1, int(DEMON_TOWER_RUNS or 1))
+    battles = min(5, max(0, int(MAX_TIMES)))
+    if not battles:
         return
-    chosen = select_demon_tower_layer(flow, info, DEMON_TOWER_TARGET_LAYER)
-    if chosen is None:
-        return
-    remain = chosen.get("count", remain)
-    print("[镇妖塔] 今日剩余挑战次数=%s, 开始一次爬塔" % remain)
-    before_bag = info.get("bag") or {}
-    before_soul = int(((before_bag.get("item") or {}).get("101026006") or {}).get("count", 0))
-    before_runes = len(before_bag.get("rune") or {})
-    n = 0
-    grand = {}
-    for _ in range(MAX_TIMES):
-        b = flow.request("scene.demonTowerHandler.beginChallenge", {"type": 0})
-        if isinstance(b, dict) and b.get("error"):
-            print("[镇妖塔] 停止: %s" % b.get("error")); break
-        e = flow.request("scene.demonTowerHandler.endChallenge",
-                         {"win": 1, "maxCombo": 9, "killMonsterCnt": 66,
-                          "useMagicWeaponCnt": 0, "useBossCardCnt": 0})
-        if isinstance(e, dict) and e.get("error"):
-            print("[镇妖塔] 结算失败: %s" % e.get("error")); break
-        bag = defaultdict(int)
-        claim_failed = False
-        for drop in e.get("give") or []:
-            index = drop.get("dropIndex")
-            if index is None:
-                print("[镇妖塔] 掉落缺少拾取序号，停止:", drop)
-                claim_failed = True
-                break
-            picked = flow.request("scene.demonTowerHandler.getReward", {"index": index})
-            if picked.get("code") != 200:
-                print("[镇妖塔] 拾取失败，序号%s: %s" %
-                      (index, picked.get("error") or picked.get("code")))
-                claim_failed = True
-                break
-            _agg_drops(bag, picked.get("give"))
-        cur = (e.get("demonTower") or {}).get("cur", {})
-        n += 1
-        print("[镇妖塔] 第%d场过 layer=%s index=%s 已领取=%s"
-              % (n, cur.get("layer"), cur.get("index"), dict(bag)))
-        if bag:
-            grand["镇妖塔-第%d场" % n] = dict(bag)
-        if claim_failed:
+    grand_all = {}
+    for run_index in range(1, runs + 1):
+        tower = info.get("demonTower") or {}
+        remain = tower.get("count", 0)
+        if remain is None or remain <= 0:
+            if run_index == 1:
+                print("[镇妖塔] 今日挑战次数为0, 跳过(不花点券)")
+            else:
+                print("[镇妖塔] 今日挑战次数已用完，连续执行在第%d轮停止" % run_index)
             break
-        time.sleep(SLEEP)
-    fresh = flow.request("connector.entryHandler.entry",
-                         {"index": RECORD_INDEX, "userAgent": flow.user_agent}).get("info") or {}
-    new_remain = (fresh.get("demonTower") or {}).get("count")
-    new_cur = (fresh.get("demonTower") or {}).get("cur") or {}
-    after_bag = fresh.get("bag") or {}
-    after_soul = int(((after_bag.get("item") or {}).get("101026006") or {}).get("count", 0))
-    after_runes = len(after_bag.get("rune") or {})
-    print("[镇妖塔] 本次共过 %d 场；挑战次数 %s→%s；进度 layer=%s index=%s"
-          % (n, remain, new_remain, new_cur.get("layer"), new_cur.get("index")))
-    print("[镇妖塔] 背包核对: 符魂 %s→%s，灵符 %s→%s"
-          % (before_soul, after_soul, before_runes, after_runes))
-    if grand:
+        layer = int(DEMON_TOWER_TARGET_LAYER or
+                    (tower.get('bestRecord') or {}).get('layer') or
+                    (tower.get('cur') or {}).get('layer') or 0)
+        try:
+            space = demon_tower_rune_capacity(info, layer, battles)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            print("[镇妖塔] 无法确认灵符背包容量或掉落上限，未开打、未重置：%s" % exc)
+            break
+        if space['free'] < space['required']:
+            print("[镇妖塔] 灵符背包%s/%s，剩余%s格；本次%s场按掉落上限需预留%s格。"
+                  "请先清理灵符，未开打、未重置，不会自动出售或付费扩容。" %
+                  (space['used'], space['capacity'], space['free'], battles, space['required']))
+            break
+        chosen = select_demon_tower_layer(flow, info, DEMON_TOWER_TARGET_LAYER)
+        if chosen is None:
+            break
+        remain = chosen.get("count", remain)
+        if runs > 1:
+            print("[镇妖塔] === 第 %d/%d 轮 ===" % (run_index, runs))
+        print("[镇妖塔] 今日剩余挑战次数=%s, 开始一次爬塔" % remain)
+        before_bag = info.get("bag") or {}
+        before_soul = int(((before_bag.get("item") or {}).get("101026006") or {}).get("count", 0))
+        before_runes = len(before_bag.get("rune") or {})
+        n = 0
+        grand = {}
+        for _ in range(battles):
+            b = flow.request("scene.demonTowerHandler.beginChallenge", {"type": 0})
+            if isinstance(b, dict) and b.get("error"):
+                print("[镇妖塔] 停止: %s" % b.get("error")); break
+            e = flow.request("scene.demonTowerHandler.endChallenge",
+                             {"win": 1, "maxCombo": 9, "killMonsterCnt": 66,
+                              "useMagicWeaponCnt": 0, "useBossCardCnt": 0})
+            if isinstance(e, dict) and e.get("error"):
+                print("[镇妖塔] 结算失败: %s" % e.get("error")); break
+            bag = defaultdict(int)
+            claim_failed = False
+            for drop in e.get("give") or []:
+                index = drop.get("dropIndex")
+                if index is None:
+                    print("[镇妖塔] 掉落缺少拾取序号，停止:", drop)
+                    claim_failed = True
+                    break
+                picked = flow.request("scene.demonTowerHandler.getReward", {"index": index})
+                if picked.get("code") != 200:
+                    print("[镇妖塔] 拾取失败，序号%s: %s" %
+                          (index, picked.get("error") or picked.get("code")))
+                    claim_failed = True
+                    break
+                _agg_drops(bag, picked.get("give"))
+            cur = (e.get("demonTower") or {}).get("cur", {})
+            n += 1
+            print("[镇妖塔] 第%d场过 layer=%s index=%s 已领取=%s"
+                  % (n, cur.get("layer"), cur.get("index"), dict(bag)))
+            if bag:
+                key = ("镇妖塔-第%d场" % n if runs == 1
+                       else "镇妖塔-第%d轮-第%d场" % (run_index, n))
+                grand[key] = dict(bag)
+            if claim_failed:
+                break
+            time.sleep(SLEEP)
+        fresh = flow.request("connector.entryHandler.entry",
+                             {"index": RECORD_INDEX, "userAgent": flow.user_agent}).get("info") or {}
+        new_remain = (fresh.get("demonTower") or {}).get("count")
+        new_cur = (fresh.get("demonTower") or {}).get("cur") or {}
+        after_bag = fresh.get("bag") or {}
+        after_soul = int(((after_bag.get("item") or {}).get("101026006") or {}).get("count", 0))
+        after_runes = len(after_bag.get("rune") or {})
+        print("[镇妖塔] 本轮共过 %d 场；挑战次数 %s→%s；进度 layer=%s index=%s"
+              % (n, remain, new_remain, new_cur.get("layer"), new_cur.get("index")))
+        print("[镇妖塔] 背包核对: 符魂 %s→%s，灵符 %s→%s"
+              % (before_soul, after_soul, before_runes, after_runes))
+        grand_all.update(grand)
+        info.clear()
+        info.update(fresh)
+        if n <= 0:
+            print("[镇妖塔] 本轮未完成任何一场，停止连续执行")
+            break
+        if run_index < runs:
+            time.sleep(SLEEP)
+    if grand_all:
         with open(DROPS_LOG, "a", encoding="utf-8") as f:
-            f.write(json.dumps({"ts": int(time.time()), "drops": grand},
+            f.write(json.dumps({"ts": int(time.time()), "drops": grand_all},
                                ensure_ascii=False) + "\n")
 
 
@@ -3029,6 +3304,8 @@ def run_pet_tower(flow, info):
 
 
 def claim_dragon_treasure_tasks(flow, info):
+    if _activity_disabled_reason('RUN_DRAGON_TREASURE_TASKS'):
+        print('[龙宫寻宝] ' + _activity_disabled_reason('RUN_DRAGON_TREASURE_TASKS'));return
     """Claim only completed Dragon Treasure quests (TaskDataVo label 91 / status 2)."""
     if not isinstance(info, dict) or not isinstance(info.get("dragonTreasure"), dict):
         print("[龙宫寻宝] 当前存档没有活动数据，跳过")
@@ -3204,14 +3481,25 @@ def run_extension_daily(flow, module_name, action):
         print('[扩展日常] %s 执行失败：%s' % (module_name, exc))
 
 
+def _step(label, func, *args, **kwargs):
+    """单项失败只记录并继续，避免一个请求异常拖停后续所有日常。"""
+    try:
+        return func(*args, **kwargs)
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except Exception as exc:
+        print("[%s] 执行失败：%s；已跳过本项，继续后续任务" % (label, exc), flush=True)
+        return None
+
+
 def main():
     flow, info = login()
     if RUN_FLUSHOU:
-        run_flushou(flow, info)
+        _step('福禄寿', run_flushou, flow, info)
     if RUN_DEVOTE:
-        do_devote(flow)
+        _step('贡献', do_devote, flow)
     if RUN_SHANFA_LIKE:
-        run_extension_daily(flow, 'shanfa_run', 'like_in_shanfa')
+        _step('闪法点赞', run_extension_daily, flow, 'shanfa_run', 'like_in_shanfa')
     if RUN_APPRENTICE_LEARN or RUN_APPRENTICE_TEACH:
         try:
             run_apprenticeship(flow, info, learn=RUN_APPRENTICE_LEARN,
@@ -3229,19 +3517,22 @@ def main():
         except Exception as exc:
             print("[斗宠大会] 操作异常，继续其他任务: %s" % exc)
     if RUN_MYSTERY_SHOP:
-        buy_mystery_shop(flow)
+        try:
+            buy_mystery_shop(flow)
+        except Exception as exc:
+            print("[神秘商店] 操作异常，继续其他任务: %s" % exc)
     if RUN_CARD_CAVE:
-        run_card_cave(flow, info)
+        _step('藏宝洞', run_card_cave, flow, info)
     if RUN_HALO:
-        run_halo(flow, info)
+        _step('十绝阵', run_halo, flow, info)
     if RUN_MANHUANG:
-        run_manhuang(flow, info)
+        _step('蛮荒', run_manhuang, flow, info)
     if RUN_FOREST:
-        run_forest(flow, info)
+        _step('神兽森林', run_forest, flow, info)
     if RUN_ELITE and RUN_ACCEPT_DAILY_TASKS:
-        accept_daily_tasks(flow, info)
+        _step('接日常任务', accept_daily_tasks, flow, info)
     if RUN_ELITE or RUN_SKY or RUN_TEN or MAIN_CUSTOM_MID:
-        run_dungeons(flow, info)
+        _step('副本总调度', run_dungeons, flow, info)
     # 精英翻牌优先计入今日强化石，再读取服务器状态补齐；不叠加本地次数。
     if RUN_ELITE_STONE:
         try:
@@ -3255,11 +3546,10 @@ def main():
             info.clear()
             info.update(stone_info)
         except Exception as exc:
-            print('[万能强化石日常] 已停止本轮日常：%s' % exc)
-            return
+            print('[万能强化石日常] 本项停止，继续后续任务：%s' % exc)
     # 万象古树/丹熏山(mid=300113, 独立副本, 每天免费2次)
     if RUN_WANXIANG:
-        run_wanxiang(flow, info)
+        _step('万象古树', run_wanxiang, flow, info)
     if RUN_NIGHTMARE_SKY:
         try:
             from nightmare_sky import run as run_nightmare_sky
@@ -3267,18 +3557,18 @@ def main():
         except Exception as exc:
             print('[噩梦天树王] 异常停止本项：%s' % exc)
     if RUN_ACTIVITY:
-        run_activity(flow, info)
-    xuanta_used_tower = run_xuanta_event(flow, info) if RUN_XUANTA_EVENT else False
+        _step('活动挑战', run_activity, flow, info)
+    xuanta_used_tower = _step('玄塔有灵', run_xuanta_event, flow, info) if RUN_XUANTA_EVENT else False
     if RUN_NINE_TOWER and not xuanta_used_tower:
-        run_nine_tower(flow, info)
+        _step('九宫玄塔', run_nine_tower, flow, info)
     elif RUN_NINE_TOWER and xuanta_used_tower:
         print("[九宫玄塔] 玄塔有灵已挑战一次，本轮跳过普通九宫玄塔刷取")
     if RUN_DEMON_TOWER:
-        run_nightmare(flow, info)
+        _step('噩梦关卡', run_nightmare, flow, info)
     if RUN_DEMON_TOWER2:
-        run_demon_tower(flow, info)
+        _step('恶魔塔', run_demon_tower, flow, info)
     if RUN_PET_TOWER:
-        run_pet_tower(flow, info)
+        _step('宠物塔', run_pet_tower, flow, info)
     if RUN_STAR_MAZE:
         try:
             from star_maze import run_star_maze
@@ -3286,14 +3576,16 @@ def main():
         except Exception as _e:
             print('[星斗幻境] 异常跳过: %r' % (_e,))
     if RUN_MID_AUTUMN:
-        run_mid_autumn(flow, info)
+        _step('中秋博饼', run_mid_autumn, flow, info)
     if RUN_JIN_QIU:
-        run_jin_qiu(flow, info)
+        _step('金秋送福', run_jin_qiu, flow, info)
     if RUN_CLOUD_LADDER:
-        run_cloud_ladder(flow, info)
+        _step('云梯', run_cloud_ladder, flow, info)
     if RUN_DOG_CARD:
-        from union_boss_batch import run_dog
-        run_dog({}, RECORD_INDEX, '双十一免费抽狗卡', flow=flow)
+        def _dog_card():
+            from union_boss_batch import run_dog
+            return run_dog({}, RECORD_INDEX, '双十一免费抽狗卡', flow=flow)
+        _step('抽狗卡', _dog_card)
     if RUN_CLIMB_HIGH:
         try:
             from climb_high import run as run_climb_high
@@ -3313,12 +3605,14 @@ def main():
         except Exception as exc:
             print('[魔法水晶球] 本项停止：%s' % exc)
     if RUN_MAGIC_RABBIT:
-        from rabbit_activity import run as run_magic_rabbit
-        run_magic_rabbit(flow, info, RECORD_INDEX)
+        def _magic_rabbit():
+            from rabbit_activity import run as run_magic_rabbit
+            return run_magic_rabbit(flow, info, RECORD_INDEX)
+        _step('魔法兔', _magic_rabbit)
     if RUN_RELIC_TREASURE:
-        run_relic_treasure(flow)
+        _step('遗迹宝藏', run_relic_treasure, flow)
     if RUN_STOVE:
-        run_stove(flow, info)
+        _step('炼丹炉', run_stove, flow, info)
     if RUN_FREE_MAZE:
         try:
             from free_maze_daily import run_free_maze
@@ -3326,12 +3620,16 @@ def main():
         except Exception as _e:
             print("[迷宫活跃] 异常跳过: %s" % _e)
     if RUN_CELEBRATION or RUN_CELEBRATION_ONLINE:
-        from celebration_daily import run as run_celebration_daily
-        scope = 'all' if RUN_CELEBRATION and RUN_CELEBRATION_ONLINE else ('tasks' if RUN_CELEBRATION else 'online')
-        run_celebration_daily(flow, info, RECORD_INDEX, scope=scope, allow_spirit_backup=CELEBRATION_SPIRIT_BACKUP, password=os.environ.get('ZM5_CELEBRATION_PASSWORD',''))
+        def _celebration():
+            from celebration_daily import run as run_celebration_daily
+            scope = 'all' if RUN_CELEBRATION and RUN_CELEBRATION_ONLINE else ('tasks' if RUN_CELEBRATION else 'online')
+            return run_celebration_daily(flow, info, RECORD_INDEX, scope=scope, allow_spirit_backup=CELEBRATION_SPIRIT_BACKUP, password=os.environ.get('ZM5_CELEBRATION_PASSWORD',''))
+        _step('庆典日常', _celebration)
     if RUN_FAIRY_REWARD:
-        from fairy_daily import run as run_fairy_daily
-        run_fairy_daily(flow, RECORD_INDEX, FAIRY_DAILY_POSITIONS, apply=True, preferences=FAIRY_DAILY_PREFERENCES)
+        def _fairy_reward():
+            from fairy_daily import run as run_fairy_daily
+            return run_fairy_daily(flow, RECORD_INDEX, FAIRY_DAILY_POSITIONS, apply=True, preferences=FAIRY_DAILY_PREFERENCES)
+        _step('幻兽奖励', _fairy_reward)
     if RUN_BLACK_MARKET_DAILY:
         try:
             from black_market_daily import run as run_black_market_daily
@@ -3339,54 +3637,58 @@ def main():
         except Exception as exc:
             print('[黑市日常] 本项停止：%s；未自动重试' % exc, flush=True)
     if RUN_MY_DAILY_FUN:
-        from fun_batch_runner import execute as run_my_daily_fun
-        run_my_daily_fun(flow,{'uid':str(UID),'username':USERNAME},RECORD_INDEX,MY_DAILY_FUN_JOBS)
+        def _my_daily_fun():
+            from fun_batch_runner import execute as run_my_daily_fun
+            return run_my_daily_fun(flow,{'uid':str(UID),'username':USERNAME},RECORD_INDEX,MY_DAILY_FUN_JOBS)
+        _step('我的日常', _my_daily_fun)
     # 完成任务在前，独立领奖在后；活跃积分与里程碑固定为最后一项。
     if RUN_WHITE_DRAGON:
-        from new_player_daily import run as run_new_player_daily
-        run_new_player_daily(flow, info, RECORD_INDEX,
-                             os.environ.pop('ZM5_WHITE_DRAGON_PASSWORD', '') or '')
+        def _white_dragon():
+            from new_player_daily import run as run_new_player_daily
+            return run_new_player_daily(flow, info, RECORD_INDEX,
+                                        os.environ.pop('ZM5_WHITE_DRAGON_PASSWORD', '') or '')
+        _step('白龙日常', _white_dragon)
     if RUN_GROWTH_BUFF:
-        claim_growth_buff(flow, info)
+        _step('成长加速', claim_growth_buff, flow, info)
     if RUN_LANDING_NEW:
-        claim_landing_reward(flow, info, legacy=False)
+        _step('回归新', claim_landing_reward, flow, info, legacy=False)
     if RUN_LANDING_LEGACY:
-        claim_landing_reward(flow, info, legacy=True)
+        _step('回归旧', claim_landing_reward, flow, info, legacy=True)
     if RUN_NOVICE_GIFT:
-        claim_new_player_rewards(flow, info, claim=True)
+        _step('新手礼包', claim_new_player_rewards, flow, info, claim=True)
     if RUN_NOVICE_CHECK:
-        claim_new_player_rewards(flow, info, claim=False)
+        _step('新手检查', claim_new_player_rewards, flow, info, claim=False)
     if RUN_WEEKEND_BUFF:
-        claim_weekend_online(flow, info, part='buff')
+        _step('周末加成', claim_weekend_online, flow, info, part='buff')
     if RUN_WEEKEND_ONLINE:
-        claim_weekend_online(flow, info, part='rest')
+        _step('周末在线', claim_weekend_online, flow, info, part='rest')
     if RUN_GROWTH_BUY_VIP:
-        buy_growth_vip(flow, info)
+        _step('成长VIP', buy_growth_vip, flow, info)
     if RUN_GROWTH_ACCEPTALL:
-        accept_all_growth_quests(flow, info, None)
+        _step('成长接任务', accept_all_growth_quests, flow, info, None)
     if RUN_GROWTH_FREE:
-        claim_growth_dungeon_tasks(flow, info, None)
-        claim_growth_manhuang_tasks(flow, info, None)
+        _step('成长通关任务', claim_growth_dungeon_tasks, flow, info, None)
+        _step('成长蛮荒任务', claim_growth_manhuang_tasks, flow, info, None)
     if RUN_GROWTH_ACCEPT:
-        accept_all_growth_quests(flow, info)
+        _step('成长接任务', accept_all_growth_quests, flow, info)
     if RUN_GROWTH_DUNGEON:
-        claim_growth_dungeon_tasks(flow, info)
+        _step('成长通关任务', claim_growth_dungeon_tasks, flow, info)
     if RUN_GROWTH_MANHUANG:
-        claim_growth_manhuang_tasks(flow, info)
+        _step('成长蛮荒任务', claim_growth_manhuang_tasks, flow, info)
     if RUN_GROWTH_HALO:
-        claim_growth_halo_tasks(flow, info)
+        _step('成长十绝任务', claim_growth_halo_tasks, flow, info)
     if RUN_GROWTH_DAN:
-        claim_growth_dan_tasks(flow, info)
+        _step('成长炼丹任务', claim_growth_dan_tasks, flow, info)
     if RUN_GROWTH_POINT:
-        claim_growth_point_rewards(flow, info)
+        _step('成长积分', claim_growth_point_rewards, flow, info)
     if RUN_GROWTH_CLAIM_ONLY:
-        claim_growth_all_ready(flow, info)
+        _step('成长一键领取', claim_growth_all_ready, flow, info)
     if RUN_VIP_GIFT:
-        claim_vip_gift(flow, info)
+        _step('VIP礼包', claim_vip_gift, flow, info)
     if RUN_ARENA_SIGNUP:
-        signup_arena(flow, 'arena')
+        _step('竞技场报名', signup_arena, flow, 'arena')
     if RUN_PET_ARENA_SIGNUP:
-        signup_arena(flow, 'petArena')
+        _step('斗宠报名', signup_arena, flow, 'petArena')
     for enabled, module_name, action in [
         (RUN_ARENA_REWARD, 'arena_reward', 'do_claim'),
         (RUN_PET_ARENA_REWARD, 'pet_arena_reward', 'do_claim'),
@@ -3397,23 +3699,27 @@ def main():
         if enabled:
             run_extension_daily(flow, module_name, action)
     if RUN_DRAGON_TREASURE_TASKS:
-        claim_dragon_treasure_tasks(flow, info)
+        _step('龙宫寻宝', claim_dragon_treasure_tasks, flow, info)
     if RUN_PERMANENT_FASHION:
-        claim_fashion_rewards(flow, info)
+        _step('永久时装', claim_fashion_rewards, flow, info)
     if RUN_FASHION_SIGNIN:
-        claim_fashion_signin(flow, info)
+        _step('时装签到', claim_fashion_signin, flow, info)
     if RUN_FASHION_ONLINE:
-        claim_fashion_online(flow, info)
+        _step('时装在线', claim_fashion_online, flow, info)
     if RUN_FASHION_SHOP:
-        _shop_qty = RUN_FASHION_SHOP_QTY if isinstance(RUN_FASHION_SHOP_QTY, dict) else {}
-        buy_fashion_shop(flow, info,
-                         {int(k): int(v) for k, v in _shop_qty.items() if int(v) > 0} or None)
+        def _fashion_shop():
+            _shop_qty = RUN_FASHION_SHOP_QTY if isinstance(RUN_FASHION_SHOP_QTY, dict) else {}
+            return buy_fashion_shop(flow, info,
+                                    {int(k): int(v) for k, v in _shop_qty.items() if int(v) > 0} or None)
+        _step('时装商店', _fashion_shop)
     if RUN_LIVENESS:
-        fresh = flow.request('connector.entryHandler.entry', {'index': RECORD_INDEX, 'userAgent': flow.user_agent})
-        if fresh.get('code', 200) != 200 or fresh.get('error') or not isinstance(fresh.get('info'), dict):
-            raise RuntimeError('最终活跃领奖前刷新存档失败，未发送领取')
-        print('[每日活跃] 本批其它任务结束，最后领取任务积分和里程碑奖励')
-        claim_liveness(flow)
+        def _liveness():
+            fresh = flow.request('connector.entryHandler.entry', {'index': RECORD_INDEX, 'userAgent': flow.user_agent})
+            if fresh.get('code', 200) != 200 or fresh.get('error') or not isinstance(fresh.get('info'), dict):
+                raise RuntimeError('最终活跃领奖前刷新存档失败，未发送领取')
+            print('[每日活跃] 本批其它任务结束，最后领取任务积分和里程碑奖励')
+            return claim_liveness(flow)
+        _step('每日活跃', _liveness)
     flow.disconnect()
 
 

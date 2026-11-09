@@ -33,9 +33,14 @@ def load_manifest(path,account):
 def latest_manifest(account):
     paths=sorted((ROOT/'pet_training_batches').glob('*/manifest.json'),key=lambda p:p.stat().st_mtime,reverse=True)
     for p in paths:
-        try:load_manifest(p,account);return p
+        try:data=load_manifest(p,account)
         except (ValueError,KeyError):continue
-    raise ValueError('当前账号/存档没有已完成的第一步清单')
+        if data.get('pending') or (data.get('harvest') or {}).get('pending') or (data.get('finalize') or {}).get('pending'):continue
+        if (data.get('leveling') or {}).get('pending') or (data.get('leveling') or {}).get('status')=='failed':continue
+        if data.get('status')!='complete' or not data.get('kept'):continue
+        if (data.get('finalize') or {}).get('status')=='complete':continue
+        return p
+    raise ValueError('当前账号/存档没有可续跑的已完成第一步清单')
 
 def recover_pending(path,account,info):
     """After an explicitly chosen reconnect, use persisted server state; never replay a request."""
@@ -47,25 +52,39 @@ def recover_pending(path,account,info):
         p=(((info.get(key) or {}).get('equipments') or {}).get('pet') or {})
         if p.get('entityId'):pets[p['entityId']]=p
     ids=list((pending.get('pets') or {}).values())
-    if not ids or any(eid not in pets for eid in ids):raise RuntimeError('无法确认超时宠物的实际状态，未恢复')
+    if not ids:return
+    missing=[eid for eid in ids if eid not in pets]
+    kept={p.get('entityId') for p in data.get('kept') or []}
+    if missing:
+        if set(ids)<=set(missing) and not (set(ids)&kept):
+            state.setdefault('recoveries',[]).append({'uncertain':pending,'actual':[],'note':'待确认宠物均不在背包/出战栏且不在保留清单，按已离开处理；未重发'})
+            state['pending']=None
+            if state.get('error'):state.setdefault('resolved_errors',[]).append(state.pop('error'))
+            atomic_json(path,data)
+            return
+        raise RuntimeError('无法确认超时宠物的实际状态，未恢复')
     state.setdefault('recoveries',[]).append({'uncertain':pending,'actual':[snapshot(pets[eid]) for eid in ids],'note':'未重发；从服务器实际经验续跑，超时局不计为确认完整结算局'})
     state['pending']=None
     if state.get('error'):state.setdefault('resolved_errors',[]).append(state.pop('error'))
     atomic_json(path,data)
 
 class Leveling:
-    def __init__(self,flow,info,account,path,mode,table,prepare_bonus=True,seconds=8,early_stop=False,passive_target=3,push_wait=0.25,mid=None):
+    def __init__(self,flow,info,account,path,mode,table,prepare_bonus=True,seconds=8,early_stop=False,passive_target=3,max_level=45,push_wait=0.25,mid=None):
         if passive_target not in (2,3):raise ValueError('早停目标潜能须为2或3级')
         self.flow=flow;self.info=info;self.account=account;self.path=Path(path);self.folder=self.path.parent
         self.data=load_manifest(path,account);self.slots=indices(info,mode);self.table=table
         self.prepare_bonus=prepare_bonus;self.seconds=seconds;self.known={};self.update_known()
-        self.early_stop=early_stop;self.passive_target=passive_target;self.push_wait=push_wait
+        self.early_stop=early_stop;self.passive_target=passive_target;self.max_level=max_level;self.ceiling=self.ceiling_level();self.push_wait=push_wait
         self.current={i:self.equipped(i).get('entityId') for i in (0,1) if info.get('p'+str(i+1))}
+        if not self.ceiling:raise ValueError('未读取到角色等级，无法确定早停上限')
         self.state=self.data.setdefault('leveling',{'status':'pending','mode':mode,'original':{str(i):eid for i,eid in self.current.items()},'75':{},'101':{},'rounds':{},'pending':None})
         self.mid=int(mid or self.state.get('map') or latest_stage(info))
         self.state['map']=self.mid
         if self.state.get('pending'):raise RuntimeError('上次有未确认战斗，需恢复核对后再运行，未自动重发')
-        if early_stop:self.state.setdefault('early',{})
+        if early_stop:
+            self.state.setdefault('early',{})
+            key=str(self.ceiling)
+            if key not in self.state:self.state[key]=dict(self.state.get('101') or {})
         self.save()
         self.push_enabled=True;self.push_skills={eid:dict(passive(self.known[eid])) for eid in (p['entityId'] for p in self.data['kept']) if eid in self.known}
         def on_upgrade(body):
@@ -146,12 +165,16 @@ class Leveling:
         p=self.push_skills.get(eid)
         if p is None:p=dict(passive(self.known.get(eid) or {}))
         return (max([int(v) for v in p.values()] or [0]),len(p))
+    def ceiling_level(self):
+        levels=[int((self.info.get('p%d'%(i+1)) or {}).get('level') or 0) for i in self.slots]
+        levels=[v for v in levels if v>0]
+        return min(levels+[self.max_level]) if levels else self.max_level
     def early_verdict(self,eid,level):
-        """达标／潜能格已满／到101级即停；只在早停模式使用，依据服务器升级推送。"""
+        """达标／潜能满槽／到等级上限即停；只在早停模式使用，依据服务器升级推送。"""
         top,slots=self.potential_now(eid);cap=int((self.known.get(eid) or {}).get('capacity') or 0)
         if top>=self.passive_target:reason='target'
         elif cap and slots>=cap:reason='full'
-        elif level>=101:reason='levelcap'
+        elif level>=self.ceiling:reason='levelcap'
         else:return None
         return {'reason':reason,'level':level,'push_max':top,'push_slots':slots,'capacity':cap}
     def stage(self,ids,target,decide=None):
@@ -188,7 +211,7 @@ class Leveling:
             for i,v in active.items():
                 if gains[i]<=0:raise RuntimeError('出战宠物未获得经验，停止')
                 v['level'],v['exp']=advance(v['level'],v['exp'],gains[i],self.table)
-                stats=self.state['rounds'].setdefault(v['id'],{'75':0,'101':0});stats[key]+=1
+                stats=self.state['rounds'].setdefault(v['id'],{});stats[key]=stats.get(key,0)+1
             self.state['pending']=None;self.save()
             if decide:time.sleep(self.push_wait)
             finished={}
@@ -229,7 +252,7 @@ class Leveling:
             result=self._run()
         if self.early_stop:
             reasons=Counter(v.get('reason') for v in self.state.get('early',{}).values())
-            say('升级','早停模式完成，耗时%s；达标%d只，潜能格满%d只，到101级%d只，起步已达%d只；推送记录%s'%(duration(time.monotonic()-started),reasons['target'],reasons['full'],reasons['levelcap'],reasons['preexisting'],self.folder/'leveling_pushes.jsonl'))
+            say('升级','早停模式完成，耗时%s；达标%d只，潜能格满%d只，到%d级%d只，起步已达%d只；推送记录%s'%(duration(time.monotonic()-started),reasons['target'],reasons['full'],self.ceiling,reasons['levelcap'],reasons['preexisting'],self.folder/'leveling_pushes.jsonl'))
         else:
             say('升级','完成，耗时%s；75级%d只，101级%d只；潜能推送记录%s'%(duration(time.monotonic()-started),len(self.state['75']),len(self.state['101']),self.folder/'leveling_pushes.jsonl'))
         return result
@@ -245,9 +268,9 @@ class Leveling:
         if self.early_stop:
             self.state['selected101']=[];self.save()
             from pet_training_log import say
-            self.log('early_start',{'target':self.passive_target,'pets':ids,'map':self.mid})
-            say('早停','目标%d级潜能：每局按服务器升级推送判定，达标或潜能格全满或到101级即停；不先跑75级；副本%d'%(self.passive_target,self.mid))
-            self.stage(ids,101,decide=self.early_verdict)
+            self.log('early_start',{'target':self.passive_target,'pets':ids,'map':self.mid,'ceiling':self.ceiling})
+            say('早停','目标%d级潜能：每局按服务器升级推送判定，达标／潜能格满／到%d级（角色上限）即停；不先跑75级；副本%d'%(self.passive_target,self.ceiling,self.mid))
+            self.stage(ids,self.ceiling,decide=self.early_verdict)
         else:
             self.stage(ids,75)
             selected=[eid for eid in ids if eligible101(self.state['75'][eid])]
@@ -270,9 +293,9 @@ class Leveling:
         self.state['restore']=receipts;self.save()
 
 def main():
-    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--manifest',type=Path);ap.add_argument('--mode',choices=['auto','p1','both'],default='auto');ap.add_argument('--no-exp-buffs',action='store_true');ap.add_argument('--early-stop',action='store_true');ap.add_argument('--target-passive',type=int,choices=[2,3],default=3);ap.add_argument('--apply',action='store_true');ap.add_argument('--seconds',type=float,default=8);ap.add_argument('--map',type=int,default=0);args=ap.parse_args()
+    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--manifest',type=Path);ap.add_argument('--mode',choices=['auto','p1','both'],default='auto');ap.add_argument('--no-exp-buffs',action='store_true');ap.add_argument('--early-stop',action='store_true');ap.add_argument('--target-passive',type=int,choices=[2,3],default=3);ap.add_argument('--max-level',type=int,default=45);ap.add_argument('--apply',action='store_true');ap.add_argument('--seconds',type=float,default=8);ap.add_argument('--map',type=int,default=0);args=ap.parse_args()
     if not args.apply:
-        print('预演：自动识别单/双人档，或仅1P；清单宠物先到75级，潜能≥2者再101级。根据每只实际获得的经验计算节点，不套用其他账号固定局数；仅目标节点核对。' if not args.early_stop else '预演：早停模式，直接训练到%d级潜能达标、潜能格全满或101级即停，不先跑75级。'%args.target_passive);return
+        print('预演：自动识别单/双人档，或仅1P；清单宠物先到75级，潜能≥2者再101级。根据每只实际获得的经验计算节点，不套用其他账号固定局数；仅目标节点核对。' if not args.early_stop else '预演：早停模式，直接训练到%d级潜能达标、潜能格满或到角色等级／%d级封顶即停，不先跑75级。'%(args.target_passive,args.max_level));return
     import feature_account as ta
     from pet_utilities import table
     path=args.manifest or latest_manifest(ta.ACCT);load_manifest(path,ta.ACCT)
@@ -281,7 +304,7 @@ def main():
         from pet_training_log import Feedback
         with Feedback('连接','正在登录当前账号和所选存档，等待服务器响应'):
             flow=ta.connect(ta.ACCT);info=ta.entry(flow,ta.ACCT)
-        job=Leveling(flow,info,ta.ACCT,path,args.mode,table('PetEXP'),prepare_bonus=not args.no_exp_buffs,seconds=args.seconds,early_stop=args.early_stop,passive_target=args.target_passive,mid=args.map or None);job.run()
+        job=Leveling(flow,info,ta.ACCT,path,args.mode,table('PetEXP'),prepare_bonus=not args.no_exp_buffs,seconds=args.seconds,early_stop=args.early_stop,passive_target=args.target_passive,max_level=args.max_level,mid=args.map or None);job.run()
     except Exception as exc:
         from pet_training_log import connection_notice
         connection_notice(exc,path)

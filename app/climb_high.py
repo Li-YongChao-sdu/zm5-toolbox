@@ -20,6 +20,8 @@ def parse_score(value):
 
 
 def run(flow, info, slot, score=100):
+    from activity_availability import require_open
+    require_open('RUN_CLIMB_HIGH')
     row = config('ClimbHigh')['1']
     limit, item_id = int(row['freeNum']), str(row['itemId'])
     score = parse_score(score)

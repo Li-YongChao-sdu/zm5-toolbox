@@ -27,6 +27,20 @@ def damage_per_second(hp_max, percent_per_minute=0.2):
     return hp_max * percent_per_minute / 100 / 60
 
 
+def advance_model_actions(model, state, elapsed):
+    """只模拟实际已流逝的时间；长施法留下的下次行动时间不能充当新时间起点。"""
+    t = state['model_time']
+    while t < elapsed:
+        skill_id = model.choose(t)
+        if skill_id is None:
+            t += 0.15
+            continue
+        damage, gap = model.cast(skill_id, t)
+        state['pending'] += damage
+        t += max(gap, 0.15)
+    state['model_time'] = t
+
+
 def sample_expected_hurt(expected_dps):
     if expected_dps <= 0:
         raise ValueError("每秒期望伤害须大于0")
@@ -155,23 +169,25 @@ def run(level, percent_per_minute=0.2, max_seconds=0,
                     'alive_until': time.monotonic() + model.alive_seconds(),
                     'revive_at': 0.0,
                     'model_time': 0.0,
+                    'started_at': time.monotonic(),
                 }
-                log('[联盟Boss] 真实模型：面板攻击 %.0f，Boss等级 %s，暴击 %.0f%%，爆伤 %.2f，预计存活 %.0f 秒' % (
+                log('[联盟Boss] 面板估算模型：面板攻击 %.0f，Boss等级 %s，暴击 %.0f%%，爆伤 %.2f，预计存活 %.0f 秒' % (
                     model.panel.get('atk') or 0, model.boss_level,
                     model.crit_rate * 100, model.crit_mult, model.alive_seconds()), flush=True)
             except Exception as exc:
                 model = None
                 model_state = None
-                log('[联盟Boss] 真实模型不可用（%s），改用每秒期望伤害' % exc, flush=True)
+                log('[联盟Boss] 面板估算模型不可用（%s），改用每秒期望伤害' % exc, flush=True)
 
         def advance_model(now):
-            """按真实技能/CD/蓝耗推进一秒，每 2 秒返回累计伤害。"""
+            """按实际流逝时间推进面板估算，每 2 秒返回累计伤害。"""
             if model_state['revive_at']:
                 if now < model_state['revive_at']:
                     return 0.0
                 model_state['revive_at'] = 0.0
                 model.reset_after_revive()
                 model_state['model_time'] = 0.0
+                model_state['started_at'] = now
                 model_state['alive_until'] = now + model.alive_seconds()
                 log('[联盟Boss] 复活，满蓝继续输出', flush=True)
             if now >= model_state['alive_until']:
@@ -181,17 +197,8 @@ def run(level, percent_per_minute=0.2, max_seconds=0,
                 log('[联盟Boss] 模拟死亡，%.0f 秒后满蓝复活' %
                       (model_state['revive_at'] - now), flush=True)
                 return amount
-            limit = model_state['model_time'] + 1.0
-            t = model_state['model_time']
-            while t < limit:
-                skill_id = model.choose(t)
-                if skill_id is None:
-                    t += 0.15
-                    continue
-                damage, gap = model.cast(skill_id, t)
-                model_state['pending'] += damage
-                t += max(gap, 0.15)
-            model_state['model_time'] = t
+            advance_model_actions(model, model_state,
+                                  max(0.0, now - model_state['started_at']))
             if now >= model_state['next_report']:
                 amount = model_state['pending']
                 model_state['pending'] = 0.0
@@ -301,7 +308,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-target", action="store_true")
     parser.add_argument("--idle-mode", action="store_true")
     parser.add_argument("--mock-damage", action="store_true",
-                        help="不启用真实面板/技能模型，沿用每分钟比例控伤")
+                        help="不启用面板/技能估算模型，沿用每分钟比例控伤")
     parser.add_argument("--batch-file", help="多账号列表文件")
     options = parser.parse_args()
     if options.batch_file:

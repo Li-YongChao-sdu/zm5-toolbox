@@ -18,6 +18,8 @@ _WARNED = set()
 
 
 def run(flow, info, slot, scope='all', allow_spirit_backup=False, password=''):
+    from activity_availability import require_open
+    require_open('RUN_CELEBRATION_ONLINE' if scope=='online' else 'RUN_CELEBRATION')
     if scope not in ('all','tasks','online'):raise ValueError('庆典任务分支无效')
     allowed_types = {27} if scope=='online' else ({32,33,40,34,28} if scope=='tasks' else set(DAILY_TYPES))
 

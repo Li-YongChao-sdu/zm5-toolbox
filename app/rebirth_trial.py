@@ -51,10 +51,13 @@ def merge_state(current,reply):
     return result
 
 def run(flow,initial,refresh,request,wait=10,sleep=time.sleep,log=print):
+    from activity_availability import require_open
+    require_open('RUN_REBIRTH_TRIAL')
     if not 10<=wait<=3600:raise ValueError('间隔须为10～3600秒')
     current=state(initial);current['score_source']='query';period=current['actId'];before=wallet(flow)
     actor=combat_power(flow,initial) if current['cur']<MAX_LAYER else None
     while current['cur']<MAX_LAYER:
+        require_open('RUN_REBIRTH_TRIAL')
         expected=current['cur']+1
         need=required_power(expected)
         if actor['value']<need:
@@ -79,6 +82,8 @@ def run(flow,initial,refresh,request,wait=10,sleep=time.sleep,log=print):
 def main():
     from teacher_trial import connect,enter
     p=argparse.ArgumentParser();p.add_argument('--action',choices=['query','run','reward'],default='query');p.add_argument('--account');p.add_argument('--slot',type=int);p.add_argument('--act-id',type=int);p.add_argument('--wait',type=float,default=10);args=p.parse_args()
+    from activity_availability import require_open
+    if args.action!='query':require_open('RUN_REBIRTH_TRIAL' if args.action=='run' else 'RUN_REBIRTH_REWARD')
     a=json.loads((ROOT/'account.local.json').read_text(encoding='utf-8-sig'));slot=int(a['record_index']);name=str(a.get('username',''));f=None
     try:
         if args.action!='query' and (args.account!=name or args.slot!=slot):raise ValueError('账号或槽位变化，请重新查询')
@@ -116,6 +121,7 @@ def main():
         else:
             before=wallet(f)
             for layer in REWARDS:
+                require_open('RUN_REBIRTH_REWARD')
                 info=refresh();s=state(info);rid=str(1800100+layer)
                 if s['actId']!=args.act_id:raise ValueError('活动期次变化，停止')
                 if s['cur']<layer or s['reward'].get(rid)!=1:continue

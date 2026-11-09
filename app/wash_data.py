@@ -217,6 +217,9 @@ def confirm_call(key, entity_id, replace=True):
 
     replace=True  保存新词条；replace=False 保留旧词条（回退）。
     """
+    # RuneSureWashMediator: btn_old only closes the view; confirm {} saves new attrs.
+    if key == "rune" and not replace:
+        return None, None
     spec = FREE_CALLS.get(key) or {}
     route = spec.get("confirmRoute")
     if not route:

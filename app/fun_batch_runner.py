@@ -34,8 +34,14 @@ def execute(flow,account,slot,jobs):
                 import fairy_feed_run as feed
                 import fairy_feed_data as data
                 role=args.get('role',0)
+                call={k:v for k,v in args.items() if k!='auto'}
+                if args.get('auto'):
+                    fairy,err=data.auto_fairy(info,role)
+                    if not fairy:raise RuntimeError(err)
+                    call['entity_id']=fairy['entityId']
+                    print('[幻兽喂养] 自动选择 %s（%s，%s级）'%(fairy['name'],fairy['source'],fairy['level']),flush=True)
                 before=data.feed_quota(info,role=role)
-                ok,message,result=feed.do_feed(flow,info,**args);print('[幻兽喂养] '+message,flush=True)
+                ok,message,result=feed.do_feed(flow,info,**call);print('[幻兽喂养] '+message,flush=True)
                 if result and result.get('stop') in ('rejected','safety','noConfig','badConfig'):raise RuntimeError(message)
                 if not ok and (not result or result.get('stop') not in ('daily','level','spirit')):raise RuntimeError(message)
                 latest,latest_user=read()
@@ -51,25 +57,33 @@ def execute(flow,account,slot,jobs):
                     if any(not x.get('free_verified') for x in result):raise RuntimeError('妖王帖核对失败')
                 else:
                     if kind=='start':
-                        current_slot=pet.status(info,user)['slots'][args['pos']]
+                        state=pet.status(info,user);current_slot=state['slots'][args['pos']]
                         if current_slot.get('collectId') and not current_slot.get('reward'):
                             row['phase']='skipped';save();print('[趣味活动] 该位置尚在采集或未领奖，跳过派遣，不覆盖',flush=True);continue
+                        if args.get('auto'):
+                            animals=[x for x in state['pets'] if not x['busy']]
+                            if not animals:
+                                row.update(phase='skipped',reason='没有空闲宠物');save();print('[宠物采集] 没有空闲宠物，跳过派遣，不占用位置',flush=True);continue
+                            chosen=animals[0];args=dict(args);args['entity']=chosen['entityId'];args['gear']=min(int(args.get('gear',0)),int(state['collectGear']))
+                            print('[宠物采集] 自动选择 %s（%s级，%s小时）'%(chosen['name'],chosen['level'],3*(int(args['gear'])+1)),flush=True)
                     if kind=='reward' and not pet.status(info,user)['slots'][args['pos']]['finished']:
                         row['phase']='skipped';save();print('[趣味活动] 采集未完成或已领取，跳过',flush=True);continue
                     if kind=='buy':
                         cfg=pet.scrolls().get(str(args.get('shop')))
                         if not cfg:raise ValueError('商品不在仙魄商店配置中')
                         count=args.get('count')
-                        if type(count) is not int or not 1<=count<=int(cfg['dayPurchaseMaxNum']):raise ValueError('购买数量无效')
-                        remaining=max(0,int(cfg['dayPurchaseMaxNum'])-pet.bought(info,args['shop']))
+                        cap=pet.limit(cfg)
+                        if type(count) is not int or not 1<=count<=cap:raise ValueError('购买数量无效')
+                        remaining=max(0,cap-pet.bought(info,args['shop']))
                         row['requested_count']=count
                         if remaining==0:
-                            row.update(phase='skipped',reason='今日已买满');save();print('[仙魄商店] '+job['label']+'：今日已买满，跳过并继续其他商品',flush=True);continue
+                            row.update(phase='skipped',reason='本周已买满');save();print('[仙魄商店] '+job['label']+'：本周已买满，跳过并继续其他商品',flush=True);continue
                         if count>remaining:
                             args['count']=remaining
                             print('[仙魄商店] '+job['label']+'：剩余限购%s，本次由%s调整为%s'%(remaining,count,remaining),flush=True)
                         row['args']=dict(args);save()
-                    result,info,user=pet.perform(flow,info,user,kind,lambda:enter(flow,slot),password=os.environ.get('ZM5_PET_UTILITY_PASSWORD','') if kind=='buy' else '',**args)
+                    call={k:v for k,v in args.items() if k!='auto'}
+                    result,info,user=pet.perform(flow,info,user,kind,lambda:enter(flow,slot),password=os.environ.get('ZM5_PET_UTILITY_PASSWORD','') if kind=='buy' else '',**call)
                     row['result']=result;save()
                     if not result.get('verified') or not result.get('ticket_unchanged'):
                         reason=(result.get('reply') or {}).get('error') or '扣费、到账或次数核对未通过'

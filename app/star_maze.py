@@ -11,22 +11,23 @@
                    401 温泉:     自动结算(无需额外请求)
                    500/501 宝箱: getRewardList{} -> chooseReward{index:0}
   妖王通关后 chapterPassed=true -> nextChapter{} 进入下一大层, 共 3 大层
-  第3层通关后 getFinishRewardFree 免费领周奖励(只走免费接口, 绝不调 WithTicket/reset/buy/resurrect)
+  先领已有最高档周箱，周额度已满就跳过；否则续接地图，三层通关领奖后免费重置一次。
 
-铁律: 本玩法走格/战斗不扣货币; 唯一付费点是【额外周奖励(rewardTicket=400)】、【复活】、【重置】、
-【买体力】, 本文件一律不调用; 任何返回含 点券/ticket/票/不足/元宝 立即中止。
+只用免费领奖及普通reset；不调用点券额外奖励、复活或购买体力。
+重置仅用于确实无路/体力耗尽，或通关且领奖确认后的收尾；网络异常不当作重置理由。
 """
 import json
+import copy
 import time
 from collections import defaultdict
 
 SLEEP = 1.0
 MAX_STEPS = 120
 MAZE_CHAPTERS = 3
-MAX_RESET_PER_CHAPTER = 2   # 被道具门/宝箱卡住时, 每层最多免费重置次数(服务器冷却兜底, 绝不付费)
+MAX_RECOVERY_RESETS = 2     # 单次任务的故障换图总上限，进入/重回第一层不清零
 RESET_CD = 180              # reset 冷却秒数(MazeDeploy.resetTime)
 # 每大层周奖励箱 rewardId(MazeDeploy.mazeReward), 仅用 getFinishRewardFree 免费领
-MAZE_REWARD_IDS = [5270]   # 周奖励三档: 白银5094/黄金5137/灵玉5270, 共享每周额度, 只领最高档灵玉
+MAZE_REWARD_IDS = [5270]   # 用户指定只领最高档（翡翠），不回退到5094/5137
 MAZE_REWARD_MAX = 3       # MazeDeploy.RewardMax；领奖前还要核对服务器周计数
 
 BATTLE_EVENTS = {201, 202, 203}
@@ -42,7 +43,7 @@ def _is_money_err(r):
 
 
 def _ok(r):
-    return isinstance(r, dict) and (r.get("code") == 200 or r.get("error") is None)
+    return isinstance(r, dict) and r.get("code") == 200 and not r.get("error")
 
 
 def _remaining_weekly_maze_rewards(info, reward_max=MAZE_REWARD_MAX):
@@ -65,6 +66,7 @@ def _remaining_weekly_maze_rewards(info, reward_max=MAZE_REWARD_MAX):
         "mazeCnt": maze_count,
         "rewardMazeCnt": claimed_count,
         "remaining": max(0, min(int(reward_max), maze_count) - claimed_count),
+        "weekly_left": max(0, int(reward_max) - claimed_count),
         "rewardStock": weekly.get("mazeReward") or {},
     }
 
@@ -72,7 +74,11 @@ def _remaining_weekly_maze_rewards(info, reward_max=MAZE_REWARD_MAX):
 def _get_map(flow):
     r = flow.request("scene.mazeHandler.getMapData", {})
     if isinstance(r, dict) and r.get("code") == 200 and isinstance(r.get("data"), dict):
-        return r["data"]
+        data = copy.deepcopy(r['data'])
+        for key in ('createTime', 'serverTime'):
+            if key not in data and key in r:
+                data[key] = r[key]
+        return data
     return None
 
 
@@ -109,12 +115,12 @@ def _wait_cooldown(seconds, log):
     now = time.monotonic()
     wait_until = now + max(0, seconds) + 2  # 给服务端秒级计时留少量缓冲
     next_report = now + 30
-    log("[星斗幻境] 下一大层有强制冷却，约等待%d秒（期间不重复请求）" % seconds)
+    log("[星斗幻境] 地图冷却约剩%d秒，等待后继续（期间不重复请求）" % seconds)
     while True:
         now = time.monotonic()
         remaining = wait_until - now
         if remaining <= 0:
-            log("[星斗幻境] 层间冷却结束，准备进入下一大层")
+            log("[星斗幻境] 冷却等待结束")
             return
         if now >= next_report:
             log("[星斗幻境] 层间冷却中，约剩%d秒" % int(remaining + 0.999))
@@ -122,52 +128,126 @@ def _wait_cooldown(seconds, log):
         time.sleep(min(15, remaining, max(0.1, next_report - now)))
 
 
-def _reset_partial_run(flow, data, log):
-    """免费清理未完成的旧地图；只调 reset，不调用任何点券重置接口。"""
-    if not _has_partial_run(data):
-        return True
+def _progress(data):
+    return tuple(copy.deepcopy(data.get(k)) for k in ('createTime', 'chapter', 'pos', 'chapterPassed'))
 
-    def reset_confirmed(r, success_message):
-        if not (isinstance(r, dict) and r.get("code") == 200):
-            return False
-        fresh = _get_map(flow)
-        if not fresh or _has_partial_run(fresh):
-            log("[星斗幻境] reset 返回成功，但新地图状态未确认；停止以免在旧进度上继续")
-            return False
-        log(success_message)
-        return True
 
-    chapter = int(data.get("chapter") or 1)
-    pos = data.get("pos") or "入口"
-    log("[星斗幻境] 检测到未完成进度(第%d大层，位置=%s)，开跑前先重置" % (chapter, pos))
+def _cooldown_error(reply):
+    error = str((reply or {}).get('error') or '').lower()
+    return ('cd' in error or '冷却' in error or
+            ('重置' in error and any(w in error for w in ('分钟', '秒', '间隔'))))
+
+
+def _wait_map(flow, data, log):
     remaining = _reset_cd_remaining(data)
-    if remaining is not None and remaining > 0:
+    if remaining is None:
+        raise RuntimeError('无法读取服务器地图冷却时间，保留当前进度')
+    if remaining:
         _wait_cooldown(remaining, log)
+        fresh = _get_map(flow)
+        if not fresh or _progress(fresh) != _progress(data):
+            raise RuntimeError('等待期间地图进度变化，停止，不覆盖当前地图')
+        return fresh
+    return data
 
-    r = flow.request("scene.mazeHandler.reset", {})
-    if _is_money_err(r):
-        log("[星斗幻境] 免费重置返回需消耗货币，停止且不购买: %s" % r.get("error"))
-        return False
-    if reset_confirmed(r, "[星斗幻境] 旧进度已免费重置，并确认回到全新地图"):
-        return True
 
-    err = r.get("error") if isinstance(r, dict) else r
-    if err and ("CD" in str(err) or "冷却" in str(err) or "重置" in str(err)):
-        fresh = _get_map(flow) or data
-        remaining = _reset_cd_remaining(fresh)
-        if remaining is None:
-            log("[星斗幻境] 重置冷却无法从服务器时间确认，停止本次运行: %s" % err)
-            return False
-        if remaining > 0:
-            _wait_cooldown(remaining, log)
-        else:
-            time.sleep(2)
-        r = flow.request("scene.mazeHandler.reset", {})
-        if reset_confirmed(r, "[星斗幻境] 等待冷却后旧进度已免费重置，并确认回到全新地图"):
-            return True
-        err = r.get("error") if isinstance(r, dict) else r
-    log("[星斗幻境] 无法免费重置旧进度，停止本次运行: %s" % err)
-    return False
+def _reset_run(flow, data, log, reason):
+    """已明确需要重置时才调用；未知写结果不重发，成功后回读入口。"""
+    log('[星斗幻境] %s，准备免费重置' % reason)
+    for attempt in range(2):
+        data = _wait_map(flow, data, log)
+        reply = flow.request('scene.mazeHandler.reset', {})
+        if _ok(reply):
+            if reply.get('consume'):
+                raise RuntimeError('重置返回额外消耗，停止')
+            fresh = _get_map(flow)
+            if not fresh or _has_partial_run(fresh):
+                raise RuntimeError('重置回包成功但未确认回到全新第一层，停止')
+            log('[星斗幻境] 已确认回到全新第一层入口')
+            return
+        if attempt == 0 and isinstance(reply, dict) and _cooldown_error(reply):
+            fresh = _get_map(flow)
+            if not fresh or _progress(fresh) != _progress(data):
+                raise RuntimeError('重置拒绝后地图状态不一致，停止')
+            if _reset_cd_remaining(fresh) == 0:
+                time.sleep(2)
+            data = fresh
+            continue
+        raise RuntimeError('免费重置未成功，停止且不切换付费接口：%s' % (reply or {}).get('error'))
+
+
+def _weekly_info(flow, record_index, expected):
+    if record_index is None:
+        raise RuntimeError('缺少出战槽位，不能确认周宝箱状态')
+    reply = flow.request('connector.entryHandler.entry',
+                         {'index': int(record_index), 'userAgent': flow.user_agent})
+    if not _ok(reply) or not isinstance(reply.get('info'), dict):
+        raise RuntimeError('读取周宝箱状态失败，保留地图')
+    info = copy.deepcopy(reply['info'])
+    if not info.get('uid') or not info.get('_id'):
+        raise RuntimeError('周宝箱存档身份字段缺失，停止')
+    for key in ('uid', '_id'):
+        if expected.get(key) is not None and str(info.get(key)) != str(expected[key]):
+            raise RuntimeError('存档身份变化，停止星斗任务')
+    before_reset = (expected.get('everyWeekSetting') or {}).get('resetTime')
+    if before_reset is not None and (info.get('everyWeekSetting') or {}).get('resetTime') != before_reset:
+        raise RuntimeError('周计数期次已变化，停止星斗任务')
+    quota = _remaining_weekly_maze_rewards(info)
+    weekly = info.get('everyWeekSetting') or {}
+    # 完整entry在新周未玩过星斗时可省略全部三个零值字段；原版初值为0/0/{}。
+    # 仅接受完整周时间及三个字段同时缺省，不把部分缺字段或有库存的状态猜成0。
+    if quota is None and not any(k in weekly for k in ('mazeCnt', 'rewardMazeCnt', 'mazeReward')):
+        reset_ms, server_ms = weekly.get('resetTime'), info.get('serverTime')
+        if (type(reset_ms) in (int, float) and type(server_ms) in (int, float)
+                and 0 < reset_ms <= server_ms):
+            weekly.update(mazeCnt=0, rewardMazeCnt=0, mazeReward={})
+            quota = _remaining_weekly_maze_rewards(info)
+    if quota is None:
+        raise RuntimeError('服务器周计数缺失，不能判断是否需挑战，保留地图')
+    return info, quota
+
+
+def _item_count(info, item_id):
+    return sum(int(v.get('count') or 0) for k, v in
+               (((info.get('bag') or {}).get('item') or {}).items())
+               if isinstance(v, dict) and str(v.get('id', k)) == str(item_id))
+
+
+def _claim_emerald(flow, record_index, expected, bag, log):
+    """每次只领5270；回读计数、库存和give入包后才允许下一笔。"""
+    info, quota = _weekly_info(flow, record_index, expected)
+    claimed = 0
+    while quota['remaining'] > 0:
+        stock = quota['rewardStock'].get('5270', 0)
+        if type(stock) is not int or stock < 0:
+            raise RuntimeError('翡翠周箱库存格式未知，停止，不尝试低级宝箱')
+        if stock == 0:
+            break
+        reply = flow.request('scene.mazeHandler.getFinishRewardFree', {'type': 0, 'rewardId': 5270})
+        if not _ok(reply) or reply.get('consume'):
+            raise RuntimeError('翡翠周箱领取未确认，保留地图且不重复请求')
+        fresh, after = _weekly_info(flow, record_index, info)
+        if (after['rewardMazeCnt'] != quota['rewardMazeCnt'] + 1 or
+                after['mazeCnt'] != quota['mazeCnt'] or
+                after['rewardStock'].get('5270', 0) != stock - 1):
+            raise RuntimeError('周箱领取后计数/库存不符，停止，不重置地图')
+        give = reply.get('give') or []
+        if not give:
+            raise RuntimeError('周箱回包没有奖励明细，停止核查')
+        totals = defaultdict(int)
+        for item in give:
+            if item.get('type') != 'item' or int(item.get('count') or 0) <= 0:
+                raise RuntimeError('周箱奖励类型未知，停止核查')
+            totals[str(item['subType'])] += int(item['count'])
+        for item_id, count in totals.items():
+            if _item_count(fresh, item_id) - _item_count(info, item_id) != count:
+                raise RuntimeError('周箱奖励入包与回包不符，停止核查')
+            bag[item_id] += count
+        log('[星斗幻境] 翡翠周箱领取并核对成功，本周已领%d/%d' %
+            (after['rewardMazeCnt'], MAZE_REWARD_MAX))
+        claimed += 1
+        info, quota = fresh, after
+    return info, quota, claimed
 
 
 def _node_weight(ev, rc):
@@ -194,7 +274,7 @@ def _strength(data):
         return 0
 
 
-def _find_path(mp, ev, pos):
+def _find_path(mp, ev, pos, excluded=()):
     """安全加权 Dijkstra: 从当前位置(或第0行入口)到妖王(203), 优先普通节点、绕开道具门。
     返回下一步起的节点序列 [(row,col),...]; 若唯一通路含道具门也照走(由上层卡住时免费reset)。"""
     import heapq
@@ -209,7 +289,7 @@ def _find_path(mp, ev, pos):
                 nci = int(nc)
             except Exception:
                 continue
-            if 0 <= nci < len(mp[r + 1]):
+            if 0 <= nci < len(mp[r + 1]) and (r + 1, nci) not in excluded:
                 out.append((r + 1, nci))
         return out
 
@@ -220,7 +300,7 @@ def _find_path(mp, ev, pos):
     if pos and pos.get("x") is not None:
         starts = [(int(pos["x"]), int(pos["y"]))]
     else:
-        starts = [(0, c) for c in range(len(mp[0])) if ev[0][c] and int(ev[0][c][0]) != 0]
+        starts = [(0, c) for c in range(len(mp[0])) if ev[0][c] and int(ev[0][c][0]) != 0 and (0, c) not in excluded]
 
     best = None
     for src in starts:
@@ -295,8 +375,8 @@ def _claim_pass_reward(flow, bag, log):
     rl = flow.request("scene.mazeHandler.getRewardList", {})
     if _is_money_err(rl):
         return "money_err", rl
-    if not isinstance(rl, dict):
-        return "ok", rl
+    if not _ok(rl):
+        return "fail", rl
     items = rl.get("rewardList") or rl.get("rewardItems") or []
     if not items:
         log("    过关奖励列表为空, 跳过")
@@ -310,7 +390,7 @@ def _claim_pass_reward(flow, bag, log):
     cr = flow.request("scene.mazeHandler.chooseReward", {"index": idx})
     if _is_money_err(cr):
         return "money_err", cr
-    if isinstance(cr, dict) and cr.get("error"):
+    if not _ok(cr):
         return "fail", cr
     for it in (cr.get("give") or []):
         bag["%s" % it.get("subType")] += int(it.get("count") or 0)
@@ -325,12 +405,12 @@ def _handle_node(flow, event_type, bag, log):
         en = flow.request("scene.mazeHandler.enterDungeon", {})
         if _is_money_err(en):
             return "money_err", en
-        if isinstance(en, dict) and en.get("code") not in (None, 200) and en.get("error"):
+        if not _ok(en):
             return "fail", en
         fin = flow.request("scene.mazeHandler.finishDungeon", {"win": 1, "time": 1})  # 结算按30秒内 -> 战斗只扣5体力(每多30秒额外+10)
         if _is_money_err(fin):
             return "money_err", fin
-        if isinstance(fin, dict) and fin.get("error"):
+        if not _ok(fin):
             return "fail", fin
         for it in (fin.get("give") or []):
             bag["%s" % it.get("subType")] += int(it.get("count") or 0)
@@ -342,6 +422,8 @@ def _handle_node(flow, event_type, bag, log):
         r = flow.request("scene.mazeHandler.selectOption", {"index": 1})
         if _is_money_err(r):
             return "money_err", r
+        if not _ok(r):
+            return 'fail', r
         log("    事件选择 index=1 -> %s" % (r.get("give") if isinstance(r, dict) else r))
         return "ok", r
 
@@ -355,202 +437,163 @@ def _handle_node(flow, event_type, bag, log):
     return "ok", None
 
 
-def run_star_maze(flow, info=None, record_index=None):
-    print("[星斗幻境] 开始, 目标一次通关 %d 大层(只走免费, 不花点券/ticket)" % MAZE_CHAPTERS)
-    bag = defaultdict(int)
-    logs = []
-
-    def log(s):
-        print(s)
-        logs.append(s)
-
-    chapters_done = 0
-    aborted = False
-    reset_used = 0
-    reset_waited = 0
-    cur_chapter = -1
-    startup_checked = False
-    for _ in range(MAX_STEPS):
-        data = _get_map(flow)
-        if not data:
-            log("[星斗幻境] 拉取地图失败, 中止")
-            aborted = True
-            break
-        if not startup_checked:
-            startup_checked = True
-            if _has_partial_run(data):
-                if not _reset_partial_run(flow, data, log):
-                    aborted = True
-                    break
-                time.sleep(SLEEP)
-                continue
-        mp, ev, pos = data["map"], data["event"], data.get("pos")
-        chapter = int(data.get("chapter") or 1)
-        if chapter != cur_chapter:
-            cur_chapter = chapter
-            reset_used = 0
-            reset_waited = 0
-        passed = bool(data.get("chapterPassed"))
-        log("[星斗幻境] 第%d大层 chapterPassed=%s pos=%s 体力=%d 星币=%s" % (
-            chapter, passed,
-            ((pos.get("x"), pos.get("y")) if pos else "入口"),
-            _strength(data),
-            ((data.get("mazeItem") or {}).get("100", {}).get("count") if data.get("mazeItem") else 0)))
-
-        if passed:
-            if chapter < MAZE_CHAPTERS:
-                # 客户端 resetTime = resetTime*1000 + createTime - serverTime。
-                # 先按服务端时间等完第1->2层的强制间隔，避免在CD内反复请求；
-                # 字段缺失/服务端仍返回CD时保留有限重试兜底。
-                remaining = _reset_cd_remaining(data)
-                if remaining is not None and remaining > 0:
-                    _wait_cooldown(remaining, log)
-                elif remaining == 0:
-                    log("[星斗幻境] 服务端计时显示冷却已结束，尝试进入下一大层")
-                r = None
-                for attempt in range(16):  # 每15秒一次, 最多约4分钟
-                    r = flow.request("scene.mazeHandler.nextChapter", {})
-                    if _is_money_err(r):
-                        log("[星斗幻境] 进下一层触发付费, 中止: %s" % r.get("error"))
-                        aborted = True
-                        break
-                    if isinstance(r, dict) and r.get("code") == 200:
-                        chapters_done += 1
-                        log("[星斗幻境] 进入第%d大层" % (chapter + 1))
-                        time.sleep(SLEEP)
-                        break
-                    err = r.get("error") if isinstance(r, dict) else r
-                    if err and ("CD" in str(err) or "冷却" in str(err) or "重置" in str(err)):
-                        log("[星斗幻境] 进下一层冷却中, 等15秒重试(%d/16)" % (attempt + 1))
-                        time.sleep(15)
-                        continue
-                    log("[星斗幻境] nextChapter 异常: %s" % err)
-                    aborted = True
-                    break
-                else:
-                    log("[星斗幻境] 进下一层冷却等待超时, 中止(不付费)")
-                    aborted = True
-                if aborted:
-                    break
-                if isinstance(r, dict) and r.get("code") == 200:
-                    continue
-                aborted = True
-                break
-            else:
-                chapters_done += 1
-                log("[星斗幻境] 第%d大层(最终)妖王已通关" % chapter)
-                break
-
-        path = _find_path(mp, ev, pos)
-        if path is None:
-            log("[星斗幻境] 找不到通往妖王的路径, 中止本章")
-            aborted = True
-            break
-        if not path:
-            # 当前就在 boss 且已处理, 等下一轮 chapterPassed
-            time.sleep(SLEEP)
+def _next_chapter(flow, data, log):
+    chapter = int(data['chapter'])
+    for attempt in range(2):
+        data = _wait_map(flow, data, log)
+        reply = flow.request('scene.mazeHandler.nextChapter', {})
+        if _ok(reply):
+            fresh = _get_map(flow)
+            if not fresh or int(fresh.get('chapter') or 1) != chapter + 1:
+                raise RuntimeError('下一层回包成功但进度未确认，停止，不重复推进')
+            log('[星斗幻境] 已确认进入第%d大层' % (chapter + 1))
+            return
+        if attempt == 0 and isinstance(reply, dict) and _cooldown_error(reply):
+            fresh = _get_map(flow)
+            if not fresh or _progress(fresh) != _progress(data):
+                raise RuntimeError('下一层被拒后地图变化，停止')
+            if _reset_cd_remaining(fresh) == 0:
+                time.sleep(2)
+            data = fresh
             continue
+        raise RuntimeError('进入下一层失败，保留地图：%s' %
+                           (reply.get('error') if isinstance(reply, dict) else reply))
 
-        r, c = path[0]
-        etype = int(ev[r][c][0])
-        log("  走格 ->(%d,%d) 类型=%s 参数=%s" % (r, c, etype, ev[r][c][1]))
-        g = flow.request("scene.mazeHandler.goto", {"x": r, "y": c})
-        g_err = g.get("error") if isinstance(g, dict) else None
-        # 真正的付费拦截 -> 立即停
-        if g_err and any(h in str(g_err) for h in ("点券", "ticket", "票", "元宝", "支付", "扣费")):
-            log("[星斗幻境] 走格触发付费, 立即中止: %s" % g_err)
-            aborted = True
-            break
-        if (isinstance(g, dict) and g.get("code") not in (None, 200) and g_err) or _is_money_err(g):
-            # 重拉地图判体力: 走格每格-5, 体力<5 任何格走不了。
-            # 实测 reset 会整局重开并恢复体力100/星币100(回到第1章) -> 体力不足也免费reset;
-            # 若体力够, 则是随机事件/机关缺道具, 同样免费重置换图(受180s冷却, CD中则等一次)
-            fresh = _get_map(flow) or data
-            reason = "体力不足" if _strength(fresh) < 5 else "节点被阻(%s)" % g_err
-            if reset_used < MAX_RESET_PER_CHAPTER:
-                rr = flow.request("scene.mazeHandler.reset", {})
-                rr_err = rr.get("error") if isinstance(rr, dict) else None
-                if isinstance(rr, dict) and rr.get("code") == 200:
-                    reset_used += 1
-                    chapters_done = 0  # 整局重开, 已通关层数归零
-                    log("[星斗幻境] %s, 免费重置重开(%d/%d)" % (reason, reset_used, MAX_RESET_PER_CHAPTER))
+
+def _blocked_node(reply):
+    error = str((reply or {}).get('error') or '')
+    return any(word in error for word in ('体力不足', '数量不足', '道具不足', '物品不足',
+                                         '星币不足', '缺少道具', '无法通行', '不可通行', '机关'))
+
+
+def run_star_maze(flow, info=None, record_index=None):
+    print('[星斗幻境] 先领翡翠周箱；未领满则续接进度，通关领奖后重置一次')
+    bag = defaultdict(int)
+    log = print
+    chapters_done = 0
+    reset_used = 0
+    excluded = set()
+    map_key = None
+
+    def finish():
+        log('[星斗幻境] 结束，当前已通大层=%d，收获=%s' % (chapters_done, dict(bag)))
+        if bag:
+            with open('drops_log.jsonl', 'a', encoding='utf-8') as stream:
+                stream.write(json.dumps({'ts': int(time.time()), 'drops': {'星斗幻境': dict(bag)}},
+                                        ensure_ascii=False) + '\n')
+        return chapters_done, dict(bag)
+
+    def recover(data, reason):
+        nonlocal reset_used, chapters_done
+        if reset_used >= MAX_RECOVERY_RESETS:
+            raise RuntimeError('本次换图已达%d次上限，保留当前进度' % MAX_RECOVERY_RESETS)
+        _reset_run(flow, data, log, reason)
+        reset_used += 1
+        chapters_done = 0
+        excluded.clear()
+
+    try:
+        anchor, quota, initially_claimed = _claim_emerald(flow, record_index, info or {}, bag, log)
+        if quota['weekly_left'] == 0:
+            if initially_claimed:
+                completed_map = _get_map(flow)
+                if not completed_map:
+                    raise RuntimeError('补领后无法确认地图，保留现状')
+                if (int(completed_map.get('chapter') or 1) == MAZE_CHAPTERS
+                        and completed_map.get('chapterPassed')):
+                    _reset_run(flow, completed_map, log, '已通关地图的翡翠补领完成，收尾')
+                    chapters_done = MAZE_CHAPTERS
+            log('[星斗幻境] 本周已领满，%s' %
+                ('收尾完成，不再挑战' if chapters_done else '跳过挑战和重置'))
+            return finish()
+        log('[星斗幻境] 本周尚余%d次周领奖额度；只补本次三大层通关' % quota['weekly_left'])
+
+        first_map = True
+        for _ in range(MAX_STEPS):
+            data = _get_map(flow)
+            if not data:
+                raise RuntimeError('拉取地图失败，保留当前进度')
+            chapter = int(data.get('chapter') or 1)
+            if chapter not in (1, 2, 3):
+                raise RuntimeError('未知地图层级，停止')
+            key = (data.get('createTime'), chapter)
+            if key != map_key:
+                excluded.clear()
+                map_key = key
+            passed = bool(data.get('chapterPassed'))
+            if first_map:
+                first_map = False
+                if passed and chapter == MAZE_CHAPTERS and initially_claimed == 0:
+                    # 旧图已经结束、也没有翡翠可领；确实没有下一步可续走。
+                    recover(data, '旧地图已经通关且无翡翠可领，本周未满，需要补一轮通关')
+                    continue
+            chapters_done = max(chapters_done, chapter if passed else chapter - 1)
+            log('[星斗幻境] 续接第%d大层，已通关=%s，位置=%s，体力=%d' %
+                (chapter, passed, data.get('pos'), _strength(data)))
+
+            if passed:
+                if chapter < MAZE_CHAPTERS:
+                    _next_chapter(flow, data, log)
                     time.sleep(SLEEP)
                     continue
-                if rr_err and ("CD" in str(rr_err) or "冷却" in str(rr_err)) and reset_waited < 1:
-                    wait_s = RESET_CD - int((data.get("serverTime", 0) - data.get("createTime", 0)) / 1000)
-                    wait_s = max(10, min(wait_s, RESET_CD))
-                    log("[星斗幻境] 重置CD中, 等待%d秒后重试(不付费)" % wait_s)
-                    time.sleep(wait_s + 2)
-                    reset_waited += 1
-                    continue
-                log("[星斗幻境] 节点被阻且重置不可用(不付费), 中止: %s" % rr_err)
-                aborted = True
-                break
-            log("[星斗幻境] 走格被阻(%s)且本层重置已达上限, 中止(不购买)" % g_err)
-            aborted = True
-            break
-        # 收集 goto 直接给的奖励(温泉401回体力/事件道具等); 馒头(type5)服务器会自动转体力
-        if isinstance(g, dict):
-            for it in (g.get("give") or []):
-                bag["%s" % it.get("subType")] += int(it.get("count") or 0)
-        # 以 goto 返回的 event 为准(通常等于地图类型)
-        node_event = int(g.get("event")) if isinstance(g, dict) and g.get("event") is not None else etype
-        status, resp = _handle_node(flow, node_event, bag, log)
-        if status == "money_err":
-            log("[星斗幻境] 节点处理触发付费, 立即中止: %s" % (resp.get("error") if isinstance(resp, dict) else resp))
-            aborted = True
-            break
-        if status == "fail":
-            log("[星斗幻境] 节点处理失败, 中止: %s" % (resp.get("error") if isinstance(resp, dict) else resp))
-            aborted = True
-            break
-        time.sleep(SLEEP)
-    else:
-        log("[星斗幻境] 达到步数上限 %d, 停止(防卡死)" % MAX_STEPS)
-        aborted = True
+                # 必须先确认当前周箱状态；任何领奖异常都保留通关地图。
+                _, final_quota, _ = _claim_emerald(flow, record_index, anchor, bag, log)
+                if '5270' not in final_quota['rewardStock']:
+                    raise RuntimeError('通关后翡翠库存未返回，保留地图，不做收尾重置')
+                if final_quota['remaining'] > 0 and final_quota['rewardStock']['5270'] > 0:
+                    raise RuntimeError('翡翠周箱仍可领取但尚未确认，保留地图')
+                fresh = _get_map(flow)
+                if not fresh or _progress(fresh) != _progress(data):
+                    raise RuntimeError('领奖后地图变化，停止，不覆盖其它操作的进度')
+                _reset_run(flow, fresh, log, '三大层已完成，周箱状态已核对，收尾')
+                log('[星斗幻境] 本次通关收尾完成，不在重置后再次开跑')
+                return finish()
 
-    # 只有三大层完整通关后才刷新服务器周计数，并使用免费接口领取。
-    # 客户端公式: min(RewardMax, mazeCnt) - rewardMazeCnt；计数缺失时安全跳过。
-    if chapters_done == MAZE_CHAPTERS and not aborted:
-        refreshed_info = None
-        if record_index is not None:
-            refresh = flow.request("connector.entryHandler.entry",
-                                   {"index": int(record_index), "userAgent": flow.user_agent})
-            if isinstance(refresh, dict):
-                refreshed_info = refresh.get("info")
-        quota = _remaining_weekly_maze_rewards(refreshed_info)
-        if quota is None:
-            log("[星斗幻境] 无法读取服务器周领奖计数(mazeCnt/rewardMazeCnt)，为避免误领已跳过宝箱")
-        else:
-            remaining = quota["remaining"]
-            log("[星斗幻境] 周宝箱次数核对: mazeCnt=%d rewardMazeCnt=%d 上限=%d 剩余=%d"
-                % (quota["mazeCnt"], quota["rewardMazeCnt"], MAZE_REWARD_MAX, remaining))
-            if remaining <= 0:
-                log("[星斗幻境] 本周免费宝箱次数已用完，跳过领奖")
-        # 周额度在各奖励档共享；只领最高档 5270，并且严格不超过刷新到的剩余次数。
-        for rid in MAZE_REWARD_IDS if quota and quota["remaining"] > 0 else []:
-            stock = quota["rewardStock"].get(str(rid))
-            limit = min(quota["remaining"], max(0, int(stock))) if stock is not None else quota["remaining"]
-            for i in range(limit):
-                r = flow.request("scene.mazeHandler.getFinishRewardFree",
-                                 {"type": 0, "rewardId": rid})
-                if _is_money_err(r):
-                    log("[星斗幻境] 免费领奖响应提示付费，立即停止，不切换点券接口: %s"
-                        % (r.get("error") if isinstance(r, dict) else r))
-                    break
-                if isinstance(r, dict) and r.get("error"):
-                    log("[星斗幻境] 周奖励 %s 第%d次不可领: %s" % (rid, i + 1, r.get("error")))
-                    break
-                log("[星斗幻境] 周奖励 %s 第%d次免费领取成功: %s"
-                    % (rid, i + 1, r.get("give") if isinstance(r, dict) else r))
-                if isinstance(r, dict):
-                    for it in (r.get("give") or []):
-                        bag["%s" % it.get("subType")] += int(it.get("count") or 0)
-                time.sleep(SLEEP)
+            if _strength(data) < 5:
+                recover(data, '当前体力不足以走下一格')
+                continue
+            mp, ev, pos = data['map'], data['event'], data.get('pos')
+            path = _find_path(mp, ev, pos, excluded)
+            if path is None:
+                recover(data, '已找不到通往妖王的可行路径')
+                continue
+            if not path:
+                # 断线等情况可能停在妖王格但尚未完成；只处理这一个当前节点。
+                status, _ = _handle_node(flow, 203, bag, log)
+                if status != 'ok':
+                    raise RuntimeError('当前妖王节点处理失败，保留地图')
+                fresh = _get_map(flow)
+                if not fresh or not fresh.get('chapterPassed'):
+                    raise RuntimeError('妖王结算未确认，不重复提交')
+                continue
 
-    log("[星斗幻境] 结束, 通关大层=%d, 收获=%s" % (chapters_done, dict(bag)))
-    if bag:
-        with open("drops_log.jsonl", "a", encoding="utf-8") as f:
-            f.write(json.dumps({"ts": int(time.time()), "drops": {"星斗幻境": dict(bag)}},
-                               ensure_ascii=False) + "\n")
-    return chapters_done, dict(bag)
+            row, col = path[0]
+            reply = flow.request('scene.mazeHandler.goto', {'x': row, 'y': col})
+            if not _ok(reply):
+                if not isinstance(reply, dict) or not _blocked_node(reply):
+                    raise RuntimeError('走格未成功且不是明确道路阻塞，保留地图：%s' %
+                                       (reply.get('error') if isinstance(reply, dict) else reply))
+                fresh = _get_map(flow)
+                if not fresh or _progress(fresh) != _progress(data):
+                    raise RuntimeError('走格拒绝后进度不一致，不重置地图')
+                if _strength(fresh) >= 5:
+                    excluded.add((row, col))
+                    alternate = _find_path(fresh['map'], fresh['event'], fresh.get('pos'), excluded)
+                    if alternate:
+                        log('[星斗幻境] 当前道路受阻，改走其它可行路径，不重置')
+                        continue
+                recover(fresh, '道路受阻且没有其它可行路线')
+                continue
+
+            for item in reply.get('give') or []:
+                bag[str(item.get('subType'))] += int(item.get('count') or 0)
+            event = int(reply.get('event')) if reply.get('event') is not None else int(ev[row][col][0])
+            status, response = _handle_node(flow, event, bag, log)
+            if status != 'ok':
+                raise RuntimeError('节点处理未成功，保留地图，不因业务/网络错误自动重置：%s' %
+                                   (response.get('error') if isinstance(response, dict) else response))
+            time.sleep(SLEEP)
+        raise RuntimeError('达到步数上限，保留当前进度，不做收尾重置')
+    except (RuntimeError, ValueError, KeyError, TypeError) as exc:
+        log('[星斗幻境] 已停止：%s' % exc)
+        return finish()

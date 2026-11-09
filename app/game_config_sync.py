@@ -3,9 +3,10 @@
 版本规则：以 2026-10-26 为基准每 7 天递增，周内热更时文件名序号 1→2→3。
 输出目录：cg_config_out_cg1_<日期>_<序号>
 """
-import json,lzma,struct,urllib.request,zlib
+import json,lzma,struct,urllib.request,zlib,re,tempfile
 from datetime import date,timedelta
 from pathlib import Path
+from game_version import beijing_now
 
 ROOT=Path(__file__).resolve().parent
 BASE='https://sda.4399.com/4399swf/upload_swf/ftp22/csya/20170622/1/assets/data/'
@@ -89,7 +90,7 @@ def head(name,timeout=8):
 
 def discover(today=None,weeks=8):
     """返回本周最新配置文件名；候选日期不早于基准日，最多回溯 weeks 周。"""
-    today=today or date.today()
+    today=today or beijing_now().date()
     d=ANCHOR
     while d+timedelta(days=STEP)<=today:d+=timedelta(days=STEP)
     for _ in range(weeks):
@@ -126,6 +127,36 @@ def unpack(data,out):
     return header,names,skipped
 
 
+def install_config(data,name,dest_root=None,log=print):
+    """完整解包和校验后才发布目录，失败不破坏已有可用配置。"""
+    if not re.fullmatch(r'cg1_\d{8}_[1-9]\d*\.swf',name):
+        raise ValueError('请选择原名为 cg1_日期_序号.swf 的配置文件')
+    root=Path(dest_root or ROOT);root.mkdir(parents=True,exist_ok=True)
+    folder=root/('cg_config_out_'+name[:-4])
+    with tempfile.TemporaryDirectory(prefix='.cg1_unpack_',dir=root) as tmp:
+        stage=Path(tmp)/'tables'
+        header,names,skipped=unpack(data,stage)
+        missing=[k for k in KEY_TABLES if not (stage/(k+'.json')).is_file()]
+        if missing:raise RuntimeError('关键表缺失：'+'、'.join(missing))
+        for key in KEY_TABLES:
+            value=json.loads((stage/(key+'.json')).read_text(encoding='utf-8-sig'))
+            if not isinstance(value,dict) or not value:
+                raise RuntimeError('关键表无效：'+key)
+        if folder.exists():
+            # 同名版本不原地覆盖，防止运行中读到半写入的配置。
+            old={p.name:p.read_bytes() for p in folder.glob('*.json')}
+            new={p.name:p.read_bytes() for p in stage.glob('*.json')}
+            if old!=new:raise RuntimeError('同名配置内容不同，保留原目录；请核实热更序号')
+        else:
+            stage.rename(folder)
+    log('解包完成：%d 张表（跳过非 JSON %d 张）→ %s'%(len(names),len(skipped),folder))
+    log('关键表校验通过：'+'/'.join(KEY_TABLES))
+    return {'name':name,'folder':str(folder),'tables':len(names),'skipped':skipped}
+
+def import_config(path,dest_root=None,log=print):
+    path=Path(path)
+    return install_config(path.read_bytes(),path.name,dest_root,log)
+
 def sync(dest_root=None,log=print):
     """下载并解包本周最新配置，返回 {name,folder,tables,skipped}。"""
     item=discover()
@@ -133,13 +164,7 @@ def sync(dest_root=None,log=print):
     log('最新配置：%s（%.1f MB）'%(item['name'],item['size']/1048576))
     data=fetch(item['name'])
     log('下载完成：%d 字节'%len(data))
-    folder=Path(dest_root or ROOT)/('cg_config_out_'+item['name'][:-4])
-    header,names,skipped=unpack(data,folder)
-    log('解包完成：%d 张表（跳过非 JSON %d 张）→ %s'%(len(names),len(skipped),folder))
-    missing=[k for k in KEY_TABLES if not (folder/(k+'.json')).exists()]
-    if missing:raise RuntimeError('关键表缺失：'+'、'.join(missing))
-    log('关键表校验通过：'+'/'.join(KEY_TABLES))
-    return {'name':item['name'],'folder':str(folder),'tables':len(names),'skipped':skipped}
+    return install_config(data,item['name'],dest_root,log)
 
 
 if __name__=='__main__':

@@ -339,7 +339,7 @@ def attach(app, notebook, pages):
 
     body = page('抓宠')
 
-    box = frame(body, '诸星封印 · 挑战', '选择一关挑战一次并拾取掉落。部分关卡消耗诸星挑战券，不自动买券。')
+    box = frame(body, '诸星封印 · 挑战', '建议先打福星提高掉率。默认要求福星祝福有效；勾选下方选项可无福星挑战。部分关卡消耗诸星挑战券，不自动买券。')
 
     seal_stages = {'御马监':10001, '御花园':10002, '阆风幽境':10003, '天马苑':10011,
 
@@ -349,7 +349,10 @@ def attach(app, notebook, pages):
 
     button(box, '查看关卡消耗与状态', 'starseal_run.py', lambda: [str(seal_stages[seal.get()])])
 
-    button(box, '挑战选中关卡一次', 'starseal_run.py', lambda: [str(seal_stages[seal.get()]), '--apply'])
+    app.var_starseal_allow_no_fuxing = tk.BooleanVar(value=False)
+    ttk.Checkbutton(box, text='允许无福星挑战', variable=app.var_starseal_allow_no_fuxing).pack(anchor='w', pady=3)
+
+    button(box, '挑战选中关卡一次', 'starseal_run.py', lambda: [str(seal_stages[seal.get()]), '--apply'] + (['--allow-no-fuxing'] if app.var_starseal_allow_no_fuxing.get() else []))
 
     ticket_count = field(box, '购买挑战券数量', '1')
 

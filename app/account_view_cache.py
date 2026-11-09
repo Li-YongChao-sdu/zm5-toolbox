@@ -20,6 +20,8 @@ def invalidate(app):
     if time_panel is not None:time_panel.invalidate()
     feed_panel=getattr(app,'fairy_feed_panel',None)
     if feed_panel is not None:feed_panel.invalidate()
+    fashion_panel=getattr(app,'fashion_online_panel',None)
+    if fashion_panel is not None:fashion_panel.invalidate()
     message='账号或存档已切换，请重新查询当前存档；次数和余额尚未读取。'
     for name in PAGES:
         page=getattr(app,name,None)

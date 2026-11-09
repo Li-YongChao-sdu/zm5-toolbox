@@ -4,7 +4,7 @@ from pathlib import Path
 from datetime import datetime,timezone,timedelta
 import tkinter as tk
 from tkinter import ttk,messagebox
-from pet_utilities import table,scrolls
+from pet_utilities import table,scrolls,limit as scroll_limit
 ROOT=Path(__file__).resolve().parent
 class PetUtilityPage:
     def __init__(self,app,notebook):
@@ -65,7 +65,7 @@ class PetUtilityPage:
         self.shop_status=tk.StringVar(value='请刷新仙魄余额和限购次数');ttk.Label(shop,textvariable=self.shop_status).pack(anchor='w',pady=8)
         self.goods={str(k):v for k,v in scrolls().items()};self.shop_rows={}
         grid=ttk.Frame(shop);grid.pack(fill='x',pady=6)
-        for col,title in enumerate(['选购卷轴','仙魄单价','今日已购','剩余次数','本次购买数量']):
+        for col,title in enumerate(['选购卷轴','仙魄单价','本周已购','剩余次数','本次购买数量']):
             ttk.Label(grid,text=title,font=('Microsoft YaHei',10,'bold')).grid(row=0,column=col,padx=8,pady=5,sticky='w')
         grid.columnconfigure(0,weight=1)
         for row,(sid,cfg) in enumerate(self.goods.items(),1):
@@ -172,11 +172,12 @@ class PetUtilityPage:
 
     def update_shop(self):
         if not self.data:return
-        self.shop_status.set('仙魄余额：%s｜各卷轴每日独立限购5份'%self.data['fairyMoney'])
+        scope='每周' if all(g.get('weekly') for g in self.data['scrolls']) else '每周期'
+        self.shop_status.set('仙魄余额：%s｜各卷轴%s独立限购（上限见下表）'%(self.data['fairyMoney'],scope))
         for g in self.data['scrolls']:
             row=self.shop_rows.get(str(g['id']))
             if not row:continue
-            row['used'].set('%s／5'%(5-g['remaining']))
+            row['used'].set('%s／%s'%(g['limit']-g['remaining'],g['limit']))
             row['remaining'].set(str(g['remaining']))
             # 刷新余额与限购不覆盖用户保存的购买数量。
     def selected_shop_jobs(self):
@@ -185,7 +186,8 @@ class PetUtilityPage:
             row=self.shop_rows[sid]
             if not row['selected'].get():continue
             count=int(row['count'].get())
-            if not 1<=count<=5:raise ValueError(cfg['name']+'购买数量须为1～5')
+            cap=scroll_limit(cfg)
+            if not 1<=count<=cap:raise ValueError('%s购买数量须为1～%d'%(cfg['name'],cap))
             jobs.append({'label':'仙魄购买：'+cfg['name'],'kind':'buy','args':{'shop':sid,'count':count}})
         if not jobs:raise ValueError('请先在藏宝仙魄商店勾选要购买的商品')
         return jobs

@@ -21,6 +21,17 @@ def is_consume(item,config):
     value=item.get('isConsume',config.get('isConsume',0))
     return str(value).lower() in ('1','true')
 
+def rune_entries(info):
+    # 与洗练共用属性及战力展示；优先排除镶嵌对象，不提供卸符或出售已镶嵌灵符。
+    from wash_data import list_runes
+    rows=[]
+    for row in list_runes(info):
+        if row['location']!='背包':continue
+        row=dict(row)
+        row['locked']=str(row.get('lock',0)).lower() in ('1','true')
+        rows.append(row)
+    return rows
+
 def state(info,user=None,config=None):
     config=config if config is not None else props();bag=info.get('bag') or {};rows=[];capacity={}
     for location in TABLES:
@@ -35,7 +46,8 @@ def state(info,user=None,config=None):
             suffix='BagMax' if location=='bag' else 'WarehouseMax'
             capacity[location]={kind:{'used':used[kind],'max':bag.get(prefix+suffix)} for kind,prefix in [('材料','item'),('消耗品','consumables')]}
         else:capacity[location]={'材料':{'used':used['材料'],'max':bag.get('superWareHouseItemBagMax')},'消耗品':{'used':used['消耗品'],'max':bag.get('superWareHouseConsumablesBagMax')}}
-    return {'rows':rows,'capacity':capacity,'ticket':(user or {}).get('ticket'),
+    capacity['rune']={'灵符':{'used':len(bag.get('rune') or {}),'max':bag.get('runeBagMax')}}
+    return {'rows':rows,'runes':rune_entries(info),'capacity':capacity,'ticket':(user or {}).get('ticket'),
             'spacePointUsed':(info.get('everyWeekSetting') or {}).get('spacePoint'),
             'secondPasswordConfigured':((user or {}).get('secondPassword') or {}).get('havePwd')}
 
@@ -89,6 +101,38 @@ def sell(flow,info,user,item_id,count,password='',refresh=None):
             'verified':reply.get('code')==200 and not reply.get('error') and after==expected and user['ticket']==after_user['ticket']}
     return result,after_info,after_user
 
+def sell_rune(flow,info,user,entity_id,password='',refresh=None):
+    rows={r['entityId']:r for r in rune_entries(info)}
+    row=rows.get(entity_id)
+    if not row:raise ValueError('所选灵符不在当前背包或已经镶嵌，请刷新')
+    if row['locked']:raise ValueError('锁定灵符不能出售')
+    if refresh is None or user.get('ticket') is None or user.get('yuanbao') is None:
+        raise ValueError('缺少状态刷新或余额，未出售')
+    before=set((info.get('bag') or {}).get('rune') or {})
+    if entity_id not in before:raise ValueError('所选灵符不在背包')
+    ticket_before,yuanbao_before=user['ticket'],user['yuanbao']
+    spirit_before=int(info.get('spirit') or 0)
+    params={'type':'rune','id':entity_id,'count':1}
+    reply=flow.request('scene.itemHandler.sellObject',{**params,'password':password or ''})
+    after_info=refresh()
+    wallet=flow.request('connector.roleHandler.getUserInfo',{})
+    if wallet.get('code')!=200 or wallet.get('error'):
+        raise RuntimeError('出售已发送，余额核对失败；未重发，请刷新状态')
+    after_user=wallet.get('user') or {}
+    after=set((after_info.get('bag') or {}).get('rune') or {})
+    spirit_gain=sum(int(g.get('count') or 0) for g in reply.get('give') or []
+                    if g.get('type')=='coin' and g.get('subType')=='spirit')
+    verified=(reply.get('code')==200 and not reply.get('error') and
+              after==before-{entity_id} and
+              ticket_before==after_user.get('ticket') and yuanbao_before==after_user.get('yuanbao') and
+              int(after_info.get('spirit') or 0)-spirit_before==spirit_gain)
+    result={'route':'scene.itemHandler.sellObject','params':params,'name':row['name'],
+            'reply':reply,'verified':verified,'needs_password':reply.get('code')==502,
+            'ticket_before':ticket_before,'ticket_after':after_user.get('ticket'),
+            'yuanbao_before':yuanbao_before,'yuanbao_after':after_user.get('yuanbao'),
+            'spirit_gain':spirit_gain,'runes_before':len(before),'runes_after':len(after)}
+    return result,after_info,after_user
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source',choices=list(TABLES),default='bag')
@@ -96,13 +140,42 @@ def main():
     parser.add_argument('--sell',action='store_true')
     parser.add_argument('--item',type=int)
     parser.add_argument('--count',type=int,default=1)
+    parser.add_argument('--sell-rune',action='append',default=[],metavar='ENTITY_ID')
     args=parser.parse_args()
+    if args.sell_rune and (args.sell or args.target or args.item is not None):
+        parser.error('灵符出售不能与材料出售或存取混用')
+    if len(args.sell_rune)!=len(set(args.sell_rune)):
+        parser.error('不能重复选择同一张灵符')
     from teacher_trial import connect,enter,checked
     account=json.loads((ROOT/'account.local.json').read_text(encoding='utf-8-sig'))
     slot=int(account.get('record_index',0));password=os.environ.pop('ZM5_WAREHOUSE_PASSWORD','');flow=None
     try:
         flow,info=connect(account,slot)
         user=checked(flow.request('connector.roleHandler.getUserInfo',{}),'读取账号余额')['user']
+        if args.sell_rune:
+            # 整批先检查，防止选入锁定/镶嵌对象后先卖掉前几张。
+            rows={r['entityId']:r for r in rune_entries(info)}
+            for entity_id in args.sell_rune:
+                if entity_id not in rows or rows[entity_id]['locked']:
+                    raise ValueError('选中灵符已不在背包或被锁定，请刷新后重新选择')
+            folder=ROOT/'bag_warehouse_reports';folder.mkdir(exist_ok=True)
+            path=folder/(datetime.now(timezone(timedelta(hours=8))).strftime('%Y%m%d_%H%M%S_%f')+'_runes.json')
+            report={'slot':slot,'selected':args.sell_rune,'results':[],'status':'running'}
+            def journal():path.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+            for entity_id in args.sell_rune:
+                report['pending']=entity_id;journal()
+                try:
+                    result,info,user=sell_rune(flow,info,user,entity_id,password,lambda:enter(flow,slot))
+                except Exception as exc:
+                    report.update(status='uncertain',error_type=type(exc).__name__);journal();raise
+                report['results'].append(result);report['pending']=None;journal()
+                if not result['verified']:
+                    report['status']='stopped';journal()
+                    print('[灵符背包] '+('服务器要求二级密码，请填写后重新查询再选择出售。' if result['needs_password'] else '出售未通过核对，请刷新状态检查。')+'已停止后续出售，未自动重试。',flush=True)
+                    break
+            else:report['status']='verified';journal()
+            print('[灵符背包] 已核对出售%s/%s张；报告：%s' %
+                  (sum(r['verified'] for r in report['results']),len(args.sell_rune),path),flush=True)
         if args.target or args.sell:
             if args.item is None:raise ValueError('请选择道具')
             if args.sell:

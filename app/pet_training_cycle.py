@@ -20,7 +20,11 @@ class Finalize:
         if self.data.get('pending') or self.data.get('leveling',{}).get('pending'):raise RuntimeError('本批有未确认请求，禁止放生')
         if self.data.get('harvest',{}).get('pending'):raise RuntimeError('本批遗忘结果未确认，禁止放生')
         if self.data.get('leveling',{}).get('status')!='complete':raise ValueError('第二步尚未完成，禁止放生')
-        self.state=self.data.setdefault('finalize',{'status':'pending','retained':[],'released':[],'pending':None})
+        self.state=self.data.setdefault('finalize',{})
+        self.state.setdefault('status','pending')
+        self.state.setdefault('retained',[])
+        self.state.setdefault('released',[])
+        self.state.setdefault('pending',None)
         if self.state.get('pending'):raise RuntimeError('上次放生结果未确认，禁止自动重发')
         self.save()
     def save(self):atomic(self.path,self.data)
@@ -75,8 +79,10 @@ class Finalize:
             if not keep_pet(pet,self.minimum) and (eid in protected or pet.get('nickName') or pet.get('equipments')):
                 raise RuntimeError('待放生宠物受保护、有昵称或装备：'+eid)
             plan.append((eid,pet,keep_pet(pet,self.minimum)))
-        ticket=self.user().get('ticket')
+        wallet=self.user();ticket=wallet.get('ticket')
         if ticket is None:raise RuntimeError('未读取到点券余额')
+        if ((wallet.get('secondPassword') or {}).get('havePwd')) and not self.password and any(not keep for _,_,keep in plan):
+            raise RuntimeError('该存档已设置二级密码，但本次密码为空：未放生任何宠物；请填写正确二级密码后重跑')
         self.state.update(status='running',ticket_before=ticket);self.save()
         for eid,pet,keep in plan:
             if (self.path.parent/'STOP').exists():raise RuntimeError('收到停止标记')
@@ -86,6 +92,9 @@ class Finalize:
             say('放生','%s：%s，未达≥%d级标准；只处理本批新宠'%(eid,potentials(pet),self.minimum))
             self.state['pending']={'entityId':eid,'before':snapshot(pet)};self.save()
             reply=self.flow.request('scene.petHandler.free',{'entityId':eid,**({'password':self.password} if self.password else {})});self.log('release_reply',{'entityId':eid,'reply':reply})
+            if isinstance(reply,dict) and reply.get('code')!=200:
+                self.state['pending']=None;self.save()
+                if reply.get('code')==502:raise RuntimeError('放生被拒绝（二级密码错误）：%s 仍在背包；请填写正确二级密码后重跑，未重试'%eid)
             self.checked(reply);self.read()
             if eid in ((self.info.get('bag') or {}).get('pet') or {}):raise RuntimeError('放生后仍存在，未重试')
             self.state['released'].append(snapshot(pet));self.state['pending']=None;self.save()
@@ -95,12 +104,12 @@ class Finalize:
         self.log('finalized',{'retained':len(self.state['retained']),'released':len(self.state['released']),'manifest':str(self.path)})
         return self.state
 
-def run_cycle(flow,info,account,count,mode,cycles,manifest,password,table,prepare_bonus=True,prepare_space=None,retain_min=3,harvest=False,seconds=8,early_stop=False,passive_target=3,map_id=None):
+def run_cycle(flow,info,account,count,mode,cycles,manifest,password,table,prepare_bonus=True,prepare_space=None,retain_min=3,harvest=False,seconds=8,early_stop=False,passive_target=3,max_level=45,map_id=None,auto_reconnect=True):
     from pet_training_log import say,duration,Feedback
     if retain_min not in (2,3):raise ValueError('保留潜能等级须为2或3')
     runfolder=ROOT/'pet_training_cycles'/datetime.now().strftime('%Y%m%d_%H%M%S_%f')
     runfolder.mkdir(parents=True,exist_ok=False)
-    state={'account':binding(account),'status':'running','count_per_batch':count,'mode':mode,'cycles_limit':cycles,'retain_min_potential':retain_min,'harvest_enabled':harvest,'early_stop':early_stop,'target_passive':passive_target if early_stop else None,'batches':[],'started_at':datetime.now().isoformat()}
+    state={'account':binding(account),'status':'running','count_per_batch':count,'mode':mode,'cycles_limit':cycles,'retain_min_potential':retain_min,'harvest_enabled':harvest,'early_stop':early_stop,'target_passive':passive_target if early_stop else None,'max_level':max_level if early_stop else None,'batches':[],'started_at':datetime.now().isoformat()}
     statepath=runfolder/'cycle.json';atomic(statepath,state)
     print('循环记录：'+str(statepath),flush=True)
     try:
@@ -113,7 +122,7 @@ def run_cycle(flow,info,account,count,mode,cycles,manifest,password,table,prepar
         while not cycles or len(state['batches'])<cycles:
             try:
                 cycle_started=time.monotonic();timing={'started_at':datetime.now().isoformat()}
-                say('刷益灵花','开始第%d/%s轮：每批%d只，出战模式%s，%s，剩余潜能≥%d级保留%s'%(len(state['batches'])+1,cycles or '不限',count,mode,'遗忘取花' if harvest else '仅培养保留',retain_min,('，早停判定%d级潜能'%passive_target) if early_stop else ''))
+                say('刷益灵花','开始第%d/%s轮：每批%d只，出战模式%s，%s，剩余潜能≥%d级保留%s'%(len(state['batches'])+1,cycles or '不限',count,mode,'遗忘取花' if harvest else '仅培养保留',retain_min,('，早停判定%d级潜能／上限min(角色等级,%d级)'%(passive_target,max_level)) if early_stop else ''))
                 if (runfolder/'STOP').exists():raise RuntimeError('收到循环停止标记')
                 from feature_account import entry
                 with Feedback('读取存档','正在确认本轮存档及背包状态'):info=entry(flow,account)
@@ -131,7 +140,7 @@ def run_cycle(flow,info,account,count,mode,cycles,manifest,password,table,prepar
                     current=capture.path;info=capture.info
                     timing['capture_seconds']=round(time.monotonic()-capture_started,3)
                 state['active_manifest']=str(current);atomic(statepath,state)
-                level=Leveling(flow,info,account,current,mode,table,prepare_bonus=prepare_bonus,seconds=seconds,early_stop=early_stop,passive_target=passive_target,mid=map_id)
+                level=Leveling(flow,info,account,current,mode,table,prepare_bonus=prepare_bonus,seconds=seconds,early_stop=early_stop,passive_target=passive_target,max_level=max_level,mid=map_id)
                 level.data['retain_min_potential']=retain_min;level.save()
                 level_started=time.monotonic()
                 try:level.run()
@@ -156,12 +165,21 @@ def run_cycle(flow,info,account,count,mode,cycles,manifest,password,table,prepar
             except Exception as exc:
                 from pet_training_log import is_connection_error
                 if not is_connection_error(exc):raise
+                if not auto_reconnect:
+                    say('自动重连','已关闭自动重连；现场记录已保留，未重发未确认请求。')
+                    raise
                 # 只恢复已持久化且可核对的阶段；不重放未确认的资源操作。
-                active=state.get('active_manifest')
+                active=state.get('active_manifest');capture_pending=False
                 if active:
                     data=json.loads(Path(active).read_text(encoding='utf-8-sig'))
-                    if data.get('pending') or (data.get('harvest') or {}).get('pending') or (data.get('finalize') or {}).get('pending'):
-                        say('自动重连','存在未确认的抓宠/购买/遗忘/放生操作，无法仅凭宠物经验核对；已保留记录，停止自动续跑。')
+                    pending=data.get('pending') or {}
+                    if pending:
+                        if pending.get('route')!='scene.petHandler.capture':
+                            say('自动重连','存在未确认的 %s 操作，无法只凭服务器状态核对；已保留记录，停止自动续跑。'%pending.get('route'))
+                            raise
+                        capture_pending=True
+                    if (data.get('harvest') or {}).get('pending') or (data.get('finalize') or {}).get('pending'):
+                        say('自动重连','存在未确认的遗忘/放生操作，无法只凭服务器状态核对；已保留记录，停止自动续跑。')
                         raise
                     current=Path(active)
                 try:flow.disconnect()
@@ -170,7 +188,7 @@ def run_cycle(flow,info,account,count,mode,cycles,manifest,password,table,prepar
                 while True:
                     if (runfolder/'STOP').exists():raise RuntimeError('收到循环停止标记')
                     attempt+=1;delay=min(60,10*attempt)
-                    say('自动重连','连接异常：%s；%d秒后第%d次重连，同一批次继续，不重新抓宠。'%(exc,delay,attempt))
+                    say('自动重连','连接异常：%s；%d秒后第%d次重连，同一批次继续，不重发上次未确认请求。'%(exc,delay,attempt))
                     for _ in range(delay):
                         if (runfolder/'STOP').exists():raise RuntimeError('收到循环停止标记')
                         time.sleep(1)
@@ -179,21 +197,31 @@ def run_cycle(flow,info,account,count,mode,cycles,manifest,password,table,prepar
                         import feature_account as ta
                         with Feedback('自动重连','正在重新登录并读取服务器实际进度'):
                             fresh=ta.connect(account);actual=ta.entry(fresh,account)
+                        flow=fresh
                         if current:
                             data=json.loads(Path(current).read_text(encoding='utf-8-sig'))
-                            if data.get('status')!='complete':
-                                raise RuntimeError('断线批次抓宠尚未完成，需要核对抓宠清单，停止自动续跑')
-                            from pet_training_level import recover_pending
-                            recover_pending(current,account,actual)
-                        flow=fresh;info=actual
+                            if capture_pending:
+                                job=Capture.resume(fresh,actual,account,current,password)
+                                try:job.run()
+                                finally:
+                                    if job.active and not job.data.get('pending'):job.close_copy()
+                                current=job.path;info=job.info;capture_pending=False
+                                say('自动重连','已按背包核对未确认捕捉，本批抓宠继续完成后进入升级。')
+                            else:
+                                if data.get('status')!='complete':
+                                    raise RuntimeError('断线批次抓宠尚未完成，需要核对抓宠清单，停止自动续跑')
+                                from pet_training_level import recover_pending
+                                recover_pending(current,account,actual);info=actual
+                        else:info=actual
                         state.setdefault('reconnections',[]).append({'time':datetime.now().isoformat(),'attempt':attempt,'manifest':str(current) if current else None})
                         atomic(statepath,state)
-                        say('自动重连','已恢复连接并核对宠物实际经验；继续原批次，不补发上次未确认战斗。')
+                        say('自动重连','已恢复连接并核对服务器实际进度；继续原批次，不补发上次未确认请求。')
                         break
                     except Exception as retry_error:
                         if fresh:
                             try:fresh.disconnect()
                             except Exception:pass
+                        if flow is fresh:flow=None
                         if not is_connection_error(retry_error):raise
                         say('自动重连','第%d次未成功：%s；将继续等待重连。'%(attempt,retry_error))
                 continue
@@ -208,10 +236,10 @@ def run_cycle(flow,info,account,count,mode,cycles,manifest,password,table,prepar
         except Exception:pass
 
 def main():
-    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--action',choices=['finalize','cycle'],default='finalize');ap.add_argument('--manifest',type=Path);ap.add_argument('--mode',choices=['auto','p1','both'],default='auto');ap.add_argument('--count',type=int,default=10);ap.add_argument('--cycles',type=int,default=0);ap.add_argument('--no-exp-buffs',action='store_true');ap.add_argument('--retain-min',type=int,choices=[2,3],default=3);ap.add_argument('--harvest',action='store_true');ap.add_argument('--early-stop',action='store_true');ap.add_argument('--target-passive',type=int,choices=[2,3],default=3);ap.add_argument('--apply',action='store_true');ap.add_argument('--seconds',type=float,default=8);ap.add_argument('--account',default='');ap.add_argument('--slot',type=int);ap.add_argument('--map',type=int,default=0);args=ap.parse_args()
+    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--action',choices=['finalize','cycle'],default='finalize');ap.add_argument('--manifest',type=Path);ap.add_argument('--mode',choices=['auto','p1','both'],default='auto');ap.add_argument('--count',type=int,default=10);ap.add_argument('--cycles',type=int,default=0);ap.add_argument('--no-exp-buffs',action='store_true');ap.add_argument('--retain-min',type=int,choices=[2,3],default=3);ap.add_argument('--harvest',action='store_true');ap.add_argument('--early-stop',action='store_true');ap.add_argument('--target-passive',type=int,choices=[2,3],default=3);ap.add_argument('--max-level',type=int,default=45);ap.add_argument('--apply',action='store_true');ap.add_argument('--seconds',type=float,default=8);ap.add_argument('--account',default='');ap.add_argument('--slot',type=int);ap.add_argument('--map',type=int,default=0);ap.add_argument('--no-auto-reconnect',dest='auto_reconnect',action='store_false',default=True);args=ap.parse_args()
     if args.count<1 or args.cycles<0:ap.error('数量须大于0；轮数0表示持续循环')
     if not args.apply:
-        print('预演：每批%d只，%s出战，循环%s轮；抓宠→%s→%s→按剩余潜能≥%d级保留，其余本批放生。只处理本批ID，不处理原有宠物。'%(args.count,args.mode,args.cycles or '持续','早停判定%d级潜能（达标／潜能格满／101级即停）'%args.target_passive if args.early_stop else '75级→已有≥2级潜能者101级','按VIP返还遗忘≥3级潜能换益灵花，消耗去灵花且不补购' if args.harvest else '不遗忘潜能',args.retain_min));return
+        print('预演：每批%d只，%s出战，循环%s轮；抓宠→%s→%s→按剩余潜能≥%d级保留，其余本批放生。只处理本批ID，不处理原有宠物。'%(args.count,args.mode,args.cycles or '持续','早停判定%d级潜能（达标／潜能格满／%d级封顶即停，角色等级更低时取角色等级）'%(args.target_passive,args.max_level) if args.early_stop else '75级→已有≥2级潜能者101级','按VIP返还遗忘≥3级潜能换益灵花，消耗去灵花且不补购' if args.harvest else '不遗忘潜能',args.retain_min));return
     import feature_account as ta
     if args.account:
         source=json.loads((ROOT/'accounts'/(args.account+'.json')).read_text(encoding='utf-8-sig'))
@@ -231,11 +259,11 @@ def main():
                 data['retain_min_potential']=args.retain_min;atomic(path,data)
                 if args.harvest:
                     from pet_training_harvest import Harvest
-                    gather=Harvest(flow,info,ta.ACCT,path,os.environ.get('ZM5_PET_CAPTURE_PASSWORD',''));gather.run();info=gather.info
-            job=Finalize(flow,info,ta.ACCT,path,os.environ.get('ZM5_PET_CAPTURE_PASSWORD',''))
+                    gather=Harvest(flow,info,ta.ACCT,path,os.environ.get('ZM5_PET_CAPTURE_PASSWORD','').strip());gather.run();info=gather.info
+            job=Finalize(flow,info,ta.ACCT,path,os.environ.get('ZM5_PET_CAPTURE_PASSWORD','').strip())
             try:job.run()
             except Exception as exc:job.state.update(status='failed',error=str(exc));job.save();raise
-        else:run_cycle(flow,info,ta.ACCT,args.count,args.mode,args.cycles,args.manifest,os.environ.get('ZM5_PET_CAPTURE_PASSWORD',''),table('PetEXP'),prepare_bonus=not args.no_exp_buffs,retain_min=args.retain_min,harvest=args.harvest,seconds=args.seconds,early_stop=args.early_stop,passive_target=args.target_passive,map_id=args.map or None)
+        else:run_cycle(flow,info,ta.ACCT,args.count,args.mode,args.cycles,args.manifest,os.environ.get('ZM5_PET_CAPTURE_PASSWORD','').strip(),table('PetEXP'),prepare_bonus=not args.no_exp_buffs,retain_min=args.retain_min,harvest=args.harvest,seconds=args.seconds,early_stop=args.early_stop,passive_target=args.target_passive,max_level=args.max_level,map_id=args.map or None,auto_reconnect=args.auto_reconnect)
     except Exception as exc:
         if args.action!='cycle' or flow is None:
             from pet_training_log import connection_notice

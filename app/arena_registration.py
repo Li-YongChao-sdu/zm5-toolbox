@@ -114,9 +114,16 @@ def ensure(flow, handler, label=None, info=None, index=0, slot=None,
     err = r.get('error')
     if err:
         text = str(err)
-        if '已报名' in text or '重复' in text:
-            print('[%s] 服务器提示已报名：%s' % (label, text))
-            return True
+        if '已报名' in text or '已经报名' in text or '重复' in text:
+            # “重复请求”等错误不代表报名成功，必须回读报名标志。
+            fresh = entry_info(flow, slot)
+            if not enrolled(fresh, handler):
+                fresh = _merge_home(flow, handler, fresh)
+            if enrolled(fresh, handler):
+                print('[%s] 已核实本周报名状态，跳过重复报名' % label)
+                return True
+            print('[%s] 报名未确认：%s' % (label, text))
+            return not require_registration
         print('[%s] 报名未成功：%s（可能不在报名时段）' % (label, text))
         return not require_registration
     weekly = r.get('everyWeekSetting') or (r.get('info') or {}).get('everyWeekSetting')

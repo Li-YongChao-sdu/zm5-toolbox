@@ -27,6 +27,7 @@ class GameLoginFlow:
         self.proto_cache_path = proto_cache_path
         self.gate = None
         self.game = None
+        self._fashion_online_clock = None
 
     # 进游戏后(主线程)用的同步请求
     def _request_sync(self, client, route, data, timeout=15):
@@ -69,6 +70,7 @@ class GameLoginFlow:
 
     # ---- 阶段2: 场景服 auth ----
     def auth(self, host, port, timeout=15):
+        self._fashion_online_clock = None
         self.game = PomeloClient(proto_cache_path=self.proto_cache_path)
         done = threading.Event()
         result = {}
@@ -110,9 +112,20 @@ class GameLoginFlow:
             reply = self._request_sync(self.game, route, data, timeout)
         except Exception:
             uncertain(spend)
+            if self._fashion_online_clock is not None:self._fashion_online_clock.close()
             raise
         spend_after(self, route, data or {}, reply, spend)
         after(self, route, data or {}, reply)
+        if route in ('connector.entryHandler.entry','scene.questHandler.getQuestList'):
+            from fashion_online import observe_reply
+            observe_reply(self, route, reply)
+            if (route=='connector.entryHandler.entry' and isinstance(reply,dict)
+                    and (reply.get('info') or {}).get('dailyTaskSpecial',{}).get('startTime')
+                    and self._fashion_online_clock is not None
+                    and self._fashion_online_clock.base is None):
+                # 每个有效存档连接首次进入时只读采样一次，避免批量任务末尾才取基线。
+                try:self.request('scene.questHandler.getQuestList',{},timeout)
+                except Exception:pass  # 只读采样失败不伪造基线，后续使用保守时长。
         return reply
 
     def on(self, route, callback):
@@ -121,6 +134,8 @@ class GameLoginFlow:
         self.game.on(route, callback)
 
     def disconnect(self):
+        if self._fashion_online_clock is not None:
+            self._fashion_online_clock.close()
         if self.game:
             self.game.disconnect()
         if self.gate:

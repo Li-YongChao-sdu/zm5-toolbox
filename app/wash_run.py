@@ -192,6 +192,10 @@ def do_free(flow, info, system, target=None, password=None, lock=None,
                                  quota, lock=lock)
     if not ok:
         return False, msg, raw
+    # WingProxy.featherRestVipBack 按回包 needReplace 决定是否弹确认。
+    # needReplace=0 已直接保存，继续发 featherSureRest 会报“无需替换”。
+    feather_saved = (system == 'feather' and isinstance(raw, dict)
+                     and raw.get('needReplace') in (0, '0', False))
     new_node = api.new_item(raw)
     display_node = ({key: new_node[key] for key in ("fiveElements", "growthRate") if key in new_node}
                     if system == "magic" and isinstance(new_node, dict) else new_node)
@@ -214,7 +218,7 @@ def do_free(flow, info, system, target=None, password=None, lock=None,
             review_magic_result(row, new_node, raw)
         elif system == 'feather':
             # VIP8 免费洗练可选择保留原属性（回退）；低 VIP 直接替换，只展示结果
-            can_keep = wd.vip_level(info) >= 8
+            can_keep = not feather_saved
             if can_keep:
                 decision = review_feather_result(row, new_node, raw, confirm=True)
                 if decision is None:
@@ -230,6 +234,9 @@ def do_free(flow, info, system, target=None, password=None, lock=None,
             replace = decision
 
     # 2) 保存 / 替换
+    if feather_saved:
+        lines.append('  羽毛洗练：服务端已直接保存，无需确认')
+        return True, '\n'.join(lines), raw
     cok, cmsg, craw = api.confirm_wash(flow, system, row["entityId"],
                                        password, replace=replace)
     lines.append("  %s" % cmsg)

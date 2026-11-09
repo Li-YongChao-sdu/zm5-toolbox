@@ -56,7 +56,7 @@ class OldActivityPage:
         self.tabs.select(self.training)
         self.build_soul_panel()
     def build_soul_panel(self):
-        page=ttk.Frame(self.tabs,padding=6);self.tabs.add(page,text='限时灵魂商品')
+        page=ttk.Frame(self.tabs,padding=6);self.tabs.add(page,text='灵魂商品 / 节日礼包')
         row=ttk.Frame(page);row.pack(fill='x',pady=(0,4))
         self.soul_source=tk.StringVar()
         ttk.Label(row,textvariable=self.soul_source,foreground='#0a6').pack(side='left')
@@ -79,41 +79,74 @@ class OldActivityPage:
         self.soul_tree.bind('<<TreeviewSelect>>',self.select_soul)
         self.soul_detail=tk.StringVar(value='选择商品查看活动归属与限购明细。')
         ttk.Label(page,textvariable=self.soul_detail,wraplength=950,justify='left').pack(anchor='w',pady=3)
-        ttk.Label(page,text='数据来自最新解包的 GlobalBuy.json，仅含灵魂计价且无附加点券的商品；不是服务器实时库存。',foreground='gray',wraplength=900).pack(anchor='w')
+        actions=ttk.Frame(page);actions.pack(anchor='w',pady=4)
+        self.soul_query_button=ttk.Button(actions,text='查询所选余额/状态',command=lambda:self.run_soul(False))
+        self.soul_buy_button=ttk.Button(actions,text='领取 / 购买所选',command=lambda:self.run_soul(True))
+        for button in (self.soul_query_button,self.soul_buy_button):
+            button.pack(side='left',padx=(0,10));button.configure(state='disabled');self.buttons.append(button)
+        self.argot_button=ttk.Button(actions,text='一键领取当期暗语礼包',command=self.run_argots)
+        self.argot_button.pack(side='left',padx=(0,10));self.buttons.append(self.argot_button)
+        ttk.Label(page,text='数据来自最新解包的 GlobalBuy、Activity、Reward 配置；仅列出免费节日礼包和无附加点券的灵魂商品。领取记录及库存以服务器为准。',foreground='gray',wraplength=900).pack(anchor='w')
         self.reload_souls()
 
     def reload_souls(self):
         try:
-            shops,labels=load_catalog('GlobalBuy');directory=latest_global_config().name
+            shops,labels=load_catalog('GlobalBuy');gifts,gift_labels=load_catalog('FestivalFree');directory=latest_global_config().name
         except Exception as exc:
             self.soul_source.set('读取失败：'+str(exc));return
-        self.souls,self.soul_labels=shops,labels
-        self.soul_source.set('配置 %s ｜ 灵魂商品 %d 件'%(directory,len(shops)))
+        self.souls={'GlobalBuy:'+str(sid):cfg for sid,cfg in shops.items()}
+        self.souls.update({'FestivalFree:'+str(sid):cfg for sid,cfg in gifts.items()})
+        self.soul_labels=dict(labels,**gift_labels)
+        self.soul_source.set('配置 %s ｜ 灵魂商品 %d 件，免费节日礼包 %d 个'%(directory,len(shops),len(gifts)))
         self.render_souls()
 
     def render_souls(self):
         if not hasattr(self,'souls'):return
         self.soul_tree.delete(*self.soul_tree.get_children())
-        rows=[(sid,cfg) for sid,cfg in sorted(self.souls.items(),key=lambda item:int(item[0])) if not self.soul_current.get() or dated_state(cfg)=='商品日期在期内']
+        rows=[(sid,cfg) for sid,cfg in sorted(self.souls.items(),key=lambda item:(not item[1].get('freeGift',False),int(item[1]['id']))) if not self.soul_current.get() or dated_state(cfg)=='商品日期在期内']
         rows.sort(key=lambda item:(dated_state(item[1])!='商品日期在期内',str(item[1].get('underTime'))))
         current=[]
         for sid,cfg in rows:
             state=dated_state(cfg);left=remaining_text(cfg)
             if state=='商品日期在期内':current.append(cfg)
-            self.soul_tree.insert('','end',iid=sid,values=(sid,cfg['name'],cfg['sell_count'],price(cfg,self.soul_labels),cfg.get('purchaseMaxNum','-'),cfg.get('shelfTime') or '-',cfg.get('underTime') or '-',state,left),tags=('current',) if state=='商品日期在期内' else ('closed',))
+            self.soul_tree.insert('','end',iid=sid,values=(cfg['id'],cfg['name'],cfg['sell_count'],price(cfg,self.soul_labels),cfg.get('purchaseMaxNum','-'),cfg.get('shelfTime') or '-',cfg.get('underTime') or '-',state,left),tags=('current',) if state=='商品日期在期内' else ('closed',))
         if current:
             soon=min(current,key=lambda c:str(c.get('underTime')))
-            self.soul_summary.set('当期在售 %d 件；最近下架：%s（%s）'%(len(current),soon.get('name'),remaining_text(soon)))
+            self.soul_summary.set('当期 %d 项（免费礼包 %d 个）；最近截止：%s（%s）'%(len(current),sum(bool(c.get('freeGift')) for c in current),soon.get('name'),remaining_text(soon)))
         else:
-            self.soul_summary.set('当期没有在售的灵魂商品；共 %d 件历史商品'%len(self.souls))
+            self.soul_summary.set('当期没有可领取礼包或在售灵魂商品；共 %d 项历史配置'%len(self.souls))
         self.soul_detail.set('选择商品查看活动归属与限购明细。')
+        self.soul_query_button.configure(state='disabled');self.soul_buy_button.configure(state='disabled')
 
     def select_soul(self,event=None):
         selected=self.soul_tree.selection()
         if not selected:return
         c=self.souls[selected[0]]
         limits='；'.join('%s：%s'%(label,c.get(key) if c.get(key) is not None else '-') for key,label in [('purchaseMaxNum','总限购'),('dayPurchaseMaxNum','日限购'),('weekPurchaseMaxNum','周限购')])
-        self.soul_detail.set('%s %s → %s×%s\n价格：%s\n上架：%s；下架：%s（%s）\n%s（-1 表示未配置上限）'%(c['id'],c['name'],c['sell_subType'],c['sell_count'],price(c,self.soul_labels),c.get('shelfTime') or '-',c.get('underTime') or '-',remaining_text(c),limits))
+        ids=str(c['sell_subType']).replace(';',',').split(',');counts=str(c['sell_count']).replace(';',',').split(',')
+        rewards='；'.join('%s×%s'%(self.soul_labels.get(pid,pid),count) for pid,count in zip(ids,counts))
+        self.soul_detail.set('%s %s → %s\n价格：%s\n上架：%s；截止：%s（%s）\n%s（-1 表示未配置上限）'%(c['id'],c['name'],rewards,price(c,self.soul_labels),c.get('shelfTime') or '-',c.get('underTime') or '-',remaining_text(c),limits))
+        self.soul_query_button.configure(state='normal')
+        self.soul_buy_button.configure(text='免费领取所选礼包' if c.get('freeGift') else '使用灵魂购买1份',state='normal' if dated_state(c)=='商品日期在期内' else 'disabled')
+
+    def run_soul(self,buy):
+        selected=self.soul_tree.selection()
+        if not selected:return
+        key=selected[0];cfg=self.souls.get(key)
+        if cfg is None:return
+        self.run_weekly(key.split(':',1)[0],cfg,buy)
+
+    def run_argots(self):
+        if self.app.running:return
+        try:
+            from argot_gifts import load_argots
+            folder,rows,skipped=load_argots()
+        except Exception as exc:
+            messagebox.showerror('暗语礼包','读取配置失败：'+str(exc));return
+        if not rows:
+            messagebox.showinfo('暗语礼包','当前配置没有在有效期内的暗语礼包，未发送领取请求。');return
+        if not self.app._save_selected_slot():return
+        self.app._launch([str(Path(__file__).resolve().parent/'argot_gifts.py'),'--claim'])
     def build_weekly_shop(self):
         tab=ttk.Frame(self.tabs)
         self.tabs.add(tab,text='每周免费活动商店')

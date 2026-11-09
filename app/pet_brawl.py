@@ -32,7 +32,7 @@ def _checked(result, name):
     return result
 
 
-def _one_match(flow, events, match_seconds, battle_seconds, controller=None):
+def _one_match(flow, events, match_seconds, battle_seconds, exit_seconds=20, controller=None):
     before = _checked(flow.request(R_INFO, {}), "读取乱斗状态")
     before_total = int(((before.get("petPvp") or {}).get("1") or {}).get("total") or 0)
     _checked(flow.request(R_MATCH, {}), "发起匹配")
@@ -40,16 +40,22 @@ def _one_match(flow, events, match_seconds, battle_seconds, controller=None):
     room_id = None
     matched = False
     loading = False
+    finished = False
+    total_ok = False
     next_loading = 0.0
     match_deadline = time.monotonic() + match_seconds
     battle_deadline = None
+    exit_deadline = None
     try:
         while True:
             if controller is not None:
                 controller.process(flow)
             now = time.monotonic()
-            deadline = battle_deadline if battle_deadline is not None else match_deadline
+            deadline = exit_deadline if exit_deadline is not None else battle_deadline if battle_deadline is not None else match_deadline
             if now >= deadline:
+                if finished:
+                    print("[灵宠乱斗] 结算后等待房间关闭超时（%d秒），按已结算处理" % exit_seconds, flush=True)
+                    return total_ok
                 if not matched:
                     print("[灵宠乱斗] 等待匹配超时", flush=True)
                 else:
@@ -100,16 +106,25 @@ def _one_match(flow, events, match_seconds, battle_seconds, controller=None):
                 print("[灵宠乱斗] 服务器已推送最终结算", flush=True)
                 if data.get("error"):
                     print("[灵宠乱斗] 结算提示：%s" % data["error"], flush=True)
+                finished = True
+                loading = False
+                total_ok = False
                 for _ in range(5):
                     latest = _checked(flow.request(R_INFO, {}), "核对乱斗战绩")
                     total = int(((latest.get("petPvp") or {}).get("1") or {}).get("total") or 0)
                     if total > before_total:
                         print("[灵宠乱斗] 战绩场次 %d → %d，本场已计入" % (before_total, total), flush=True)
-                        return matched
+                        total_ok = True
+                        break
                     time.sleep(2)
-                print("[灵宠乱斗] 已结算但战绩尚未增加，本场不继续下一场", flush=True)
-                return False
+                if not total_ok:
+                    print("[灵宠乱斗] 已结算但战绩尚未增加，本场不继续下一场", flush=True)
+                exit_deadline = time.monotonic() + exit_seconds
+                print("[灵宠乱斗] 保持心跳，等待房间关闭通知（最多%d秒）" % exit_seconds, flush=True)
             elif route == "onPetPvpBtlExit":
+                if finished:
+                    print("[灵宠乱斗] 收到房间退出通知，本场正常结束", flush=True)
+                    return matched and total_ok
                 print("[灵宠乱斗] 收到房间退出通知", flush=True)
                 return False
     finally:
@@ -126,12 +141,15 @@ def main():
     parser.add_argument("--matches", type=int, default=4)
     parser.add_argument("--match-seconds", type=int, default=90)
     parser.add_argument("--battle-seconds", type=int, default=600)
+    parser.add_argument("--exit-seconds", type=int, default=20, help="结算后保持心跳、等待房间关闭的秒数")
     parser.add_argument("--interactive", action="store_true", help="打开准备阶段手动选宠、上符窗口")
     args = parser.parse_args()
     if args.matches < 1:
         parser.error("匹配场数须为正整数")
     if args.match_seconds < 10 or not 60 <= args.battle_seconds <= 600:
         parser.error("匹配至少等待10秒，单场挂机时间须为60～600秒")
+    if not 5 <= args.exit_seconds <= 120:
+        parser.error("结算等待须为5～120秒")
     flow = None
     try:
         path = Path(__file__).resolve().parent / "account.local.json"
@@ -142,6 +160,7 @@ def main():
         print("[灵宠乱斗] 使用存档槽 %d" % slot, flush=True)
         if args.interactive:
             from pet_brawl_control import run_window
+            args.record_index = slot
             run_window(flow, account['uid'], args)
             return 0
         events = queue.Queue()
@@ -151,7 +170,7 @@ def main():
             while not events.empty():
                 events.get_nowait()
             print("[灵宠乱斗] 第 %d/%d 次" % (number, args.matches), flush=True)
-            if not _one_match(flow, events, args.match_seconds, args.battle_seconds):
+            if not _one_match(flow, events, args.match_seconds, args.battle_seconds, args.exit_seconds):
                 break
             if number < args.matches:
                 time.sleep(3)

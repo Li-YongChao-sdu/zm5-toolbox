@@ -46,11 +46,37 @@ def log(s=""):
     print(s)
 
 
-def run_one(flow, mid):
+def require_fuxing(info, now_ms=None):
+    """仅认可有效的福星祝福；VIP掉宝加成不能替代福星。"""
+    now_ms = int(time.time() * 1000) if now_ms is None else now_ms
+    buffs = info.get('buffs') or {}
+    if isinstance(buffs, dict):
+        for buff in buffs.values():
+            if not isinstance(buff, dict):
+                continue
+            try:
+                if int(buff.get('type') or 0) != 101001 or int(buff.get('cnt') or 0) <= 0:
+                    continue
+                end = int(buff.get('endTime') or 0)
+                if end == -1 or end > now_ms:
+                    return
+            except (TypeError, ValueError):
+                continue
+    raise RuntimeError('必须先打福星并确保祝福有效，才能挑战诸星封印；请到福禄寿页面完成福星后重试。')
+
+
+def run_one(flow, mid, *, allow_no_fuxing=False):
     """跑一次副本，返回结果字典。"""
     res = {"mid": mid, "entryOk": False, "dropCount": 0, "picked": 0,
            "got": {}, "finishOk": False, "error": None,
            "monsters": [], "dropsRaw": 0}
+    try:
+        current = ta.entry(flow, ta.ACCT)
+        if not allow_no_fuxing:
+            require_fuxing(current)
+    except Exception as exc:
+        res['error'] = str(exc)
+        return res
     my_rnd = random.randint(0, 9999)
     r1 = flow.request("scene.copyHandler.createSinglePlayerCopy",
                       {"mid": mid, "rnd": my_rnd})
@@ -106,6 +132,7 @@ def run_one(flow, mid):
 
 def main():
     apply_ = "--apply" in sys.argv
+    allow_no_fuxing = "--allow-no-fuxing" in sys.argv
     only = None
     for a in sys.argv[1:]:
         if a.isdigit():
@@ -126,6 +153,15 @@ def main():
         ticket = bag_item.get("101041001") or {}
         log("诸星挑战券(101041001) = %s" % (ticket.get("count") if isinstance(ticket, dict) else 0))
 
+        try:
+            require_fuxing(info)
+            log('福星祝福：有效；每次实际开局前会重新检查。')
+        except RuntimeError as exc:
+            if allow_no_fuxing:
+                log('已开启允许无福星挑战；当前无有效福星，仍按所选关卡执行。')
+            else:
+                log(str(exc))
+
         if not apply_:
             log("\n【预演】将逐关尝试，每关跑 1 次：")
             for aid, name, did, star in stages:
@@ -143,7 +179,7 @@ def main():
             log("【%s】dungeonId=%s" % (name, did))
             log("=" * 60)
             try:
-                r = run_one(flow, did)
+                r = run_one(flow, did, allow_no_fuxing=allow_no_fuxing)
             except Exception as e:
                 r = {"mid": did, "entryOk": False, "error": "异常: %s" % e,
                      "picked": 0, "got": {}}

@@ -4,8 +4,9 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import ttk,messagebox
 from bag_warehouse import super_rules
+from wash_free_ui import ATTR_NAMES
 ROOT=Path(__file__).resolve().parent
-NAMES={'bag':'背包','warehouse':'个人仓库','super':'超级仓库'}
+NAMES={'bag':'背包','warehouse':'个人仓库','super':'超级仓库','rune':'灵符背包'}
 class BagWarehousePage:
     def __init__(self,app,notebook):
         self.app=app;self.data=None;self.buttons=[]
@@ -17,15 +18,18 @@ class BagWarehousePage:
         self.page=ttk.Frame(self.window,padding=8);self.page.pack(fill='both',expand=True)
         self.summary=tk.StringVar(value='请刷新当前账号、存档的道具列表')
         ttk.Label(self.page,textvariable=self.summary,wraplength=1000).pack(fill='x')
-        ttk.Label(self.page,text='材料与消耗品存取；超级仓库受支持物品、通关条件及每周空间点限制，尚未验证成功存取。',foreground='#a06000',wraplength=1000).pack(fill='x',pady=5)
-        row=ttk.Frame(self.page);row.pack(fill='x')
+        tabs=ttk.Notebook(self.page);tabs.pack(fill='both',expand=True,pady=5)
+        self.goods_page=ttk.Frame(tabs);self.rune_page=ttk.Frame(tabs)
+        tabs.add(self.goods_page,text='道具/仓库');tabs.add(self.rune_page,text='灵符背包')
+        ttk.Label(self.goods_page,text='材料与消耗品存取；超级仓库受支持物品、通关条件及每周空间点限制，尚未验证成功存取。',foreground='#a06000',wraplength=1000).pack(fill='x',pady=5)
+        row=ttk.Frame(self.goods_page);row.pack(fill='x')
         self.button(row,'刷新状态',lambda:self.run())
         self.location=tk.StringVar(value='个人仓库');self.kind=tk.StringVar(value='全部');self.search=tk.StringVar()
         ttk.Label(row,text='右侧仓库：').pack(side='left')
         for var,values in [(self.location,['个人仓库','超级仓库']),(self.kind,['全部','材料','消耗品'])]:
             box=ttk.Combobox(row,textvariable=var,values=values,state='readonly',width=12);box.pack(side='left',padx=4);box.bind('<<ComboboxSelected>>',lambda e:self.filter())
         ttk.Label(row,text='搜索名称/ID：').pack(side='left');ttk.Entry(row,textvariable=self.search,width=22).pack(side='left');self.search.trace_add('write',lambda *a:self.filter())
-        panel=ttk.Panedwindow(self.page,orient='horizontal');panel.pack(fill='both',expand=True,pady=6)
+        panel=ttk.Panedwindow(self.goods_page,orient='horizontal');panel.pack(fill='both',expand=True,pady=6)
         self.trees={};self.active_tree=None
         self.warehouse_title=tk.StringVar(value='个人仓库')
         for side,title in [('bag','背包'),('warehouse',self.warehouse_title)]:
@@ -39,15 +43,78 @@ class BagWarehousePage:
             bar=ttk.Scrollbar(table,orient='vertical',command=tree.yview);tree.configure(yscrollcommand=bar.set);bar.pack(side='right',fill='y');tree.pack(fill='both',expand=True)
             self.trees[side]=tree
         self.detail=tk.StringVar(value='选择任一列的物品，查看 Prop.json 说明、品质及出售价格')
-        ttk.Label(self.page,textvariable=self.detail,wraplength=950).pack(fill='x')
-        actions=ttk.Frame(self.page);actions.pack(fill='x')
+        ttk.Label(self.goods_page,textvariable=self.detail,wraplength=950).pack(fill='x')
+        actions=ttk.Frame(self.goods_page);actions.pack(fill='x')
         self.count=tk.StringVar(value='1');self.password=tk.StringVar()
         ttk.Label(actions,text='数量').pack(side='left');ttk.Entry(actions,textvariable=self.count,width=7).pack(side='left',padx=4)
         self.button(actions,'MAX',self.set_max)
         ttk.Label(actions,text='二级密码（可留空）').pack(side='left');ttk.Entry(actions,textvariable=self.password,show='*',width=16).pack(side='left',padx=4)
         for text,target in [('存入个人仓库','warehouse'),('取回背包','bag'),('存入超级仓库','super')]:self.button(actions,text,lambda t=target:self.run(t))
         self.button(actions,'出售选中物品',lambda:self.run('sell'))
-        ttk.Label(self.page,text='个人仓库存取已在夕阳宏槽0、楚辞槽6空密码往返验证。密码不保存到配置或日志；若服务器返回502，请填写后手动重试。',wraplength=1000).pack(fill='x',pady=5)
+        ttk.Label(self.goods_page,text='个人仓库存取已在夕阳宏槽0、楚辞槽6空密码往返验证。密码不保存到配置或日志；若服务器返回502，请填写后手动重试。',wraplength=1000).pack(fill='x',pady=5)
+        self.build_runes()
+
+    def build_runes(self):
+        row=ttk.Frame(self.rune_page);row.pack(fill='x',pady=5)
+        self.button(row,'刷新灵符背包',lambda:self.run())
+        self.rune_search=tk.StringVar()
+        ttk.Label(row,text='搜索名称/实体ID：').pack(side='left',padx=5)
+        ttk.Entry(row,textvariable=self.rune_search,width=28).pack(side='left')
+        self.rune_search.trace_add('write',lambda *a:self.filter_runes())
+        self.rune_summary=tk.StringVar(value='请刷新当前存档的灵符背包')
+        ttk.Label(self.rune_page,textvariable=self.rune_summary).pack(anchor='w',pady=4)
+        table=ttk.Frame(self.rune_page);table.pack(fill='both',expand=True)
+        self.rune_tree=ttk.Treeview(table,columns=('name','part','power','attrs','locked','entity'),show='headings',selectmode='extended')
+        for col,label,width in [('name','名称',145),('part','部位',65),('power','战力',65),('attrs','属性',300),('locked','锁定',55),('entity','实体ID',190)]:
+            self.rune_tree.heading(col,text=label);self.rune_tree.column(col,width=width,minwidth=45)
+        bar=ttk.Scrollbar(table,orient='vertical',command=self.rune_tree.yview)
+        self.rune_tree.configure(yscrollcommand=bar.set);bar.pack(side='right',fill='y');self.rune_tree.pack(fill='both',expand=True)
+        self.rune_tree.bind('<<TreeviewSelect>>',lambda e:self.rune_selection())
+        self.rune_rows={}
+        actions=ttk.Frame(self.rune_page);actions.pack(fill='x',pady=6)
+        self.button(actions,'出售选中灵符',self.sell_runes)
+        ttk.Label(actions,text='二级密码（可留空）').pack(side='left',padx=6)
+        ttk.Entry(actions,textvariable=self.password,show='*',width=16).pack(side='left')
+        ttk.Label(self.rune_page,text='Ctrl/Shift可多选，出售前会逐张列出确认。仅显示背包灵符；已镶嵌灵符不列入，锁定灵符不能出售。',wraplength=1000).pack(fill='x',pady=4)
+
+    def filter_runes(self):
+        self.rune_tree.delete(*self.rune_tree.get_children());self.rune_rows={}
+        if not self.data:return
+        query=self.rune_search.get().strip().lower()
+        for row in self.data.get('runes',[]):
+            if query not in (row['name']+' '+row['entityId']).lower():continue
+            key=row['entityId'];self.rune_rows[key]=row
+            attrs=' / '.join('%s %s' % (ATTR_NAMES.get(k,k),v) for k,v in row.get('attributeValues',{}).items())
+            self.rune_tree.insert('',tk.END,iid=key,values=(row['name'],{0:'天市',1:'紫微',2:'太微'}.get(row.get('part'),row.get('part','?')),row.get('fightPower','?'),attrs,'是' if row['locked'] else '否',key))
+        self.rune_selection()
+
+    def rune_selection(self):
+        cap=((self.data or {}).get('capacity',{}).get('rune') or {}).get('灵符',{})
+        self.rune_summary.set('灵符背包 %s/%s｜已选%s张' %
+                              (cap.get('used','?'),cap.get('max','?'),len(self.rune_tree.selection())))
+
+    def sell_runes(self):
+        if self.app.running or not self.app._save_selected_slot():return
+        try:
+            account=json.loads((ROOT/'account.local.json').read_text(encoding='utf-8-sig'))
+            if not self.data or self.data['account']!=str(account.get('username','')) or self.data['slot']!=int(self.app.cmb_slot.get()):
+                raise ValueError('账号或存档已改变，请先刷新灵符背包')
+            selected=self.rune_tree.selection()
+            if not selected:raise ValueError('请先选择要出售的灵符')
+            rows=[self.rune_rows[key] for key in selected]
+            if any(r['locked'] for r in rows):raise ValueError('选中项包含锁定灵符，请取消该项')
+            note='\n'.join('%s｜战力%s｜%s' % (r['name'],r.get('fightPower','?'),r['entityId']) for r in rows)
+            if not messagebox.askyesno('确认出售灵符','出售以下%s张灵符（无法撤销）：\n%s' % (len(rows),note),parent=self.page):return
+            args=[str(ROOT/'bag_warehouse.py')]
+            for r in rows:args+=['--sell-rune',r['entityId']]
+        except (ValueError,KeyError,OSError) as exc:
+            messagebox.showerror('灵符背包',str(exc),parent=self.page);return
+        password=self.password.get();self.password.set('')
+        self.app._launch(args,extra_env={'ZM5_WAREHOUSE_PASSWORD':password})
+
+    def invalidate(self):
+        self.data=None;self.rune_rows={};self.rune_tree.delete(*self.rune_tree.get_children())
+        self.rune_summary.set('账号或存档已切换，请刷新灵符背包')
     def open(self):
         self.window.deiconify();self.window.lift();self.window.focus_set()
     def close(self):
@@ -58,7 +125,7 @@ class BagWarehousePage:
         self.data=data;parts=[]
         for loc,cap in data['capacity'].items():
             parts.append(NAMES[loc]+' '+ ' / '.join('%s %s/%s'%(k,v['used'],v['max'] if v['max'] is not None else '?') for k,v in cap.items()))
-        self.summary.set('槽%s｜点券%s｜'%(data['slot'],data['ticket'])+'；'.join(parts));self.filter()
+        self.summary.set('槽%s｜点券%s｜'%(data['slot'],data['ticket'])+'；'.join(parts));self.filter();self.filter_runes()
     def filter(self):
         self.active_tree=None;self.visible={}
         self.warehouse_title.set(self.location.get())

@@ -24,6 +24,10 @@ app/*_reports/
 app/pet_training_batches/
 app/pet_training_cycles/
 app/pet_training_retained/
+app/pet_training_cache_archive/
+app/pet_training_tests/
+app/drops_log.jsonl
+app/manhuang_team.json
 app/fairy_feed_cache/
 
 # 构建与历史产物

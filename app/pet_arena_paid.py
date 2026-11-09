@@ -3,7 +3,7 @@ import argparse,hashlib,json,time,re
 from pathlib import Path
 from datetime import datetime
 ROOT=Path(__file__).resolve().parent
-PRESETS={'默认对手':'3922097053_r3','备用对手':'1417112202_r11'}
+PRESETS={'默认对手':'3922097053_r3','备用对手':'1417112202_r11','备用对手2':'2459485755_r29'}
 COST=20
 COINS=180
 BEGIN='scene.petArenaHandler.beginArenaBattleWithTicket'

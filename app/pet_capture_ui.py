@@ -83,15 +83,27 @@ def attach(parent, frame, field, button, positive, app):
 def attach_training(parent, frame, field, button, positive, app):
     """刷益灵花独立内容，由旧活动页的五框开关控制显示。"""
     quick=frame(parent,'刷去益灵花 · 一键运行',
-        '自动完成整个流程：抓天马 → 早停升级（达标3级潜能或潜能格已满即停，地图默认取最新已开放主线并排除七星殿、蓬丘）→ 保留所选潜能等级的宠物并放生本批其余宠物。循环轮数0表示持续运行；不使用点券，默认不遗忘潜能。')
+        '自动完成整个流程：抓天马 → 早停升级（达标3级潜能或潜能格已满即停，未达标记则45级封顶；地图默认取最新已开放主线并排除七星殿、蓬丘）→ 保留所选潜能等级的宠物并放生本批其余宠物。循环轮数0表示持续运行；不使用点券，默认不遗忘潜能。')
     quick_holder=[]
     training_password=tk.StringVar()
+    reconnect=tk.BooleanVar(value=True)
     quick_row=ttk.Frame(quick);quick_row.pack(anchor='w',pady=5)
     quick_button=ttk.Button(quick_row,text='一键运行：抓宠 → 早停升级 → 保留3级',command=lambda:quick_holder[0]())
     quick_button.pack(side=tk.LEFT);app.feature_buttons.append(quick_button)
     ttk.Label(quick_row,text='  二级密码（有则填，无则留空）').pack(side=tk.LEFT,padx=(12,4))
     ttk.Entry(quick_row,textvariable=training_password,show='*',width=16).pack(side=tk.LEFT)
+    ttk.Checkbutton(quick_row,text='断线自动重连（核对实际进度后继续）',variable=reconnect).pack(side=tk.LEFT,padx=(12,0))
     ttk.Label(quick,text='密码仅本次运行使用，启动后自动清空；放生、遗忘需要二级密码的账号必须填写。日常只需点上方按钮；下方分步按钮仅用于单步调试。',foreground='gray',wraplength=650).pack(anchor='w')
+    def clear_cache():
+        if app.running:return
+        from tkinter import messagebox
+        if not messagebox.askyesno('清除旧缓存','将归档已完成、失败、中断残留或已核实的旧批次和轮次。背包和出战栏都找不到的清单宠物会按“已放生”处理，只修改本地清单，不发送任何放生/抓宠请求；仍在的宠物保留。不会删除文件。继续？'):
+            return
+        app._launch([os.path.join(os.path.dirname(__file__),'pet_training_cache_clean.py'),'--apply','--release-missing'])
+    cache_row=ttk.Frame(quick);cache_row.pack(anchor='w',pady=(0,4))
+    cache_button=ttk.Button(cache_row,text='清除旧缓存（安全）',command=clear_cache)
+    cache_button.pack(side=tk.LEFT);app.feature_buttons.append(cache_button)
+    ttk.Label(cache_row,text='归档已完成/失败旧批次；缺失宠物按已放生修正清单，不发送请求',foreground='gray').pack(side=tk.LEFT,padx=8)
     training = frame(parent,'刷益灵花 · 第一步：抓天马',
         '默认保留10只，可自选数量。只要求潜力≥4；不限制星级、性别、资质。已有宠物不处理，新抓不合格宠物自动放生。每只保留宠物的唯一ID写入独立清单，供后续步骤使用。')
     training_count = field(training,'目标保留数量','10')
@@ -99,18 +111,28 @@ def attach_training(parent, frame, field, button, positive, app):
     button(training,'查看第一步预演','pet_training_capture.py',lambda:['--count',positive(training_count)])
     def start_training_capture():
         if app.running:return
-        try:argv=['--count',positive(training_count),'--apply']
+        try:argv=['--count',positive(training_count),'--apply']+(['--auto-reconnect'] if reconnect.get() else [])
         except (ValueError,TypeError) as exc:
             from tkinter import messagebox
             messagebox.showerror('抓天马',str(exc));return
         if app._save_selected_slot():
-            password=training_password.get();training_password.set('')
+            password=training_password.get().strip();training_password.set('')
             app._launch([os.path.join(os.path.dirname(__file__),'pet_training_capture.py')]+argv,
                 extra_env={'ZM5_PET_CAPTURE_PASSWORD':password})
     start_button=ttk.Button(training,text='开始第一步：抓天马并保存ID',command=start_training_capture)
     start_button.pack(anchor='w',pady=3);app.feature_buttons.append(start_button)
+    def resume_training_capture():
+        if app.running:return
+        from tkinter import filedialog
+        name=filedialog.askopenfilename(title='选择中断批次的 manifest.json',filetypes=[('宠物清单','manifest.json')])
+        if not name:return
+        if app._save_selected_slot():
+            password=training_password.get().strip();training_password.set('')
+            app._launch([os.path.join(os.path.dirname(__file__),'pet_training_capture.py'),'--resume',name,'--apply']+(['--auto-reconnect'] if reconnect.get() else []),extra_env={'ZM5_PET_CAPTURE_PASSWORD':password})
+    resume_button=ttk.Button(training,text='续抓中断批次（先核对背包，不重发上次捕捉）',command=resume_training_capture)
+    resume_button.pack(anchor='w',pady=3);app.feature_buttons.append(resume_button)
     leveling=frame(parent,'刷益灵花 · 第二步：刷主线升级',
-        '读取第一步清单。默认早停：每局结算后按服务器升级推送判定，潜能达到3级或潜能格已满立即停止，到101级也停。地图默认取最新已开放主线（排除七星殿80、蓬丘61）；旧两段为兼容保留，先75级再101级，耗时明显更长。')
+        '读取第一步清单。默认早停：每局结算后按服务器升级推送判定，潜能达到3级或潜能格已满立即停止，未达标记则45级封顶。地图默认取最新已开放主线（排除七星殿80、蓬丘61）；旧两段为兼容保留，先75级再101级，耗时明显更长。')
     manifest=field(leveling,'宠物清单（留空自动选最新）','')
     def choose_manifest():
         from tkinter import filedialog
@@ -122,7 +144,7 @@ def attach_training(parent, frame, field, button, positive, app):
     bonus=tk.BooleanVar(value=True)
     ttk.Checkbutton(leveling,text='升级前领取免费寿星／在线经验增益（寿星到期仅使用剩余免费次数补领）',variable=bonus).pack(anchor='w',pady=4)
     if hasattr(app,'ui_settings_fields'):app.ui_settings_fields['潜能培养/免费经验增益']=(bonus,None)
-    method=field(leveling,'培养方式','早停（推荐，实测约4分钟/朵）',['早停（推荐，实测约4分钟/朵）','旧两段75→101（效率低，仅兼容）'])
+    method=field(leveling,'培养方式','早停（推荐，45级封顶）',['早停（推荐，45级封顶）','旧两段75→101（效率低，仅兼容）'])
     def level_args(apply=False):
         argv=['--mode',{'自动（单人1P／双人双宠）':'auto','仅1P':'p1','1P和2P':'both'}[mode.get()]]
         if manifest.get().strip():argv+=['--manifest',manifest.get().strip()]
@@ -130,7 +152,7 @@ def attach_training(parent, frame, field, button, positive, app):
         if not raw.isdigit():raise ValueError('升级副本地图须填非负整数，0表示自动最新')
         if int(raw):argv+=['--map',raw]
         if not bonus.get():argv+=['--no-exp-buffs']
-        if method.get().startswith('早停'):argv+=['--early-stop','--target-passive','3']
+        if method.get().startswith('早停'):argv+=['--early-stop','--target-passive','3','--max-level','45']
         return argv+(['--apply'] if apply else [])
     ttk.Label(leveling,text='双人档两只宠物分别获得完整经验。按当前实际经验计算局数；经验加成不同，所需局数也会不同。完成后恢复原出战宠物，不放生、不遗忘潜能。',wraplength=650).pack(anchor='w',pady=4)
     button(leveling,'查看第二步预演','pet_training_level.py',lambda:level_args(False))
@@ -140,8 +162,8 @@ def attach_training(parent, frame, field, button, positive, app):
     action=field(final,'潜能处理','仅培养保留（不遗忘）',['仅培养保留（不遗忘）','自动遗忘换益灵花（消耗去灵花）'])
     retain=field(final,'保留剩余潜能等级','3级及以上',['3级及以上','2级及以上'])
     cycles=field(final,'循环轮数（0为持续循环）','0')
-    ttk.Label(final,text='遗忘会永久删除对应潜能，每次消耗1朵去灵花。VIP0—2三级不返益灵花，会跳过；VIP3以上三级可返。按VIP配置预检数量并核对实际到账，去灵花不足不自动购买。取花后剩余潜能低于所选标准的本批宠物会放生。',wraplength=650,foreground='red').pack(anchor='w',pady=5)
-    ttk.Label(final,text='一键运行会复用上方每批数量、出战方式、副本地图和二级密码。双人档默认双宠，各自获取完整经验；仅75／101级节点读取存档。保留宠物累计记录ID；空格不足、材料不足或异常停止。日志记录每批耗时、取花数量和保留／放生数量。',wraplength=650).pack(anchor='w',pady=5)
+    ttk.Label(final,text='遗忘会永久删除对应潜能，每次消耗1朵去灵花。VIP0—2三级不返益灵花，会跳过；VIP3以上三级可返。按VIP配置预检数量并核对实际到账，去灵花不足则跳过遗忘、继续保留／放生，不自动购买。取花后剩余潜能低于所选标准的本批宠物会放生。',wraplength=650,foreground='red').pack(anchor='w',pady=5)
+    ttk.Label(final,text='一键运行会复用上方每批数量、出战方式、副本地图和二级密码。双人档默认双宠，各自获取完整经验；早停45级封顶（角色等级更低时按角色等级），仅旧两段才读取75／101级节点。保留宠物累计记录ID；空格不足、灵魂不足或异常停止，去灵花不足则跳过遗忘继续筛选。日志记录每批耗时、取花数量和保留／放生数量。',wraplength=650).pack(anchor='w',pady=5)
     def policy_args():
         return ['--retain-min',retain.get()[0]]+(['--harvest'] if action.get().startswith('自动遗忘') else [])
     def finalize_args(apply=False):
@@ -151,7 +173,7 @@ def attach_training(parent, frame, field, button, positive, app):
     button(final,'查看第三步预演','pet_training_cycle.py',lambda:finalize_args(False))
     def launch_final(argv):
         if app._save_selected_slot():
-            password=training_password.get();training_password.set('')
+            password=training_password.get().strip();training_password.set('')
             app._launch([os.path.join(os.path.dirname(__file__),'pet_training_cycle.py')]+argv,extra_env={'ZM5_PET_CAPTURE_PASSWORD':password})
     def process_current():
         if not app.running:launch_final(finalize_args(True))
@@ -162,12 +184,13 @@ def attach_training(parent, frame, field, button, positive, app):
         try:
             rounds=int(cycles.get())
             if rounds<0:raise ValueError('循环轮数不能小于0')
-            argv=['--action','cycle','--count',positive(training_count),'--cycles',str(rounds)]+level_args(False)+policy_args()+['--apply']
+            argv=['--action','cycle','--count',positive(training_count),'--cycles',str(rounds)]+level_args(False)+policy_args()+['--apply']+([] if reconnect.get() else ['--no-auto-reconnect'])
         except (ValueError,TypeError) as exc:
             from tkinter import messagebox
             messagebox.showerror('潜能培养循环',str(exc));return
         launch_final(argv)
     if hasattr(app,'ui_settings_fields'):
+        app.ui_settings_fields['刷益灵花/断线重连']=(reconnect,None)
         app.ui_settings_fields['刷益灵花/潜能处理']=(action,None)
         app.ui_settings_fields['刷益灵花/保留等级']=(retain,None)
         app.ui_settings_fields['刷益灵花/副本地图']=(map_id,None)

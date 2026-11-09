@@ -3,6 +3,7 @@
 import argparse
 import json
 import queue
+import threading
 import time
 from pathlib import Path
 
@@ -14,6 +15,70 @@ TARGET = 3
 EVENTS = ("onPVPMatchResult", "onPlayerJoinWaitingRoom", "onPrepareCreateOnlineCopy",
           "onCreateOnlineCopy", "onCreateOnlineCopyError", "onPlayerLeaveWaitingRoom",
           "onPVPFinish", "kicked")
+
+
+class BattleKeepalive:
+    """真人战斗业务保活；回调只记状态，发包在主循环串行完成。"""
+    def __init__(self, team, seat, clock=None):
+        self.team, self.seat = team, seat
+        self.clock = clock or time.monotonic
+        self.loaded = threading.Event()
+        self.frames = threading.Event()
+        self.closed = threading.Event()
+        self.active, self.ready = True, False
+        self.load_deadline = self.clock() + 30
+        self.frame_deadline = self.next_ping = None
+        self.closed_at = None
+        self.frame_logged = False
+        team.on('onAllLoadComplete', lambda _: self.loaded.set())
+        team.on('onSendFrame', lambda _: self.frames.set())
+        team.set_close_callback(self.closed.set)
+        team.set_kicked_callback(self.closed.set)
+
+    def stop(self):
+        self.active = False
+
+    def tick(self):
+        if not self.active:
+            return
+        now = self.clock()
+        if self.closed.is_set():
+            # 战斗服可能先关闭、场景服再推结算，留出一个主循环接收结算。
+            if self.closed_at is None:
+                self.closed_at = now
+            if now - self.closed_at >= 2:
+                raise RuntimeError('战斗服连接已断开，停止本场，不自动重新匹配')
+            return
+        if not self.loaded.is_set():
+            if now >= self.load_deadline:
+                raise RuntimeError('未收到全员加载完成通知，不冒发战斗准备信号')
+            return
+        if not self.ready:
+            # 原版 BattleMapBase.onAllLoadComplete：Id/teamPs是房内座位，不是账号UID。
+            self.team.notify('copy.copyHandler.keyOperation', {'keys': [84], 'objs': [
+                {'ready': True, 'uid': self.seat, 'teamPs': self.seat}]})
+            self.ready = True
+            self.frame_deadline, self.next_ping = now + 30, now + 10
+            print('[斗神大会] 已发送战斗准备信号，启用每10秒房间心跳', flush=True)
+        if self.frames.is_set():
+            if not self.frame_logged:
+                self.frame_logged = True
+                print('[斗神大会] 已收到服务器战斗帧，继续挂机', flush=True)
+        elif now >= self.frame_deadline:
+            raise RuntimeError('准备后未收到战斗帧，停止本场，不自动重新匹配')
+        if now >= self.next_ping:
+            # 原版业务ping及其回执上报，不能用Pomelo底层心跳替代。
+            sent = int(time.time() * 1000)
+            reply = _request(self.team, 'copy.copyHandler.ping', {'time': sent}, timeout=5)
+            # BattleMapBase.onPingBack只检查时间回显。真人服实测会返回
+            # code=500、正确time/serverTime且无error，不能套用业务结算的code校验。
+            if (not isinstance(reply, dict) or reply.get('error')
+                    or reply.get('time') != sent):
+                raise RuntimeError('战斗房间心跳回执异常，停止本场')
+            elapsed = max(0, int((self.clock() - now) * 1000))
+            self.team.notify('copy.copyHandler.keyOperation', {'keys': [84], 'objs': [
+                {'ping': True, 'pingTime': elapsed, 'teamPs': self.seat}]})
+            self.next_ping = self.clock() + 10
 
 
 def _message(body):
@@ -74,6 +139,7 @@ def _one_match(flow, events, slot, before, match_seconds, battle_seconds):
     print("[斗神大会] 已发起匹配", flush=True)
     room_id = None
     team = None
+    battle = None
     matched = False
     next_ping = 0.0
     match_deadline = time.monotonic() + match_seconds
@@ -93,6 +159,8 @@ def _one_match(flow, events, slot, before, match_seconds, battle_seconds):
             try:
                 route, body = events.get(timeout=min(2, max(.1, deadline - now)))
             except queue.Empty:
+                if battle:
+                    battle.tick()
                 continue
             data = _message(body)
             if route == "kicked":
@@ -122,8 +190,12 @@ def _one_match(flow, events, slot, before, match_seconds, battle_seconds):
                         raise RuntimeError("战斗实例缺少 " + key)
                 if 'password' not in data or data['password'] is None:
                     raise RuntimeError('战斗实例缺少 password')
+                matched = True
+                battle_deadline = time.monotonic() + battle_seconds
                 team = team_connect(data)
-                _, player = seat_info(data, flow.uid)
+                seat, player = seat_info(data, flow.uid)
+                # 必须在enter/loadComplete之前监听，以免漏掉很快到达的推送。
+                battle = BattleKeepalive(team, seat)
                 _checked(_request(team, "copy.copyHandler.enter", {
                     "instId": data["instId"], "playerId": str(flow.uid),
                     "password": data["password"], "abnormalFrameNum": 0,
@@ -135,9 +207,15 @@ def _one_match(flow, events, slot, before, match_seconds, battle_seconds):
             elif route == "onPlayerLeaveWaitingRoom":
                 print("[斗神大会] 对手离开等待房间，继续等待服务器结算", flush=True)
             elif route == "onPVPFinish":
+                if battle:
+                    battle.stop()
                 print("[斗神大会] 收到服务器结算", flush=True)
                 return _confirm_match(flow, slot, before)
+            if battle:
+                battle.tick()
     finally:
+        if battle:
+            battle.stop()
         if team:
             team.disconnect()
         if not matched:
@@ -174,10 +252,16 @@ def main():
             while not events.empty():
                 events.get_nowait()
             print("[斗神大会] 第 %d/%d 场" % (number + 1, args.matches), flush=True)
+            prior_season = dict(info.get('pvpSeason') or {})
             if not _one_match(flow, events, slot, _match_count(info),
                               args.match_seconds, args.battle_seconds):
                 break
             info = enter(flow, slot)
+            season = info.get('pvpSeason') or {}
+            if any(key in prior_season and key in season and int(season[key]) > int(prior_season[key])
+                   for key in ('escape', 'totalEscape')):
+                print('[斗神大会] 服务器逃跑计数增加，已停止后续匹配，请核查本场', flush=True)
+                return 1
             if number + 1 < args.matches:
                 time.sleep(3)
     except (OSError, ValueError, RuntimeError) as exc:

@@ -18,11 +18,23 @@ class RebirthTrialPage:
         row=ttk.Frame(self.page);row.pack(fill='x')
         for label,action in [('查询进度','query'),('挑战至第13层','run'),('领取已达成奖励（至13层）','reward')]:
             button=ttk.Button(row,text=label,command=lambda a=action:self.launch(a));button.pack(side='left',padx=4);self.buttons.append(button)
+            if action!='query':button._activity_key='RUN_REBIRTH_TRIAL' if action=='run' else 'RUN_REBIRTH_REWARD'
         self.wait=tk.StringVar(value='10')
         row=ttk.Frame(self.page);row.pack(fill='x',pady=12)
         ttk.Label(row,text='每关等待（秒，最低10）：').pack(side='left')
         ttk.Spinbox(row,from_=10,to=3600,textvariable=self.wait,width=8).pack(side='left')
         ttk.Label(self.page,text='最高仅挑战到第13层。1～10层要求出战角色战力14万，11～13层要求56万；不叠加双人战力。战力不足时停在已完成层数，遇到录像要求或异常停止。\n可领取的奖励档位：3、6、9、11、13层。领奖单独确认，不受当前战力限制，不自动购买或重置。',wraplength=950).pack(anchor='w',pady=8)
+    def refresh_availability(self,states=None):
+        from activity_availability import availability_snapshot
+        states=states if states is not None else availability_snapshot()
+        for button in self.buttons:
+            key=getattr(button,'_activity_key',None)
+            if key:button.configure(state='disabled' if self.app.running or states[key]['reason'] else 'normal')
+        if not any(states[k]['status']=='open' for k in ('RUN_REBIRTH_TRIAL','RUN_REBIRTH_REWARD')):
+            self.page.pack_forget()
+        elif not self.page.winfo_manager():
+            self.page.pack(fill='x',padx=4,pady=6,before=self.app.activity_task_checks)
+
     def render(self,data):
         self.data=data
         available=[str(n) for n in (3,6,9,11,13) if data['cur']>=n and data.get('reward',{}).get(str(1800100+n))==1]
@@ -38,6 +50,8 @@ class RebirthTrialPage:
         try:
             args=[str(ROOT/'rebirth_trial.py'),'--action',action]
             if action!='query':
+                from activity_availability import require_open
+                require_open('RUN_REBIRTH_TRIAL' if action=='run' else 'RUN_REBIRTH_REWARD')
                 a=json.loads((ROOT/'account.local.json').read_text(encoding='utf-8-sig'));d=self.data
                 if not d or d['account']!=str(a.get('username','')) or d['slot']!=int(self.app.cmb_slot.get()):raise ValueError('请先查询当前账号与槽位')
                 wait=float(self.wait.get())
@@ -55,4 +69,4 @@ class RebirthTrialPage:
                 if not messagebox.askyesno('轮回试炼',text,parent=self.page):return
                 args+=['--account',d['account'],'--slot',str(d['slot']),'--act-id',str(d['actId']),'--wait',str(wait)]
             self.data=None;self.app._launch(args)
-        except (ValueError,KeyError) as e:messagebox.showerror('未执行',str(e),parent=self.page)
+        except (ValueError,KeyError,RuntimeError) as e:messagebox.showerror('未执行',str(e),parent=self.page)

@@ -54,7 +54,10 @@ def describe(app,key,modules):
     if key=='RUN_MANHUANG':return '%s｜%s'%(value(app,'var_mh_stage'),value(app,'var_mh_mode'))
     if key=='RUN_FOREST':
         mode=value(app,'var_forest_mode')
-        return {'sweep':'速通扫荡','manual':'固定关卡手打','preview':'仅预览材料'}.get(mode,str(mode))
+        label={'sweep':'速通扫荡','manual':'固定关卡手打','preview':'仅预览材料'}.get(mode,str(mode))
+        if mode=='preview':return label
+        stage=app.var_stage['forest'].get().strip()
+        return label+'｜'+('指定'+stage if stage else '最高已开启关；未通关先手打，战力不足回退一级')
     if key=='RUN_MODULE_FAIRY_SHOP_SELECTED':
         p=app.pet_utility_page;goods=[p.goods[sid]['name']+'×'+str(row['count'].get()) for sid,row in p.shop_rows.items() if row['selected'].get()]
         return '；'.join(goods) if goods else '尚未勾选购买商品'

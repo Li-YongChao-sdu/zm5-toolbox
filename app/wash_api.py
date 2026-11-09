@@ -97,6 +97,8 @@ def confirm_wash(flow, key, entity_id, password, replace=True):
 
     返回 (ok, message, raw)。若该系统不需要确认（服务端已落袋），返回 (True, 说明, None)。
     """
+    if key == "rune" and not replace:
+        return True, "灵符保留旧属性（按客户端行为不发送替换确认）", None
     route, args = wd.confirm_call(key, entity_id, replace)
     if route is None:
         return True, "%s：服务端已直接落袋，无需确认" % wd.SYSTEMS.get(key, key), None

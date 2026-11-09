@@ -1,18 +1,32 @@
-"""宠物采集、妖王帖免费招募、藏宝仙魄日限卷轴。"""
+"""宠物采集、妖王帖免费招募、藏宝仙魄限购卷轴（当前为周限）。"""
 import argparse,json,time,os
 from pathlib import Path
 from datetime import datetime
 from bag_warehouse import quantity
 from old_shop import inventory
 ROOT=Path(__file__).resolve().parent
-CFG=ROOT/'cg_config_out_cg1_20261012_1'
+CFG=ROOT/'cg_config_out_cg1_20261102_1'
 def table(name):return json.loads((CFG/(name+'.json')).read_text(encoding='utf-8-sig'))
 def checked(reply):
     if not isinstance(reply,dict) or reply.get('code')!=200 or reply.get('error'):raise RuntimeError('服务器拒绝：'+str(reply))
     return reply
 
+def weekly(cfg):return int(cfg.get('weekPurchaseMaxNum') or -1)>0
+def limit(cfg):return int(cfg['weekPurchaseMaxNum']) if weekly(cfg) else int(cfg['dayPurchaseMaxNum'])
+
+def _on_sale(cfg):
+    now=datetime.now()
+    for field,is_start in (('shelfTime',True),('underTime',False)):
+        raw=str(cfg.get(field) or '-1')
+        if raw=='-1':continue
+        try:t=datetime.strptime(raw,'%Y/%m/%d-%H:%M:%S')
+        except ValueError:return False
+        if is_start and now<t:return False
+        if not is_start and now>t:return False
+    return True
+
 def scrolls():
-    return {k:v for k,v in table('Shop').items() if str(v.get('type'))=='8' and v.get('consume_type')=='coin' and v.get('consume_subType')=='fairyMoney' and int(v.get('dayPurchaseMaxNum') or 0)>0 and not v.get('extTicket')}
+    return {k:v for k,v in table('Shop').items() if str(v.get('type'))=='8' and v.get('consume_type')=='coin' and v.get('consume_subType')=='fairyMoney' and (int(v.get('dayPurchaseMaxNum') or -1)>0 or int(v.get('weekPurchaseMaxNum') or -1)>0) and _on_sale(v) and not v.get('extTicket')}
 
 def free_quota(info,card_id=1):
     cfg=table('MonsterCardLottery')[str(card_id)];vip=int((info.get('vip') or {}).get('level',0));quotas=[int(v) for v in cfg['vipFreeNum'].split(';')]
@@ -23,7 +37,9 @@ def free_quota(info,card_id=1):
     return {'vip':vip,'limit':quotas[vip],'used':used,'remaining':max(0,min(quotas[vip]-used,int(cfg['monsterCardLotteryDayNum'])-limit_used))}
 
 def bought(info,sid):
-    data=((info.get('everyDaySetting') or {}).get('shopBuyCount') or {}).get(str(sid),{})
+    cfg=scrolls().get(str(sid)) or {}
+    scope='everyWeekSetting' if weekly(cfg) else 'everyDaySetting'
+    data=((info.get(scope) or {}).get('shopBuyCount') or {}).get(str(sid),{})
     return int(data.get('buyCount',0)) if isinstance(data,dict) else int(data or 0)
 
 def photo_status(info,collect_id=None):
@@ -82,7 +98,7 @@ def status(info,user):
     pets=[]
     for key,p in (info.get('bag',{}).get('pet') or {}).items():
         pets.append({'entityId':p.get('entityId',key),'name':p.get('nickName') or p.get('name') or str(p.get('id')),'level':p.get('level'),'busy':any(s.get('petEntityId')==p.get('entityId',key) and not s.get('reward') for s in slots)})
-    goods=[{'id':int(k),'name':v['name'],'price':int(v['consume_count']),'remaining':max(0,int(v['dayPurchaseMaxNum'])-bought(info,k))} for k,v in scrolls().items()]
+    goods=[{'id':int(k),'name':v['name'],'price':int(v['consume_count']),'limit':limit(v),'weekly':weekly(v),'remaining':max(0,limit(v)-bought(info,k))} for k,v in scrolls().items()]
     vip=int((info.get('vip') or {}).get('level',0));gear=int(table('VIP').get(str(vip),{}).get('collectGear',0))
     album=photo_status(info);missing={str(p['id']):p for p in album['missing']}
     by_material={str(k):[missing[pid] for pid in str(v.get('photoId','-1')).split(';') if pid in missing] for k,v in table('Collect').items()}
@@ -114,8 +130,8 @@ def perform(flow,info,user,action,refresh,*,pos=0,collect_id=None,entity=None,ge
         route='scene.monsterCardHandler.lottery';params={'id':1}
     elif action=='buy':
         cfg=scrolls().get(str(shop))
-        if not cfg:raise ValueError('仅允许藏宝仙魄日限商品')
-        if type(count) is not int or count<1 or count>int(cfg['dayPurchaseMaxNum'])-bought(info,shop):raise ValueError('购买数量超过剩余日限额')
+        if not cfg:raise ValueError('仅允许购买在售的藏宝仙魄限购商品')
+        if type(count) is not int or count<1 or count>limit(cfg)-bought(info,shop):raise ValueError('购买数量超过剩余%s限额'%('周' if weekly(cfg) else '日'))
         if info.get('fairyMoney') is None or info['fairyMoney']<int(cfg['consume_count'])*count:raise ValueError('仙魄不足或余额未读取')
         route='scene.shopHandler.buy';params={'shopId':int(shop),'count':count,'password':password}
     else:raise ValueError('未知操作')

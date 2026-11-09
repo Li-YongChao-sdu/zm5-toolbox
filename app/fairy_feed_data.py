@@ -242,6 +242,19 @@ def pick_fairy(info, entity_id=None, name=None, ordinal=None, role=0):
     return fairies[0], ""
 
 
+def auto_fairy(info, role=0):
+    """我的日常默认选兽：优先该角色身上出战的幻兽；喂不了（如已达角色等级）再选等级最低的。"""
+    role = role_index(info, role)
+    fairies = feedable_fairies(info, role)
+    if not fairies:
+        return None, ("%s身上没有幻兽" % ("主角色" if role == 0 else "副角色"))
+    preferred = next((f for f in fairies if f["role"] == role), None)
+    if preferred and plan_feeds(info, preferred, role=role).get("feeds"):
+        return preferred, ""
+    lowest = min(fairies, key=lambda f: (int(f.get("level") or 1), str(f.get("entityId"))))
+    return lowest, ""
+
+
 def role_index(info, role=None):
     """喂养使用的出战角色编号0(主角色)/1(副角色)；info.index是存档槽位，不能用于此路由。"""
     if role is None:

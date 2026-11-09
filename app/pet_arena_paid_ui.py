@@ -37,6 +37,8 @@ class PaidPetArenaPanel:
         for var in self.app.spend_permissions.variables['dungeons']:
             var.trace_add('write',self.refresh_targets)
         self.refresh_targets()
+        from pet_arena_recovery_ui import PetArenaRecoveryPanel
+        self.recovery=PetArenaRecoveryPanel(self)
     def refresh_targets(self,*_):
         unlocked=''.join('1' if v.get() else '0' for v in self.app.spend_permissions.variables['dungeons'])=='001'
         choices=[*PRESETS,'自定义RID'] if unlocked else ['默认对手']
@@ -51,7 +53,9 @@ class PaidPetArenaPanel:
         self.invalidate()
     def selected_rid(self):
         return parse_rid(self.custom_rid.get()) if self.target.get()=='自定义RID' else PRESETS[self.target.get()]
-    def invalidate(self):self.data=None;self.summary.set('对手已变更，请重新查询。')
+    def invalidate(self):
+        self.data=None;self.summary.set('对手已变更，请重新查询。')
+        if hasattr(self,'recovery'):self.recovery.invalidate()
     def render(self,data):
         self.data=data;s=data['state'];resume=data.get('resume')
         currency='竞技币' if data.get('handler')=='arena' else '斗宠币'

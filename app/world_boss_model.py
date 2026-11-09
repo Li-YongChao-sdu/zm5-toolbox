@@ -1,4 +1,4 @@
-"""三界共伐真实面板与技能伤害模拟（使用本地客户端配置表）。"""
+"""三界共伐面板与技能伤害估算（使用本地客户端配置表）。"""
 import json
 import random
 import time
@@ -232,7 +232,7 @@ def _build_panel(player, info):
 
 
 class WorldBossModel:
-    """按真实面板、真实技能栏、真实伤害公式生成三界共伐每段伤害。"""
+    """根据面板、技能栏及本地配置估算伤害，不等同于客户端战斗录像。"""
 
     REPORT_INTERVAL = 2.0
 
@@ -275,6 +275,7 @@ class WorldBossModel:
         self.mp = self.mp_max
         self.ready = {}
         self.normal_next = 0.0
+        self.action_ready = 0.0
         self.raw_skills = _table('Skill')
         self.bar = self._skill_bar()
         self.normal_id = self._normal_id()
@@ -286,7 +287,8 @@ class WorldBossModel:
 
     def _skill_bar(self):
         store = (self.info.get('clientStore') or {}).get(
-            str(self.info.get('_id') or '') + '-setKeyboard-0') or {}
+            str(self.info.get('_id') or '') + '-setKeyboard-' +
+            ('1' if self.panel.get('_pk') == 'p2' else '0')) or {}
         bar = []
         for index in range(1, 6):
             value = store.get('skill%d' % index)
@@ -420,6 +422,10 @@ class WorldBossModel:
 
     def reset_after_revive(self):
         self.mp = self.mp_max
+        # Callers may restart the simulation clock after revival.
+        self.ready.clear()
+        self.normal_next = 0.0
+        self.action_ready = 0.0
 
     def _net_attack(self):
         return max(_num(self.panel.get('atk')) - self.boss_def, 1.0)
@@ -436,6 +442,8 @@ class WorldBossModel:
 
     def choose(self, now=None):
         now = time.monotonic() if now is None else now
+        if now < self.action_ready:
+            return None
         best_id = None
         best_damage = 0.0
         for skill_id in self.bar:
@@ -477,6 +485,7 @@ class WorldBossModel:
                 self.mp = max(0.0, self.mp - skill['mp'])
         if self.mp_max > 0:
             self.mp = min(self.mp_max, self.mp + self.re_mp * gap)
+        self.action_ready = now + gap
         return damage, gap
 
     def skill_lines(self):

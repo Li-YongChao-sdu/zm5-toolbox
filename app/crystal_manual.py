@@ -40,6 +40,8 @@ def choose_stage(info, main_ids):
 
 def run(flow, slot, *, main_ids=None, report_dir=None, wait_seconds=10,
         round_seconds=2, max_rounds=20, log=print):
+    from activity_availability import require_open
+    require_open('RUN_MAGIC_CRYSTAL')
     from teacher_trial import enter, checked
     from bag_warehouse import quantity
 

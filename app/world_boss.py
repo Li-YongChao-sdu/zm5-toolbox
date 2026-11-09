@@ -121,13 +121,13 @@ def run(boss_id=960101, hurt_min=100000, hurt_max=500000,
         if real_damage and not idle:
             try:
                 model = WorldBossModel(before, boss_id)
-                print('[世界Boss] 真实伤害：%s' % model.summary(), flush=True)
+                print('[世界Boss] 面板估算伤害：%s' % model.summary(), flush=True)
                 for line in model.skill_lines():
                     print('[世界Boss]   %s' % line, flush=True)
                 print('[世界Boss] 预计存活 %.0f 秒；每 %.0f 秒累计上报' %
                       (model.alive_seconds(), model.REPORT_INTERVAL), flush=True)
             except Exception as exc:
-                print('[世界Boss] 真实伤害模型不可用（%s），改用随机伤害' % exc, flush=True)
+                print('[世界Boss] 面板估算伤害模型不可用（%s），改用随机伤害' % exc, flush=True)
         real = model is not None
         pending = 0.0
         failures = 0
@@ -170,7 +170,7 @@ def run(boss_id=960101, hurt_min=100000, hurt_max=500000,
                         pending = 0.0
                     print('[世界Boss] 已达目标，进入挂机模式', flush=True)
                 else:
-                    print('[世界Boss] 已达目标，继续按真实伤害上报', flush=True)
+                    print('[世界Boss] 已达目标，继续按面板估算伤害上报', flush=True)
             if state['hp'] is not None and state['hp'] <= 0:
                 done.wait(min(1, max(0, deadline - time.monotonic())))
                 continue
@@ -257,7 +257,7 @@ if __name__ == '__main__':
     parser.add_argument('--idle-mode', action='store_true',
                         help='开启挂机伤害；有目标时达标后切换，否则立即挂机')
     parser.add_argument('--mock-damage', action='store_true',
-                        help='不启用真实面板/技能模型，沿用旧随机伤害')
+                        help='不启用面板/技能估算模型，沿用旧随机伤害')
     parser.add_argument('--auto-boss', action='store_true',
                         help='按面板战力自动选择档位（1.2倍门槛内最高档）')
     args = parser.parse_args()

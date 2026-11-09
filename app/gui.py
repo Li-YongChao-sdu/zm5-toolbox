@@ -34,7 +34,7 @@ from tkinter import ttk, scrolledtext, messagebox
 
 
 
-from game_version import GAME_VERSION, XIE_ROLE_SWITCHES, active_xie_names, active_xie_switches
+from game_version import GAME_VERSION, XIE_ROLE_SWITCHES, active_xie_names, active_xie_switches, xie_activity_state, xie_status_text
 
 
 
@@ -534,7 +534,7 @@ TASKS = [
 
 
 
-    ("十殿阎罗/五毒炼狱", "RUN_TEN", True, False, "每日共享3次免费机会，在关卡设置中选关"),
+    ("十殿阎罗/五毒炼狱", "RUN_TEN", True, False, "每日共享3次免费机会，在关卡设置中选关；可切换手打（默认）/扫荡"),
 
 
 
@@ -639,7 +639,7 @@ TASKS = [
 
 
 
-    ("九宫玄塔",         "RUN_NINE_TOWER",    True,  False, "共享3次/天"),
+    ("九宫玄塔",         "RUN_NINE_TOWER",    True,  False, "共享3次/天；可切换手打（默认）/扫荡"),
 
 
 
@@ -647,15 +647,15 @@ TASKS = [
 
 
 
-    ("天树王", "RUN_SKY", False, False, "按关卡设置选择，三个关卡每日共享免费2次"),
+    ("天树王", "RUN_SKY", False, False, "按关卡设置选择，三个关卡每日共享免费2次；关卡设置里可切换手打（默认）/扫荡"),
 
 
 
-    ("精英关卡",          "RUN_ELITE",         True,  False, "按“精英关卡”页勾选，每关每天免费2次"),
+    ("精英关卡",          "RUN_ELITE",         True,  False, "按“精英关卡”页勾选，每关每天免费2次；可切换手打（默认）/扫荡（自动翻牌）"),
 
 
 
-    ("噩梦关卡",         "RUN_DEMON_TOWER",   True,  False, "共享宝箱最多2次，默认七星殿"),
+    ("噩梦关卡",         "RUN_DEMON_TOWER",   True,  False, "共享宝箱最多2次，默认手打七星殿；可切换扫荡（40270无扫荡配置自动手打）"),
 
 
 
@@ -667,7 +667,7 @@ TASKS = [
 
 
 
-    ("星斗幻境",         "RUN_STAR_MAZE",     True,  False, "3大层全通；层间强制间隔3分钟"),
+    ("星斗幻境",         "RUN_STAR_MAZE",     True,  False, "先领翡翠周箱；领满跳过，续接进度，通关后重置"),
 
 
 
@@ -1432,6 +1432,7 @@ class DailyGUI:
 
 
         self.single_task_choices = {}
+        self.single_task_combos = {}
 
 
 
@@ -1525,11 +1526,13 @@ class DailyGUI:
 
 
 
-                ttk.Combobox(page_actions, textvariable=selected, values=list(choices),
+                combo = ttk.Combobox(page_actions, textvariable=selected, values=list(choices),
 
 
 
-                             state="readonly", width=22).pack(side=tk.LEFT, padx=(14, 4))
+                             state="readonly", width=22)
+                combo.pack(side=tk.LEFT, padx=(14, 4))
+                self.single_task_combos[title] = combo
 
 
 
@@ -1601,11 +1604,11 @@ class DailyGUI:
 
 
 
-                ttk.Label(pages[title], text="游戏版本 v%s · 当前邪角色轮换：%s"
+                self.activity_xie_label = ttk.Label(pages[title], text=xie_status_text())
 
 
 
-                          % (GAME_VERSION, "、".join(active_xie_names()))).pack(anchor=tk.W, padx=6, pady=(2, 4))
+                self.activity_xie_label.pack(anchor=tk.W, padx=6, pady=(2, 4))
 
 
 
@@ -1854,6 +1857,8 @@ class DailyGUI:
         # 「永久时装」独立子页：签到+每日任务+阶段奖励领奖，以及玉珠商店购买
         if hasattr(self, 'fashion_page'):
             fp = self.fashion_page
+            from fashion_online_ui import FashionOnlinePanel
+            self.fashion_online_panel=FashionOnlinePanel(self,fp)
             fa = ttk.Frame(fp)
             fa.pack(fill=tk.X, padx=8, pady=(8, 4))
             ttk.Button(fa, text="签到领奖",
@@ -2061,10 +2066,12 @@ class DailyGUI:
         self.celebration_buttons = []
 
         climb_frame = ttk.LabelFrame(pages["活动副本"], text="重阳采菊设置")
+        self.climb_activity_frame = climb_frame
 
 
 
         climb_frame.pack(fill=tk.X, padx=4, pady=6)
+        self.climb_activity_pack = climb_frame.pack_info()
 
 
 
@@ -2586,7 +2593,7 @@ class DailyGUI:
 
 
 
-        ttk.Label(pvp_frame, text="真人入房挂机（单场最多10分钟），机器人立即胜利结算。",
+        ttk.Label(pvp_frame, text="真人自然结束流程调试中；机器人立即胜利结算。",
 
 
 
@@ -2669,7 +2676,7 @@ class DailyGUI:
 
         from forest_crystal_ui import ForestCrystalControls
         self.forest_crystal_controls=ForestCrystalControls(self,forest_frame)
-        ttk.Label(forest_frame, text="手打和扫荡使用“关卡设置”页的神兽森林关卡；扫荡每次需10点速通能量，能量或免费次数不足即停止，禁止20点券补扫。",
+        ttk.Label(forest_frame, text="使用“关卡设置”的神兽森林关卡；留空按等级选最高已开启关。未通关先手打1次，成功后按原模式继续；仅自动选关遇明确战力不足时回退前一关一次，再不足就停止。指定关卡不改动。扫荡每次10点能量，只用剩余免费次数，不花点券补扫。",
 
 
 
@@ -2804,6 +2811,13 @@ class DailyGUI:
         elite_page.pack(fill=tk.X, padx=4, pady=5)
 
 
+
+        mode_row = ttk.Frame(elite_page)
+        mode_row.pack(fill=tk.X, padx=8, pady=(3, 0))
+        ttk.Label(mode_row, text="模式:").pack(side=tk.LEFT)
+        self.var_elite_mode = tk.StringVar(value="手打")
+        ttk.Combobox(mode_row, textvariable=self.var_elite_mode, values=["手打", "扫荡"], width=6, state="readonly").pack(side=tk.LEFT, padx=4)
+        ttk.Label(mode_row, text="扫荡由服务端自动翻牌；不自动出售材料，默认手打").pack(side=tk.LEFT, padx=6)
 
         self.var_elite_card = tk.BooleanVar(value=True)
 
@@ -3003,6 +3017,14 @@ class DailyGUI:
 
                      width=25, state="readonly").pack(side=tk.LEFT, padx=5)
 
+        self.var_nightmare_mode = tk.StringVar(value="手打")
+        ttk.Label(nightmare_row, text="模式:").pack(side=tk.LEFT, padx=(12, 2))
+        ttk.Combobox(nightmare_row, textvariable=self.var_nightmare_mode,
+                     values=["手打", "扫荡"], width=6,
+                     state="readonly").pack(side=tk.LEFT)
+        ttk.Label(nightmare_row, text="扫荡=共享次数+10能量，不翻牌；40270自动手打",
+                  foreground="gray").pack(side=tk.LEFT, padx=6)
+
 
 
         self.var_nightmare_card = tk.BooleanVar(value=True)
@@ -3185,7 +3207,7 @@ class DailyGUI:
         world_mode.pack(fill=tk.X, padx=8, pady=(0, 4), before=world_damage)
         ttk.Label(world_mode, text="伤害策略：").pack(side=tk.LEFT)
         self.var_world_damage_mode = tk.StringVar(value="model")
-        ttk.Radiobutton(world_mode, text="真实面板模型", variable=self.var_world_damage_mode,
+        ttk.Radiobutton(world_mode, text="面板估算模型", variable=self.var_world_damage_mode,
                         value="model", command=self._sync_world_damage_mode).pack(side=tk.LEFT, padx=(0, 14))
         ttk.Radiobutton(world_mode, text="自定义伤害（每秒 x/4～7x/4）", variable=self.var_world_damage_mode,
                         value="custom", command=self._sync_world_damage_mode).pack(side=tk.LEFT)
@@ -3254,7 +3276,7 @@ class DailyGUI:
 
 
 
-                  text="伤害策略可选：真实面板模型＝按真实角色面板、真实技能栏和伤害公式逐段累计，每2秒上报，技能CD、蓝耗、暴击、死亡复活按实际节奏；自定义伤害＝按每秒期望 x 在 x/4～7x/4 随机上报。选模型时 x 仅作模型不可用的兜底。挂机时每秒上报 0～10000。勾选自动选择时按面板战力在1.2倍门槛内选最高档，Boss下拉仅作兜底。自动进入当前血量最高的存活房间并等待结算。",
+                  text="伤害策略可选：面板估算模型＝根据角色面板、对应角色技能栏及本地配置估算，每2秒上报；技能CD、蓝耗、暴击及死亡复活均为模拟值；自定义伤害＝按每秒期望 x 在 x/4～7x/4 随机上报。选模型时 x 仅作模型不可用的兜底。挂机时每秒上报 0～10000。勾选自动选择时按面板战力在1.2倍门槛内选最高档，Boss下拉仅作兜底。自动进入当前血量最高的存活房间并等待结算。",
 
 
 
@@ -3312,7 +3334,7 @@ class DailyGUI:
         union_mode.pack(fill=tk.X, padx=8, pady=(0, 4), before=union_damage)
         ttk.Label(union_mode, text="伤害策略：").pack(side=tk.LEFT)
         self.var_union_damage_mode = tk.StringVar(value="model")
-        ttk.Radiobutton(union_mode, text="真实面板模型", variable=self.var_union_damage_mode,
+        ttk.Radiobutton(union_mode, text="面板估算模型", variable=self.var_union_damage_mode,
                         value="model", command=self._sync_union_damage_mode).pack(side=tk.LEFT, padx=(0, 14))
         ttk.Radiobutton(union_mode, text="自定义伤害（每秒 x/4～7x/4）", variable=self.var_union_damage_mode,
                         value="custom", command=self._sync_union_damage_mode).pack(side=tk.LEFT)
@@ -3454,7 +3476,7 @@ class DailyGUI:
 
 
 
-                  text="伤害策略可选：真实面板模型＝按真实角色面板、真实技能栏和伤害公式逐段累计，每2秒上报，技能CD、蓝耗、暴击、死亡复活按实际节奏；自定义伤害＝按每秒期望 x 在 x/4～7x/4 随机上报。选模型时 x 仅作模型不可用的兜底。挂机时每秒上报 0～10000。x 留空时按当前阶数每分钟最大血量的 0.2% 自动计算。",
+                  text="伤害策略可选：面板估算模型＝根据角色面板、对应角色技能栏及本地配置估算，每2秒上报；技能CD、蓝耗、暴击及死亡复活均为模拟值；自定义伤害＝按每秒期望 x 在 x/4～7x/4 随机上报。选模型时 x 仅作模型不可用的兜底。挂机时每秒上报 0～10000。x 留空时按当前阶数每分钟最大血量的 0.2% 自动计算。",
 
 
 
@@ -3598,7 +3620,7 @@ class DailyGUI:
 
 
 
-                              for action in ("escort", "reward", "rob")}
+                              for action in ("escort", "reward", "rob", "signup")}
 
 
 
@@ -3667,6 +3689,45 @@ class DailyGUI:
 
                 self.btn_ttr_actions[operation] = button
 
+
+
+        signup_row = ttk.Frame(rob_frame)
+        signup_row.pack(anchor=tk.W, padx=8, pady=4)
+        ttk.Label(signup_row, text="报名存档:", width=9).pack(side=tk.LEFT)
+        ttk.Combobox(signup_row, textvariable=self.var_ttr_slots['signup'],
+                     values=[str(i) for i in range(8)], width=5,
+                     state='readonly').pack(side=tk.LEFT, padx=6)
+        ttk.Button(signup_row, text="检测战力并报名",
+                   command=self._start_tongtian_signup).pack(side=tk.LEFT, padx=5)
+        ttk.Label(rob_frame, text="只调用 hireApply 报名，不发船、不护航；通天河周末 12:00–15:00 开放，角色需≥40级。",
+                  wraplength=790, foreground="gray").pack(anchor=tk.W, padx=8, pady=(2, 4))
+
+
+        self.ttr_duo_combos=[]
+        self.var_ttr_duo_accounts=[tk.StringVar(value=''),tk.StringVar(value='')]
+        self.var_ttr_duo_slots=[tk.StringVar(value=''),tk.StringVar(value='')]
+        duo_frame=ttk.LabelFrame(rob_frame,text='护航（escort）')
+        duo_frame.pack(fill=tk.X,padx=8,pady=(4,6))
+        duo_accounts=sorted(fn[:-5] for fn in os.listdir(self.accounts_dir) if fn.endswith('.json')) if os.path.isdir(self.accounts_dir) else []
+        for index,label in enumerate(('账号A','账号B')):
+            duo_row=ttk.Frame(duo_frame)
+            duo_row.pack(anchor=tk.W,padx=8,pady=3)
+            ttk.Label(duo_row,text=label+':',width=6).pack(side=tk.LEFT)
+            duo_combo=ttk.Combobox(duo_row,textvariable=self.var_ttr_duo_accounts[index],values=duo_accounts,width=18,state='readonly')
+            duo_combo.pack(side=tk.LEFT,padx=6)
+            duo_combo.bind('<<ComboboxSelected>>',lambda event,i=index:self._fill_ttr_duo_slot(i))
+            self.ttr_duo_combos.append(duo_combo)
+            ttk.Label(duo_row,text='存档:',width=5).pack(side=tk.LEFT,padx=(10,0))
+            ttk.Combobox(duo_row,textvariable=self.var_ttr_duo_slots[index],values=[str(i) for i in range(8)],width=5,state='readonly').pack(side=tk.LEFT,padx=6)
+        default_account=self.cmb_account.get() if hasattr(self,'cmb_account') else ''
+        if default_account:
+            self.var_ttr_duo_accounts[0].set(default_account)
+            self._fill_ttr_duo_slot(0)
+        duo_buttons=ttk.Frame(duo_frame)
+        duo_buttons.pack(anchor=tk.W,padx=8,pady=(3,5))
+        ttk.Button(duo_buttons,text='自动免费护航（发船+雇佣）',command=self._start_tongtian_duo_escort).pack(side=tk.LEFT)
+        ttk.Label(duo_frame,text='任选两个账号；按战力自动让高战力发船、低战力被雇，只有战力差≤0（免费档）才执行，不花联盟贡献。',
+                  wraplength=790,foreground='gray').pack(anchor=tk.W,padx=8,pady=(0,6))
 
 
         ttk.Label(rob_frame, text="船档：木舟→宝船→银帆→海舰。每日免费刷新最多5次；刷新只走免费路由，用完即停，不使用点券。",
@@ -4026,6 +4087,7 @@ class DailyGUI:
         _halo_saved = []
         _halo_saved_slots = []
         _halo_saved_claims = []
+        _halo_saved_times = 1
         try:
 
             with open(HALO_TEAM_CONFIG, encoding="utf-8") as _stream:
@@ -4034,6 +4096,7 @@ class DailyGUI:
             _halo_saved = _halo_data.get("accounts") or []
             _halo_saved_slots = _halo_data.get("slots") or []
             _halo_saved_claims = _halo_data.get("claim") or []
+            _halo_saved_times = _halo_data.get("times") or 1
 
         except (OSError, ValueError):
 
@@ -4070,6 +4133,12 @@ class DailyGUI:
 
         self.btn_halo_team.pack(side=tk.LEFT, padx=(8, 0))
 
+        ttk.Label(halo_team_row, text="连续次数:").pack(side=tk.LEFT, padx=(10, 2))
+        self.var_halo_times = tk.StringVar(value=str(max(1, int(_halo_saved_times or 1))))
+        self.spin_halo_times = ttk.Spinbox(halo_team_row, from_=1, to=5, width=3,
+                                           textvariable=self.var_halo_times, state="readonly")
+        self.spin_halo_times.pack(side=tk.LEFT)
+
 
 
         ttk.Label(halo_row, text="模式:").pack(side=tk.LEFT)
@@ -4090,7 +4159,7 @@ class DailyGUI:
 
 
 
-                  text="每天恢复1次，最多存5次。单人档只操作当前账号；三人档会登录三个账号同房正常开局；模式2只由主账号（第一个）领奖，副账号不领、保留次数。",
+                  text="每天恢复1次，最多存5次。单人档只操作当前账号；三人档会登录三个账号同房正常开局；模式2只由主账号（第一个）领奖，副账号不领、保留次数。连续次数=一次连续打几局，按剩余奖励次数自动停。",
 
 
 
@@ -4113,6 +4182,11 @@ class DailyGUI:
 
 
         tower_row.pack(fill=tk.X, padx=8, pady=8)
+
+        ttk.Label(tower_row, text="连续次数:").pack(side=tk.LEFT, padx=(12, 2))
+        self.var_tower_runs = tk.StringVar(value="1")
+        ttk.Spinbox(tower_row, from_=1, to=5, width=3, textvariable=self.var_tower_runs,
+                    state="readonly").pack(side=tk.LEFT)
 
 
 
@@ -4140,7 +4214,7 @@ class DailyGUI:
 
 
 
-                  text="只列1–5、11–15等五层段；逐组切换。每天增加1次挑战，最多存5次。",
+                  text="只列1–5、11–15等五层段；逐组切换。每天增加1次挑战，最多存5次；连续次数按剩余挑战次数执行，用尽即停。",
 
 
 
@@ -4206,7 +4280,7 @@ class DailyGUI:
 
 
 
-                  text="留空自动选择最高已解锁关；共享宝箱每天增加2次，最多累积10次。多人组队只支持2~3个账号（服务器只有3个座位）。",
+                  text="留空自动选择最高已解锁关；共享宝箱每天增加2次，最多累积10次。多人组队只支持2~3个账号（服务器只有3个座位）。连续次数=一次连续打几局，按剩余宝箱次数自动停。",
 
 
 
@@ -4226,12 +4300,14 @@ class DailyGUI:
         _mh_saved = ["zzqzzs123", "xyh13416626694", "13979244278xx"]
         _mh_saved_slots = []
         _mh_saved_claims = []
+        _mh_saved_times = 1
         try:
             with open(MANHUANG_TEAM_CONFIG, encoding="utf-8") as _stream:
                 _mh_data = json.load(_stream) or {}
             _mh_saved = _mh_data.get("accounts") or _mh_saved
             _mh_saved_slots = _mh_data.get("slots") or []
             _mh_saved_claims = _mh_data.get("claim") or []
+            _mh_saved_times = _mh_data.get("times") or 1
         except (OSError, ValueError):
             pass
 
@@ -4261,6 +4337,12 @@ class DailyGUI:
 
         self.btn_manhuang_team.pack(side=tk.LEFT, padx=(8, 0))
 
+        ttk.Label(mh_team_row, text="连续次数:").pack(side=tk.LEFT, padx=(10, 2))
+        self.var_mh_times = tk.StringVar(value=str(max(1, int(_mh_saved_times or 1))))
+        self.spin_mh_times = ttk.Spinbox(mh_team_row, from_=1, to=5, width=3,
+                                         textvariable=self.var_mh_times, state="readonly")
+        self.spin_mh_times.pack(side=tk.LEFT)
+
         self._sync_mh_team()
 
 
@@ -4277,7 +4359,7 @@ class DailyGUI:
 
 
 
-                  text="一次通关三大层；重置后第1层到第2层有3分钟强制间隔，程序按服务器计时等待。",
+                  text="先领已有翡翠周箱（不领低级箱），本周领满则跳过；否则续接当前进度，确实走不通才换图。三层完成并核对领奖后重置一次；3分钟冷却按服务器计时等待。",
 
 
 
@@ -4390,6 +4472,12 @@ class DailyGUI:
 
 
             ttk.Combobox(f, textvariable=var, values=opts, width=22, state="readonly").pack(side=tk.LEFT, padx=2)
+            if key in ("sky", "nine", "ten"):
+                ttk.Label(f, text="模式:").pack(side=tk.LEFT, padx=(8, 0))
+                mode = tk.StringVar(value="手打")
+                setattr(self, "var_%s_mode" % key, mode)
+                ttk.Combobox(f, textvariable=mode, values=["手打", "扫荡"],
+                             width=6, state="readonly").pack(side=tk.LEFT, padx=2)
 
 
 
@@ -4728,6 +4816,7 @@ class DailyGUI:
         from time_crystal_ui import TimeCrystalPanel
         self.time_crystal_panel=TimeCrystalPanel(self,timeboat_page)
         self.feature_buttons.extend(self.time_crystal_panel.buttons)
+        self.feature_buttons.extend(self.fashion_online_panel.buttons)
 
 
 
@@ -5026,6 +5115,83 @@ class DailyGUI:
 
 
 
+    def refresh_xie_activity(self):
+        """配置更新或跨日后原地刷新活动选择，保留仍开放项目的用户设置。"""
+        global ACTIVE_XIE_SWITCHES
+        from activity_availability import availability_snapshot, MANAGED_ACTIVITY_KEYS
+        activity_states = availability_snapshot()
+        state = xie_activity_state()
+        signature = tuple((key, row['source'], row['status'], row['id'], row['start'], row['end'], row['reason'])
+                          for key, row in sorted(activity_states.items()))
+        if signature == getattr(self, '_xie_config_signature', None):
+            return
+        if not hasattr(self, 'activity_task_checks'):
+            return
+        old = getattr(self, '_last_xie_switches', ACTIVE_XIE_SWITCHES)
+        ACTIVE_XIE_SWITCHES = frozenset(state['active'])
+        self._last_xie_switches = ACTIVE_XIE_SWITCHES
+        self._xie_config_signature = signature
+        open_keys = {key for key, row in activity_states.items() if row['status'] == 'open'}
+        old_open = getattr(self, '_last_activity_open', open_keys)
+        self._last_activity_open = open_keys
+        defaults = {row[1]: row[2] for row in TASKS}
+        for key in MANAGED_ACTIVITY_KEYS - XIE_ROLE_SWITCHES:
+            var = self.var_checks.get(key)
+            if var is not None:
+                if key not in open_keys:
+                    var.set(False)
+                elif key not in old_open:
+                    var.set(bool(defaults.get(key, False)))
+        for key in XIE_ROLE_SWITCHES:
+            var = self.var_checks.get(key)
+            if var is not None:
+                if key not in ACTIVE_XIE_SWITCHES:
+                    var.set(False)
+                elif key not in old:
+                    var.set(True)
+        self.activity_xie_label.configure(text=xie_status_text())
+        for widget in self.activity_task_checks.winfo_children():
+            widget.destroy()
+        from activity_page_layout import ordered_keys
+        catalog = {row[1]: row for row in TASKS}
+        choices = {}
+        index = 0
+        for key in ordered_keys(TASK_PAGES['活动副本'], disabled_reason):
+            if disabled_reason(key):
+                continue
+            name, _, default, paid, note = catalog[key]
+            if key in XIE_ROLE_SWITCHES:
+                note = '本轮开放·免费1次'
+            button = ttk.Checkbutton(self.activity_task_checks, text=f'{name}  ({note})', variable=self.var_checks[key])
+            button.grid(row=index // 2, column=index % 2, sticky=tk.W, padx=10, pady=4)
+            if paid:
+                button.configure(style='Red.TCheckbutton')
+            choices[name] = key
+            index += 1
+        selected, previous = self.single_task_choices['活动副本']
+        previous.clear();previous.update(choices)
+        self.single_task_combos['活动副本'].configure(values=list(choices))
+        if selected.get() not in choices:
+            selected.set(next(iter(choices), ''))
+        frame = getattr(self, 'climb_activity_frame', None)
+        if frame is not None:
+            if 'RUN_CLIMB_HIGH' not in open_keys:
+                frame.pack_forget()
+            elif not frame.winfo_manager():
+                frame.pack(**self.climb_activity_pack)
+        rebirth = getattr(self, 'rebirth_trial_page', None)
+        if rebirth is not None:
+            rebirth.refresh_availability(activity_states)
+        # 收藏窗口保留收藏项，仅更新状态和描述；隐藏由统一开放判断处理。
+        for attr in ('my_daily_window', 'my_weekly_window'):
+            panel = getattr(self, attr, None)
+            if panel is not None:
+                for key in XIE_ROLE_SWITCHES:
+                    if key in panel.catalog:
+                        row = panel.catalog[key]
+                        panel.catalog[key] = row[:4] + ('本轮开放·免费1次' if key in ACTIVE_XIE_SWITCHES else '当前配置未开放',)
+                panel.render()
+
     def _refresh_account_list(self):
 
 
@@ -5090,6 +5256,13 @@ class DailyGUI:
 
                     combo.set("")
 
+
+
+        if hasattr(self, "ttr_duo_combos"):
+            for combo in self.ttr_duo_combos:
+                combo.configure(values=accounts)
+                if combo.get() not in accounts:
+                    combo.set("")
 
 
         if accounts:
@@ -6700,6 +6873,11 @@ class DailyGUI:
 
 
     def _on_slot_selected(self, _event=None):
+        if self._save_selected_slot():
+            try:
+                with open(ACCOUNT_FILE, encoding='utf-8') as f:acc=json.load(f)
+                self.lbl_account.configure(text="账号: "+str(acc.get('username','?'))+"  uid: "+str(acc.get('uid','?'))+"  存档槽: "+str(acc.get('record_index',0)))
+            except Exception as e:self._append_log('[!] 更新存档显示失败: '+str(e))
 
 
 
@@ -7642,6 +7820,9 @@ class DailyGUI:
 
         lines.append('FOREST_AUTO_CRYSTAL = '+str(self.forest_crystal_controls.is_low_vip() and self.var_forest_auto_crystal.get()))
         lines.append('FOREST_MODE = ' + repr(self.var_forest_mode.get()))
+        lines.append('SKY_MODE = ' + repr('sweep' if self.var_sky_mode.get() == '扫荡' else 'manual'))
+        lines.append('NINE_MODE = ' + repr('sweep' if self.var_nine_mode.get() == '扫荡' else 'manual'))
+        lines.append('TEN_MODE = ' + repr('sweep' if self.var_ten_mode.get() == '扫荡' else 'manual'))
 
 
 
@@ -7738,7 +7919,7 @@ class DailyGUI:
 
 
 
-        lines.append("RECORD_INDEX = " + str(int(self.cmb_slot.get())))
+        # 存档槽不放 gui_config：由 account.local.json 统一读写，避免旧配置覆盖当前选择。
 
 
 
@@ -7815,6 +7996,7 @@ class DailyGUI:
 
 
         lines.append("ELITE_CLAIM_FREE_CARD = " + str(self.var_elite_card.get()))
+        lines.append("ELITE_MODE = " + repr('sweep' if self.var_elite_mode.get() == '扫荡' else 'manual'))
 
 
 
@@ -7831,6 +8013,7 @@ class DailyGUI:
 
 
         lines.append("NIGHTMARE_MID = " + self.var_nightmare_stage.get().split()[0])
+        lines.append("NIGHTMARE_MODE = " + repr('sweep' if self.var_nightmare_mode.get() == '扫荡' else 'manual'))
 
 
 
@@ -7953,6 +8136,12 @@ class DailyGUI:
 
 
         lines.append('DEMON_TOWER_TARGET_LAYER = ' + str(_tower_layer))
+
+        try:
+            _tower_runs = max(1, min(5, int(self.var_tower_runs.get())))
+        except (ValueError, tk.TclError):
+            _tower_runs = 1
+        lines.append('DEMON_TOWER_RUNS = ' + str(_tower_runs))
 
 
 
@@ -8520,6 +8709,8 @@ class DailyGUI:
             combo.configure(state=state if (team and index < size) else 'disabled')
         for index, btn in enumerate(getattr(self, 'manhuang_claim_buttons', [])):
             btn.state(['!disabled'] if (team and index < size) else ['disabled'])
+        if hasattr(self, 'spin_mh_times'):
+            self.spin_mh_times.configure(state='readonly' if team else 'disabled')
         self.btn_manhuang_team.configure(state=tk.NORMAL if team else tk.DISABLED)
 
 
@@ -8544,17 +8735,23 @@ class DailyGUI:
             return
         claims = ['1' if var.get() else '0' for var in self.manhuang_claim_vars[:size]]
         try:
+            times = max(1, min(5, int(self.var_mh_times.get())))
+        except (ValueError, tk.TclError):
+            times = 1
+        try:
             with open(MANHUANG_TEAM_CONFIG, 'w', encoding='utf-8') as _stream:
                 json.dump({'accounts': [combo.get().strip() for combo in self.manhuang_team_combos],
                            'slots': [combo.get().strip() or '0' for combo in self.manhuang_slot_combos],
-                           'claim': [bool(var.get()) for var in self.manhuang_claim_vars]},
+                           'claim': [bool(var.get()) for var in self.manhuang_claim_vars],
+                           'times': times},
                           _stream, ensure_ascii=False, indent=2)
         except OSError:
             pass
         self._launch([os.path.join(HERE, 'manhuang_team.py'),
                       '--accounts', ','.join(names),
                       '--slots', ','.join(slots),
-                      '--claim', ','.join(claims)])
+                      '--claim', ','.join(claims),
+                      '--times', str(times)])
 
 
     def _sync_halo_mode(self):
@@ -8566,6 +8763,8 @@ class DailyGUI:
             combo.configure(state=state)
         for btn in getattr(self, 'halo_claim_buttons', []):
             btn.state(['!disabled'] if three else ['disabled'])
+        if hasattr(self, 'spin_halo_times'):
+            self.spin_halo_times.configure(state='readonly' if three else 'disabled')
         self.btn_halo_team.configure(state=tk.NORMAL if three else tk.DISABLED)
 
 
@@ -8588,15 +8787,21 @@ class DailyGUI:
             return
         claims = ['1' if var.get() else '0' for var in self.halo_claim_vars]
         try:
+            times = max(1, min(5, int(self.var_halo_times.get())))
+        except (ValueError, tk.TclError):
+            times = 1
+        try:
             with open(HALO_TEAM_CONFIG, 'w', encoding='utf-8') as stream:
                 json.dump({'accounts': names, 'slots': slots,
-                           'claim': [bool(var.get()) for var in self.halo_claim_vars]},
+                           'claim': [bool(var.get()) for var in self.halo_claim_vars],
+                           'times': times},
                           stream, ensure_ascii=False, indent=2)
         except OSError as exc:
             messagebox.showerror('未执行', '保存组队账号失败：%s' % exc, parent=self.root)
             return
         command = [os.path.join(HERE, 'halo_team.py'), '--accounts', ','.join(names),
-                   '--slots', ','.join(slots), '--claim', ','.join(claims)]
+                   '--slots', ','.join(slots), '--claim', ','.join(claims),
+                   '--times', str(times)]
         if '仅主号' in self.var_halo_score.get():
             command.append('--claim-main-only')
         self._launch(command)
@@ -9209,6 +9414,51 @@ class DailyGUI:
 
 
 
+
+
+    def _fill_ttr_duo_slot(self,index):
+        name=self.var_ttr_duo_accounts[index].get().strip()
+        slot='0'
+        if name:
+            try:
+                data=json.loads(open(os.path.join(self.accounts_dir,name+'.json'),encoding='utf-8-sig').read())
+                slot=str(int(data.get('record_index') or 0))
+            except Exception:
+                slot='0'
+        self.var_ttr_duo_slots[index].set(slot)
+
+
+    def _start_tongtian_duo_escort(self):
+        if self.running:return
+        names=[var.get().strip() for var in self.var_ttr_duo_accounts]
+        try:
+            if not all(names):raise ValueError('请选择账号A和账号B')
+            if names[0]==names[1]:raise ValueError('两个账号不能相同')
+            slots=[]
+            for index,name in enumerate(names):
+                value=self.var_ttr_duo_slots[index].get().strip()
+                if not value:raise ValueError('请选择%s的存档'%('账号A' if index==0 else '账号B'))
+                slot=int(value)
+                if not 0<=slot<=7:raise ValueError('存档须为0～7')
+                if not os.path.exists(os.path.join(self.accounts_dir,name+'.json')):raise ValueError('找不到账号文件：'+name)
+                slots.append(slot)
+        except (ValueError, tk.TclError) as exc:
+            messagebox.showerror('通天河',str(exc))
+            return
+        self._append_log('[*] 通天河护航：%s(槽%d) 与 %s(槽%d)，按战力自动选择免费方向'%(names[0],slots[0],names[1],slots[1]))
+        self._launch([os.path.join(HERE,'tongtian_duo_escort.py'),'--accounts',','.join(names),'--slots','%d,%d'%(slots[0],slots[1]),'--apply'])
+
+
+    def _start_tongtian_signup(self):
+        if self.running:return
+        try:
+            slot=int(self.var_ttr_slots['signup'].get())
+            if not 0<=slot<=7:raise ValueError()
+        except (ValueError, tk.TclError):
+            messagebox.showerror('通天河','请先选择报名存档槽位（0～7）')
+            return
+        self._append_log('[*] 通天河报名：存档槽%d，检测战力后提交报名（不发船、不护航）'%slot)
+        self._launch([os.path.join(HERE,'tongtian_signup.py'),'--slot',str(slot),'--apply'])
 
 
     def _start_timeboat(self, action):
@@ -9834,6 +10084,8 @@ class DailyGUI:
 
         proc = None
         self._my_daily_result = None
+        self._my_daily_result_message = ''
+        _errors = []
 
 
 
@@ -9895,6 +10147,9 @@ class DailyGUI:
 
 
                 output = line.rstrip()
+                text = output.strip()
+                if text and any(marker in text for marker in ('执行失败', '异常停止', '异常跳过', '操作异常', '已被拒绝', 'RuntimeError', '错误：', '错误:', '失败：', '失败:')) and '正常跳过' not in text and '无需执行' not in text:
+                    _errors.append(text)
 
 
 
@@ -9907,6 +10162,7 @@ class DailyGUI:
 
 
             self._my_daily_result = proc.returncode
+            self._my_daily_result_message = '；'.join(_errors[-3:])[:400]
             self.log_queue.put('[*] 进程结束，返回码：'+str(proc.returncode))
 
 
@@ -10004,6 +10260,7 @@ class DailyGUI:
 
 
                     self.running = False
+                    self.fashion_online_panel.finished()
 
 
 
@@ -10019,7 +10276,7 @@ class DailyGUI:
 
 
 
-                        button.configure(state=tk.NORMAL)
+                        button.configure(state=tk.DISABLED if disabled_reason(getattr(button, '_activity_key', '')) else tk.NORMAL)
 
 
 
@@ -10102,6 +10359,10 @@ class DailyGUI:
                         except Exception as exc:self._append_log('[灵符洗练] 结果确认失败：'+str(exc))
                         continue
 
+                    if line.startswith('__FASHION_ONLINE_STATE__'):
+                        try:self.fashion_online_panel.render(json.loads(line[len('__FASHION_ONLINE_STATE__'):]))
+                        except Exception as exc:self._append_log('[永久时装] 在线状态显示失败：'+str(exc))
+                        continue
                     if line.startswith('__WASH_FREE_STATE__'):
                         try:
                             from wash_free_ui import render as render_wash
@@ -10206,6 +10467,9 @@ class DailyGUI:
                             self.pet_arena_paid_panel.render(json.loads(line[len('__PET_ARENA_PAID_STATE__'):]))
                         except Exception as exc:
                             self._append_log('[点券斗宠] 显示失败：'+str(exc))
+                    elif line.startswith('__PET_ARENA_RECOVERY_STATE__'):
+                        try:self.pet_arena_paid_panel.recovery.render(json.loads(line[len('__PET_ARENA_RECOVERY_STATE__'):]))
+                        except Exception as exc:self._append_log('[斗宠找回] 状态显示失败：'+str(exc))
                     elif line.startswith('__TIME_CRYSTAL_STATE__'):
                         try:self.time_crystal_panel.render(json.loads(line[len('__TIME_CRYSTAL_STATE__'):]))
                         except Exception as exc:self._append_log('[时光水晶] 状态显示失败：'+str(exc))
@@ -10474,7 +10738,34 @@ class DailyGUI:
 
 
 
+_GUI_INSTANCE_HANDLE = None
+
+
+def _acquire_gui_instance():
+    global _GUI_INSTANCE_HANDLE
+    if os.name != 'nt':
+        return True
+    import ctypes, hashlib
+    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel32.CreateMutexW.restype = ctypes.c_void_p
+    kernel32.CreateMutexW.argtypes = (ctypes.c_void_p, ctypes.c_bool, ctypes.c_wchar_p)
+    kernel32.CloseHandle.argtypes = (ctypes.c_void_p,)
+    name = 'Local\\zm5_toolbox_gui_' + hashlib.md5(HERE.lower().encode('utf-8')).hexdigest()[:12]
+    handle = kernel32.CreateMutexW(None, False, name)
+    if not handle:
+        return True
+    if ctypes.get_last_error() == 183:
+        kernel32.CloseHandle(handle)
+        return False
+    _GUI_INSTANCE_HANDLE = handle
+    return True
+
+
 if __name__ == "__main__":
+    if '--worker' not in sys.argv and not _acquire_gui_instance():
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(0, '造五工具箱已在运行。\n\n为避免多实例串账号或覆盖存档槽，请只保留一个程序窗口。', '提示', 0x40)
+        sys.exit(0)
 
 
 

@@ -1,6 +1,7 @@
 """联盟仓库：查询、蛮荒材料捐献和仓库购买。"""
 
 import argparse
+import os
 
 import json
 
@@ -234,7 +235,7 @@ def main():
 
     parser.add_argument('--pay',choices=['material','contribution'],default='material')
 
-    parser.add_argument('--password',default='')
+    parser.add_argument('--password',default=os.environ.pop('ZM5_UNION_WAREHOUSE_PASSWORD',''))
 
     parser.add_argument('--auto-fund',type=int,action='append',metavar='DONOR_ITEM',help='余额不足时最少售出此材料补足，仅支持材料购买')
 

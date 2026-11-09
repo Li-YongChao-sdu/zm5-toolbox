@@ -10,6 +10,9 @@
   只填自己座位会回 code=500「战斗异常,结算失败!!」。
 - 服务器给三人各推 onHaloResult(score=3000)，各自 getHaloReward 各扣 1 次
   奖励次数、各得一份 3000 分档奖励。
+
+连续次数（--times N）：登录一次后连续打 N 局，每局重新建房/战斗/结算/领奖；
+每局开始前重新拉存档核对剩余奖励次数，不足即停，不会多扣次数。
 """
 import argparse
 import json
@@ -66,96 +69,68 @@ def _dungeon_requirement(dungeon_id):
     return int(limits.get(str(dungeon_id), 0))
 
 
-def run(accounts, target_score=TARGET_SCORE, claim="all", log=print, claim_flags=None):
-    """三个账号同房正常开局并各自领奖；返回 True 表示三人全部结算并核对通过。
+def _prepare_round(sessions, log):
+    """刷新三人存档并核对剩余次数/关卡/战力；返回 ok / short / fail。"""
+    for session in sessions:
+        fresh = teacher_trial.enter(session["flow"], session["slot"])
+        session["info"].clear()
+        session["info"].update(fresh)
+        session["remain"] = int((fresh.get("halo") or {}).get("haloRewardCnt") or 0)
+        session["bag"] = _bag_counts(fresh)
+        session["halo"] = _halo_scalars(fresh)
+        session["online_evt"] = threading.Event()
+        session["prepared_evt"] = threading.Event()
+        session["halo_evt"] = threading.Event()
+        session.pop("online", None)
+        session.pop("halo_result", None)
+        reply = session["flow"].request(GET_DUNGEON, {})
+        session["did"] = int(reply.get("dungeonId") or 0)
+        if not session["did"]:
+            log("[十绝阵组队] %s 未取到关卡: %s" % (session["tag"], reply.get("error") or reply))
+            return "fail"
+        log("[十绝阵组队] %s uid=%s 关卡=%s 奖励次数=%s 战力=%s"
+            % (session["tag"], fresh.get("uid"), session["did"],
+               session["remain"], fresh.get("power")))
 
-    accounts: 账号 dict 列表（含 uid/username/cookies/record_index），长度必须为 3。
-    claim_flags: 逐账号领取标记（True=领、False=不领、保留次数）；None 时按 claim 决定。
-    """
-    if len(accounts) != 3:
-        raise ValueError("十绝阵三人组队需要正好 3 个账号，当前 %s 个" % len(accounts))
-    if int(target_score) != TARGET_SCORE:
-        raise ValueError("三人正常开局只支持 3000 分档（每座 1000 分），当前 %s" % target_score)
+    short = [s["tag"] for s in sessions if s["remain"] <= 0]
+    if short:
+        log("[十绝阵组队] 奖励次数不足，停止连续执行: %s" % "、".join(short))
+        return "short"
+    if len({s["did"] for s in sessions}) != 1:
+        log("[十绝阵组队] 三人的十绝阵关卡不一致，无法同房: %s"
+            % {s["tag"]: s["did"] for s in sessions})
+        return "fail"
+    required = _dungeon_requirement(sessions[0]["did"])
+    low = [s["tag"] for s in sessions
+           if required > 0 and float(s["info"].get("power") or 0) < required]
+    if low:
+        log("[十绝阵组队] 战力不足 %s，未建房、不消耗次数: %s" % (required, "、".join(low)))
+        return "fail"
+    return "ok"
 
-    sessions = []
+
+def _play_round(sessions, claim, claim_flags, log):
+    """打一局：建房→加入→准备→加载→战斗→结算→领奖→核对。返回 ok / short / fail。"""
+    status = _prepare_round(sessions, log)
+    if status != "ok":
+        return status
+
+    host, other1, other2 = sessions
     teams = []
     room_id = None
     try:
-        for account in accounts:
-            slot = int(account.get("record_index") or 0)
-            flow, info = teacher_trial.connect(account, slot)
-            session = {"tag": account.get("username") or str(account.get("uid")),
-                       "flow": flow, "info": info, "slot": slot,
-                       "account": account}
-            sessions.append(session)
-
-        for session in sessions:
-            fresh = teacher_trial.enter(session["flow"], session["slot"])
-            session["info"].clear()
-            session["info"].update(fresh)
-            session["remain"] = int((fresh.get("halo") or {}).get("haloRewardCnt") or 0)
-            session["bag"] = _bag_counts(fresh)
-            session["halo"] = _halo_scalars(fresh)
-            reply = session["flow"].request(GET_DUNGEON, {})
-            session["did"] = int(reply.get("dungeonId") or 0)
-            if not session["did"]:
-                log("[十绝阵组队] %s 未取到关卡: %s" % (session["tag"], reply.get("error") or reply))
-                return False
-            log("[十绝阵组队] %s uid=%s 关卡=%s 奖励次数=%s 战力=%s"
-                % (session["tag"], fresh.get("uid"), session["did"],
-                   session["remain"], fresh.get("power")))
-
-        short = [s["tag"] for s in sessions if s["remain"] <= 0]
-        if short:
-            log("[十绝阵组队] 奖励次数不足，三人房不成立，跳过: %s" % "、".join(short))
-            return False
-        if len({s["did"] for s in sessions}) != 1:
-            log("[十绝阵组队] 三人的十绝阵关卡不一致，无法同房: %s"
-                % {s["tag"]: s["did"] for s in sessions})
-            return False
-        required = _dungeon_requirement(sessions[0]["did"])
-        low = [s["tag"] for s in sessions
-               if required > 0 and float(s["info"].get("power") or 0) < required]
-        if low:
-            log("[十绝阵组队] 战力不足 %s，未建房、不消耗次数: %s" % (required, "、".join(low)))
-            return False
-
-        for session in sessions:
-            session["online_evt"] = threading.Event()
-            session["prepared_evt"] = threading.Event()
-            session["halo_evt"] = threading.Event()
-
-            def make(event, s=session):
-                def callback(payload):
-                    if not isinstance(payload, dict):
-                        return
-                    if event == "onCreateOnlineCopy":
-                        if int(payload.get("copyType") or 0) == s["did"]:
-                            s["online"] = payload
-                            s["online_evt"].set()
-                    elif event == "onPrepareCreateOnlineCopy":
-                        s["prepared_evt"].set()
-                    elif event == "onHaloResult":
-                        s["halo_result"] = payload
-                        s["halo_evt"].set()
-                return callback
-
-            for event in ("onCreateOnlineCopy", "onPrepareCreateOnlineCopy", "onHaloResult"):
-                session["flow"].on(event, make(event))
-
-        host, other1, other2 = sessions
         made = host["flow"].request(CREATE_ROOM, {"dungeonId": host["did"], "type": "halo"})
         room = made.get("room") or {}
         room_id = room.get("roomId")
         if made.get("code") != 200 or made.get("error") or not room_id:
             log("[十绝阵组队] 建房失败: %s" % _brief(made))
-            return False
+            return "fail"
         log("[十绝阵组队] 建房 roomId=%s 座位=%s" % (room_id, room.get("seating")))
         for session in (other1, other2):
             joined = session["flow"].request(JOIN_ROOM, {"roomId": room_id})
             if joined.get("code") != 200 or joined.get("error"):
                 log("[十绝阵组队] %s 加入失败: %s" % (session["tag"], _brief(joined)))
-                return False
+                return "fail"
             log("[十绝阵组队] %s 已加入，座位=%s"
                 % (session["tag"], (joined.get("room") or {}).get("seating")))
 
@@ -165,7 +140,7 @@ def run(accounts, target_score=TARGET_SCORE, claim="all", log=print, claim_flags
         prepared = host["flow"].request(PREPARE, {"roomId": room_id})
         if prepared.get("code") != 200 or prepared.get("error"):
             log("[十绝阵组队] 准备开局失败: %s" % _brief(prepared))
-            return False
+            return "fail"
         for session in sessions:
             if not session["prepared_evt"].wait(15):
                 log("[十绝阵组队] %s 未收到准备通知，继续加载" % session["tag"])
@@ -177,7 +152,7 @@ def run(accounts, target_score=TARGET_SCORE, claim="all", log=print, claim_flags
         for session in sessions:
             if not session["online_evt"].wait(25):
                 log("[十绝阵组队] %s 未收到战斗实例" % session["tag"])
-                return False
+                return "fail"
 
         first = sessions[0]["online"]
         for session in sessions[1:]:
@@ -185,12 +160,12 @@ def run(accounts, target_score=TARGET_SCORE, claim="all", log=print, claim_flags
                 if session["online"].get(key) != first.get(key):
                     log("[十绝阵组队] 实例 %s 不一致: %s vs %s"
                         % (key, session["online"].get(key), first.get(key)))
-                    return False
+                    return "fail"
         rows = [x for x in (first.get("playerInfos") or []) if isinstance(x, dict)]
         order = [str(row.get("uid") or row.get("playerId")) for row in rows]
         if set(order) != {str(s["info"].get("uid")) for s in sessions} or len(order) != 3:
             log("[十绝阵组队] 实例玩家与登录账号不一致: %s" % order)
-            return False
+            return "fail"
         log("[十绝阵组队] 实例 instId=%s ip=%s port=%s 座位=%s"
             % (first.get("instId"), first.get("ip"), first.get("port"), order))
 
@@ -203,7 +178,7 @@ def run(accounts, target_score=TARGET_SCORE, claim="all", log=print, claim_flags
             if not connected.wait(12):
                 team.disconnect()
                 log("[十绝阵组队] %s 战斗服握手超时" % session["tag"])
-                return False
+                return "fail"
             session["loaded"] = threading.Event()
             team.on("onAllLoadComplete", lambda _d, s=session: s["loaded"].set())
             uid = str(session["info"].get("uid"))
@@ -214,14 +189,14 @@ def run(accounts, target_score=TARGET_SCORE, claim="all", log=print, claim_flags
             if entered.get("code") != 200 or entered.get("error"):
                 team.disconnect()
                 log("[十绝阵组队] %s 进入战斗失败: %s" % (session["tag"], _brief(entered)))
-                return False
+                return "fail"
             team.notify("copy.copyHandler.loadComplete", {})
             session["team"] = team
             teams.append(team)
         for session in sessions:
             if not session["loaded"].wait(30):
                 log("[十绝阵组队] %s 未收到 onAllLoadComplete" % session["tag"])
-                return False
+                return "fail"
         time.sleep(1)
 
         for session in sessions:
@@ -241,17 +216,17 @@ def run(accounts, target_score=TARGET_SCORE, claim="all", log=print, claim_flags
                 % (session["tag"], seat, finished.get("code"), finished.get("error")))
             if finished.get("code") != 200 or finished.get("error"):
                 log("[十绝阵组队] 结算失败: %s" % _brief(finished))
-                return False
+                return "fail"
         for session in sessions:
             if not session["halo_evt"].wait(20):
                 log("[十绝阵组队] %s 未收到 onHaloResult" % session["tag"])
-                return False
+                return "fail"
             result = session["halo_result"]
             session["score"] = int(result.get("score") or 0)
             session["drops"] = result.get("drops")
             if result.get("code") != 200 or session["score"] < TARGET_SCORE:
                 log("[十绝阵组队] %s 结算未达档: %s" % (session["tag"], _brief(result, 400)))
-                return False
+                return "fail"
             log("[十绝阵组队] %s 服务器结算 score=%s drops=%s"
                 % (session["tag"], session["score"], _brief(result.get("drops"), 400)))
 
@@ -264,13 +239,11 @@ def run(accounts, target_score=TARGET_SCORE, claim="all", log=print, claim_flags
         for session in sessions:
             if not session["claim"]:
                 log("[十绝阵组队] %s 不领奖，保留奖励次数" % session["tag"])
-        for session in sessions:
-            if not session["claim"]:
                 continue
             reward = session["flow"].request(GET_REWARD, {})
             if reward.get("code") != 200 or reward.get("error"):
                 log("[十绝阵组队] %s 领奖失败: %s" % (session["tag"], _brief(reward)))
-                return False
+                return "fail"
         time.sleep(1)
 
         all_ok = True
@@ -292,10 +265,10 @@ def run(accounts, target_score=TARGET_SCORE, claim="all", log=print, claim_flags
                    gained or "无", halo_gained or "无", "✓" if ok else "✗"))
             if not ok:
                 all_ok = False
-        return all_ok
+        return "ok" if all_ok else "fail"
     except Exception as exc:
-        log("[十绝阵组队] 流程失败: %s" % exc)
-        return False
+        log("[十绝阵组队] 本局流程失败: %s" % exc)
+        return "fail"
     finally:
         for team in teams:
             try:
@@ -307,6 +280,70 @@ def run(accounts, target_score=TARGET_SCORE, claim="all", log=print, claim_flags
                 host["flow"].request(EXIT_ROOM, {"roomId": room_id})
             except Exception:
                 pass
+
+
+def run(accounts, target_score=TARGET_SCORE, claim="all", log=print, claim_flags=None,
+        times=1):
+    """三个账号同房正常开局并各自领奖；连续执行 times 局。
+
+    accounts: 账号 dict 列表（含 uid/username/cookies/record_index），长度必须为 3。
+    claim_flags: 逐账号领取标记（True=领、False=不领、保留次数）；None 时按 claim 决定。
+    times: 连续执行局数；每局开始前按服务器剩余奖励次数核对，不足即停。
+    返回 True 表示所有执行的局全部结算并核对通过。
+    """
+    if len(accounts) != 3:
+        raise ValueError("十绝阵三人组队需要正好 3 个账号，当前 %s 个" % len(accounts))
+    if int(target_score) != TARGET_SCORE:
+        raise ValueError("三人正常开局只支持 3000 分档（每座 1000 分），当前 %s" % target_score)
+    times = max(1, int(times or 1))
+
+    sessions = []
+    try:
+        for account in accounts:
+            slot = int(account.get("record_index") or 0)
+            flow, info = teacher_trial.connect(account, slot)
+            session = {"tag": account.get("username") or str(account.get("uid")),
+                       "flow": flow, "info": info, "slot": slot,
+                       "account": account}
+            sessions.append(session)
+
+        for session in sessions:
+            def make(event, s=session):
+                def callback(payload):
+                    if not isinstance(payload, dict):
+                        return
+                    if event == "onCreateOnlineCopy":
+                        if int(payload.get("copyType") or 0) == s.get("did"):
+                            s["online"] = payload
+                            s["online_evt"].set()
+                    elif event == "onPrepareCreateOnlineCopy":
+                        s["prepared_evt"].set()
+                    elif event == "onHaloResult":
+                        s["halo_result"] = payload
+                        s["halo_evt"].set()
+                return callback
+
+            for event in ("onCreateOnlineCopy", "onPrepareCreateOnlineCopy", "onHaloResult"):
+                session["flow"].on(event, make(event))
+
+        for round_index in range(1, times + 1):
+            if times > 1:
+                log("[十绝阵组队] === 第 %d/%d 局 ===" % (round_index, times))
+            status = _play_round(sessions, claim, claim_flags, log)
+            if status == "short":
+                if round_index == 1:
+                    return False
+                log("[十绝阵组队] 服务器剩余次数不足，连续执行到此结束")
+                break
+            if status != "ok":
+                return False
+            if round_index < times:
+                time.sleep(2)
+        return True
+    except Exception as exc:
+        log("[十绝阵组队] 流程失败: %s" % exc)
+        return False
+    finally:
         for session in sessions:
             try:
                 session["flow"].disconnect()
@@ -356,7 +393,10 @@ def main():
                         help="逐账号领取标记 1/0，如 1,0,1（顺序对应 --accounts；省略=全部领取）")
     parser.add_argument("--claim-main-only", action="store_true",
                         help="只让第一个账号领奖；副账号不领服务器奖励、保留奖励次数")
+    parser.add_argument("--times", type=int, default=1,
+                        help="连续执行局数（默认1）；每局按服务器剩余奖励次数核对，不足即停")
     args = parser.parse_args()
+    times = max(1, int(args.times or 1))
     names = [x.strip() for x in args.accounts.split(",") if x.strip()]
     accounts = []
     for name in names:
@@ -371,7 +411,9 @@ def main():
               % (account.get("username") or account.get("uid"),
                  int(account.get("record_index") or 0),
                  "领奖" if flag else "不领奖"))
-    ok = run(accounts, claim="main" if args.claim_main_only else "all", claim_flags=flags)
+    print("[十绝阵组队] 连续执行次数: %s" % times)
+    ok = run(accounts, claim="main" if args.claim_main_only else "all",
+             claim_flags=flags, times=times)
     print("[十绝阵组队] 结束: %s" % ("成功" if ok else "失败"))
     sys.exit(0 if ok else 1)
 

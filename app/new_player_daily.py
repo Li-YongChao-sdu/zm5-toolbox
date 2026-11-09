@@ -24,6 +24,15 @@ def run(flow, info, slot, password=''):
             raise RuntimeError('角色日常出现点券消耗，停止')
         return reply
 
+    def free_sweep(mid):
+        if flow.request('connector.roleHandler.getUserInfo', {}).get('user', {}).get('ticket') != points:
+            raise RuntimeError('免费速通前点券余额变化，停止')
+        reply = checked(flow.request('scene.copyHandler.sweep', {
+            'mid': mid, 'type': 0, 'passNum': info['dungeon'][str(mid)]['passNum']}))
+        if flow.request('connector.roleHandler.getUserInfo', {}).get('user', {}).get('ticket') != points:
+            raise RuntimeError('免费速通后点券余额变化，停止')
+        return reply
+
     def refresh():
         fresh = enter(flow, slot); info.clear(); info.update(fresh)
         end = flow.request('connector.roleHandler.getUserInfo', {}).get('user', {}).get('ticket')
@@ -128,8 +137,7 @@ def run(flow, info, slot, password=''):
         if int(info.get('power') or 0) < int(row.get('powerMin') or 0): continue
         for _ in range(min(remaining(8440006, 2), quota_remain(info, [mid], 2))):
             if int(info.get('sweepEnergy') or 0) < 10: break
-            attempt('免费速通', lambda mid=mid: checked(flow.request('scene.copyHandler.sweep', {
-                'mid': mid, 'type': 0, 'passNum': info['dungeon'][str(mid)]['passNum']})))
+            attempt('免费速通', lambda mid=mid: free_sweep(mid))
             time.sleep(5)
 
     def arena():

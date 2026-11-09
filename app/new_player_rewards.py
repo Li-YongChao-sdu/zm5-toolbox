@@ -4,6 +4,11 @@ from pathlib import Path
 from datetime import datetime,timezone,timedelta
 
 def config(name):
+    if name in ('Activity','HolidayWelfare','HolidayWelfareHelper','HolidayWelfareTask'):
+        from game_version import latest_config_folder
+        folder=latest_config_folder()
+        if folder is None:raise RuntimeError('未找到完整cg1配置，请先更新配置')
+        return json.loads((folder/(name+'.json')).read_text(encoding='utf-8-sig'))
     return json.loads((Path(__file__).parent/'feature_config'/(name+'.json')).read_text(encoding='utf-8-sig'))
 
 def run(flow,info,slot,kind,only_claim_ids=None):
@@ -38,12 +43,11 @@ def run(flow,info,slot,kind,only_claim_ids=None):
         count=0
         for q in reply.get('quest') or []:
             ready=int(q.get('state',q.get('status',0)) or 0)==2
-            if kind=='fashion' and str(q.get('id'))=='970002' and q.get('status')==1:
-                # 客户端在线任务可能仍显示status=1；服务端已存满20分钟也应尝试领取。
-                stored=int((q.get('progress') or {}).get('0',0))
-                target=int(config('DailyTask')['970002']['targetNum'])
-                ready=ready or stored>=target
-                if not ready:print('[永久时装（玉珠）] 在线任务已存进度%s/%s秒；未满足时不等待挂机'%(stored,target))
+            if kind=='fashion' and str(q.get('id'))=='970002' and str(q.get('id')) in ids:
+                from fashion_online import claim_online
+                result=claim_online(flow,info,slot)
+                count+=int(result['status']=='claimed')
+                continue
             if str(q.get('id')) in ids and ready:
                 count+=bool(claim('scene.questHandler.commitQuest',{'qId':q['id']}))
         print('[%s] 领取%s个已完成任务'%(label,count))

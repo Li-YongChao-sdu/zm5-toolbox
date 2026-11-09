@@ -8,8 +8,8 @@ ROOT=Path(__file__).resolve().parent
 WEEKLY_PAGES=frozenset(('周常副本／领奖','通天河','BOSS挑战'))
 TOP_TASKS=('RUN_FLUSHOU',)
 SECOND_TASKS=('RUN_GROWTH_BUFF','RUN_WEEKEND_BUFF')   # 固定第2、3位：成长buff、周末在线第1档buff
-BOTTOM_TASKS=('RUN_LIVENESS','RUN_CELEBRATION','RUN_CELEBRATION_ONLINE','RUN_WEEKEND_ONLINE',
-              'RUN_PERMANENT_FASHION','RUN_WHITE_DRAGON')  # 每日活跃之后：庆典/庆典15分钟/周末后几档/永久时装/八部天龙
+BOTTOM_TASKS=('RUN_CELEBRATION','RUN_CELEBRATION_ONLINE','RUN_WEEKEND_ONLINE',
+              'RUN_PERMANENT_FASHION','RUN_WHITE_DRAGON','RUN_LIVENESS')  # 活跃奖励固定置底，与执行队列一致
 PINNED_TASKS=frozenset(TOP_TASKS+BOTTOM_TASKS+SECOND_TASKS)
 # 新手任务分组只保留这三项，其余细分开关不在“管理我的日常”里展示
 NEWBIE_KEEP=frozenset(('RUN_PERMANENT_FASHION','RUN_WHITE_DRAGON','RUN_GROWTH_BUFF'))
@@ -80,6 +80,11 @@ class MyDailyWindow:
         ttk.Button(bar,text='全部展开',command=lambda:self.set_details(False)).pack(side='left',padx=4)
         ttk.Button(bar,text='全部收起',command=lambda:self.set_details(True)).pack(side='left',padx=4)
         ttk.Label(w,text='仅执行收藏且勾选的非点券项目；点击标题查看策略，设置沿用原页面。',wraplength=850).pack(anchor='w',padx=12,pady=8)
+        self.secondary_password=tk.StringVar(master=w,value='')
+        password_row=ttk.Frame(w);password_row.pack(fill='x',padx=14,pady=(0,5))
+        ttk.Label(password_row,text='本批二级密码：').pack(side='left')
+        ttk.Entry(password_row,textvariable=self.secondary_password,show='*',width=22).pack(side='left')
+        ttk.Label(password_row,text='可留空；仅本批使用，不保存').pack(side='left',padx=8)
         area=ttk.Frame(w);area.pack(fill='both',expand=True,padx=10,pady=6);canvas=tk.Canvas(area,highlightthickness=0);scroll=ttk.Scrollbar(area,orient='vertical',command=canvas.yview);canvas.configure(yscrollcommand=scroll.set);scroll.pack(side='right',fill='y');canvas.pack(side='left',fill='both',expand=True)
         self.body=ttk.Frame(canvas);item=canvas.create_window(0,0,window=self.body,anchor='nw');self.body.bind('<Configure>',lambda e:canvas.configure(scrollregion=canvas.bbox('all')));canvas.bind('<Configure>',lambda e:canvas.itemconfigure(item,width=e.width))
         self.render();self.tick()
@@ -93,7 +98,7 @@ class MyDailyWindow:
         from activity_availability import disabled_reason
         for index,key in enumerate(visible):
             title,_,_,_,note=self.catalog[key]
-            if key=='RUN_LIVENESS':note='在庆典/永久时装/八部天龙之前领取活跃积分和里程碑奖励。'
+            if key=='RUN_LIVENESS':note='所有选中任务结束后，最后领取活跃积分和里程碑奖励。'
             row=ttk.Frame(self.body,padding=5,relief='groove');row.pack(fill='x',padx=4,pady=3)
             header=ttk.Frame(row);header.pack(fill='x')
             for label,direction in [('↑',-1),('↓',1)]:
@@ -138,10 +143,12 @@ class MyDailyWindow:
         if getattr(getattr(self.app,'_personal_queue',None),'active',False) or self.app.running or getattr(self.app,'execution_gate',None) and self.app.execution_gate.busy:return
         if any(not self.entry_visible(key) for key in keys):return
         if not keys:messagebox.showinfo(self.TITLE,'请先勾选要执行的收藏任务。',parent=self.window);return
-        if any(k in self.modules for k in keys):
-            try:self.module_queue.start(keys)
-            except (OSError,ValueError) as exc:messagebox.showerror('未执行',str(exc),parent=self.window)
-        else:self.app._start(task_keys=set(keys),free_only=True)
+        value=getattr(self,'secondary_password',None)
+        password=value.get() if value is not None else ''
+        try:self.module_queue.start(keys,password=password)
+        except (OSError,ValueError) as exc:messagebox.showerror('未执行',str(exc),parent=self.window)
+        finally:
+            if value is not None:value.set('')
     def open_settings(self,key):
         title=next((title for title,keys in self.pages.items() if key in keys),None)
         preferred={'RUN_ARENA':'关卡设置','RUN_PET_ARENA':'关卡设置','RUN_FOREST':'关卡设置','RUN_ELITE_STONE':'日常副本','RUN_FAIRY_REWARD':'幻兽派遣'}
@@ -221,7 +228,7 @@ class MyDailyWindow:
             if b.winfo_exists():b.configure(state='disabled' if busy or disabled_reason(getattr(b,'_task_key','')) else 'normal')
         for key,var in self.rows.items():
             note=disabled_reason(key) or self.catalog[key][4]
-            if key=='RUN_LIVENESS':note='在庆典/永久时装/八部天龙之前领取活跃积分和里程碑奖励。'
+            if key=='RUN_LIVENESS':note='所有选中任务结束后，最后领取活跃积分和里程碑奖励。'
             from my_daily_strategy import summary
             strategy=summary(self.app,key,self.modules)
             if strategy and not disabled_reason(key):note='策略：'+strategy

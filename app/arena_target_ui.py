@@ -105,6 +105,25 @@ class ArenaModePanel:
                     widget.grid() if visible else widget.grid_remove()
         target_input.trace_add('write', refresh_input)
         refresh_input()
+        from pet_arena_paid import PRESETS
+        self.preset = tk.StringVar(master=parent, value='自定义RID')
+        ttk.Label(self.target_frame, text='预设对手：').grid(row=3, column=0, sticky='w', padx=6)
+        preset_combo = ttk.Combobox(self.target_frame, textvariable=self.preset,
+                                   values=(*PRESETS, '自定义RID'), state='readonly', width=22)
+        preset_combo.grid(row=3, column=1, columnspan=3, sticky='w', padx=6, pady=4)
+        def select_preset(_event=None):
+            if ''.join('1' if v.get() else '0' for v in self.access_vars) != '001':return
+            rid = PRESETS.get(self.preset.get())
+            if rid:
+                target_input.set('rid')
+                explicit_rid.set(rid)
+        def sync_preset(*_):
+            rid = explicit_rid.get() if target_input.get() == 'rid' else ''
+            self.preset.set(next((label for label, value in PRESETS.items() if value == rid), '自定义RID'))
+        preset_combo.bind('<<ComboboxSelected>>', select_preset)
+        target_input.trace_add('write', sync_preset)
+        explicit_rid.trace_add('write', sync_preset)
+        sync_preset()
         specified = TargetControls(app, self.target_frame, handler, mode, uid, slot, rounds, account_file,
                                    target_input, explicit_rid)
         timing_frame = ttk.Frame(parent)

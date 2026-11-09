@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Stop'
 $appName = '造五活动助手'
 $version = '1.01'
 $src = Join-Path $PSScriptRoot 'app'
@@ -13,11 +13,20 @@ Get-Process -Name $appName -ErrorAction SilentlyContinue | Stop-Process -Force
 
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
 
-# 覆盖旧版本程序文件，保留账号与界面设置
+# Resolve and validate the fixed installation directory before recursive removal.
+$expectedDest = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA $appName))
+$resolvedDest = (Resolve-Path -LiteralPath $dest).ProviderPath
+if (-not [string]::Equals($resolvedDest, $expectedDest, [StringComparison]::OrdinalIgnoreCase)) {
+    throw '安装目录校验失败，停止升级'
+}
+$preserved = @('accounts', 'account.local.json', 'account.enc', 'accounts.pwd', 'ui_settings.json')
+# 覆盖旧版本程序文件，保留账号、加密文件、密码缓存与界面设置
 Get-ChildItem -LiteralPath $dest -Force |
-    Where-Object { $_.Name -notin @('accounts', 'account.local.json', 'ui_settings.json') } |
+    Where-Object { $_.Name -notin $preserved } |
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-Copy-Item -Path (Join-Path $src '*') -Destination $dest -Recurse -Force
+Get-ChildItem -LiteralPath $src -Force |
+    Where-Object { $_.Name -notin $preserved } |
+    Copy-Item -Destination $dest -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'uninstall.ps1') -Destination $dest -Force
 
 # 卸载入口

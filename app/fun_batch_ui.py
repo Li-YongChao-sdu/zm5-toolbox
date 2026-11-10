@@ -19,6 +19,7 @@ class FunBatchPage:
         self.add('妖王帖免费抽取','card','使用妖王帖页面填写的次数')
         self.add('仙魄商店购买','shop_selected','购买原商店页面勾选的商品，沿用各自数量')
         self.add('藏宝洞免费挑战','cave','当前挑战方式、次数及间隔；指定码需先查询')
+        self.add('领取藏宝洞已发布收益','publish','查询本人已发布关卡并逐个领取仙魄；无已发布关卡跳过')
         self.add('幻兽派遣日常','dispatch','先领取完成奖励，再按原页面偏好和范围派遣')
         self.add('幻兽喂养','feed','当前选中幻兽、喂养方式与次数')
         self.combo.configure(values=list(self.rows));self.choice.set(next(iter(self.rows)))

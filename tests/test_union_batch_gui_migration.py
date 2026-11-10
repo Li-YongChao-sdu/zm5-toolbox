@@ -332,3 +332,23 @@ class CombinedFilterTests(unittest.TestCase):
     w.dog_activation_filter.set('两种都未激活');self.assertEqual(shown(),['3'])
     w.dog_activation_filter.set('全部');w.dog_filter.set('全部');self.assertEqual(len(shown()),4)
    finally:root.destroy()
+
+
+class ChainLaunchTests(unittest.TestCase):
+ def test_chain_only_passes_visible_accounts_and_selected_card(self):
+  import tkinter as tk
+  from union_boss_batch import dog_inventory
+  with tempfile.TemporaryDirectory() as folder,patch.object(ui,'HERE',Path(folder)):
+   root=tk.Tk();root.withdraw()
+   try:
+    w=ui.UnionBatchWindow(root)
+    for uid in ['1','2']:w.accept_login({'uid':uid,'username':'fixture'+uid,'cookies':{k:'fake' for k in ['Pauth','Uauth','Xauth','USESSIONID']}},False)
+    cards=dog_inventory({'code':200,'data':{'dog_5':1,'dogPos':{'5':1}}})
+    for uid,bonus in [('1',0),('2',1)]:w.render_dog_overview({'uid':uid,'slot':0,'status':'ok','cards':cards,'daily':{'addDouble11LotteryCnt':bonus}})
+    w.dog_filter.set('今日未赠送');w.chain_card.set('金毛汪');w.chain_seed.set('使用名单中余卡')
+    with patch.object(ui.messagebox,'askyesno',return_value=True),patch.object(ui.subprocess,'Popen') as launch,patch.object(ui.threading.Thread,'start'):
+     w.start(action_override='dog_chain',job_keys=w.table.get_children());args=launch.call_args.args[0]
+     self.assertEqual(args[args.index('--chain-card')+1],'5');self.assertEqual(args[args.index('--chain-seed')+1],'inventory')
+     batch=json.loads(Path(args[args.index('--batch-file')+1]).read_text(encoding='utf8'));self.assertEqual(len(batch),1);self.assertEqual(batch[0]['uid'],'1')
+     self.assertNotIn('cookies',batch[0]);w.cleanup();w.proc=None
+   finally:root.destroy()

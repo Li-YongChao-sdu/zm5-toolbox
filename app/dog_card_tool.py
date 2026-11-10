@@ -6,9 +6,11 @@ from union_boss_batch import DOG_NAMES,dog_inventory
 from teacher_trial import connect,enter,checked
 ROOT=Path(__file__).resolve().parent
 
-def execute(flow,slot,action,ids,code,save,sleep=time.sleep):
+def execute(flow,slot,action,ids,code,save,sleep=time.sleep,publish_callback=None):
     report={'action':action,'requests':[],'status':'running'}
     def publish(state,status,message):
+        if publish_callback is not None:
+            publish_callback(state,status,message);return
         print('__DOG_CARD_STATE__'+json.dumps({'uid':str(getattr(flow,'uid',state['rid'].split('_r')[0])),'slot':slot,'state':state,'status':status,'message':message},ensure_ascii=False),flush=True)
     def snapshot():
         info=enter(flow,slot)
@@ -48,13 +50,16 @@ def execute(flow,slot,action,ids,code,save,sleep=time.sleep):
                     n=int(item['subType'][4:]);delta[n]=delta.get(n,0)+int(item['count'])
             if not delta:raise ValueError('领取未返回可核对的狗卡奖励')
             verify(state,after,delta);state=after;print('兑换码领取成功：'+str({DOG_NAMES[n-1]:v for n,v in delta.items()}),flush=True)
-        elif action=='gift_draw':
+        elif action in ('gift','gift_draw'):
             n=ids[0];row=state['cards'][n-1]
             if not row['active'] or row['count']<1:raise ValueError('请选择已激活且持有余卡的品种')
             old_extra=int(state['daily'].get('addDouble11LotteryCnt',0))
-            if old_extra>=1:raise ValueError('今日赠送额外机会已获得，不继续消耗余卡')
-            reply=write('scene.activityHandler.double11Dog2Code',{'id':n,'type':1});after=snapshot();verify(state,after,{n:-1});report['generated_code']=reply.get('cdkey');save(report)
+            if action=='gift_draw' and old_extra>=1:raise ValueError('今日赠送额外机会已获得，不继续消耗余卡')
+            reply=write('scene.activityHandler.double11Dog2Code',{'id':n,'type':1});report['generated_code']=reply.get('cdkey');save(report);after=snapshot();verify(state,after,{n:-1})
             if not report['generated_code']:raise ValueError('未读到赠送码，停止')
+            if action=='gift':
+                state=after;report.update(status='complete',after=state);save(report)
+                publish(state,'complete','赠送码已生成并私有保存；未抽卡');return report
             daily=reply.get('everyDaySetting') or after['daily'];extra=int(daily.get('addDouble11LotteryCnt',0));used=int(daily.get('double11LotteryCnt',0))
             if extra<=old_extra or 1+extra-used<=0:raise ValueError('已生成码，但未确认新增抽数，不抽卡')
             state=after;sleep(2);reply=write('scene.activityHandler.double11Lottery',{});after=snapshot();delta={}

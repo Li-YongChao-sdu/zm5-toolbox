@@ -3,7 +3,7 @@ import argparse,json,os
 from pathlib import Path
 from datetime import datetime
 ROOT=Path(__file__).resolve().parent
-KINDS={'black','reward','start','card','buy','cave','feed','dispatch'}
+KINDS={'black','reward','start','card','buy','cave','publish','feed','dispatch'}
 def execute(flow,account,slot,jobs):
     from teacher_trial import enter,checked
     import pet_utilities as pet
@@ -26,6 +26,11 @@ def execute(flow,account,slot,jobs):
             elif kind=='cave':
                 from card_cave_target import run_matches
                 result=run_matches(flow,slot,**args)
+            elif kind=='publish':
+                import card_cave_publish_reward as published
+                result=published.execute(flow,slot,account.get('uid'),claim=True)
+                amount=sum(int(r.get('amount',0)) for r in result.get('rounds',[]))
+                print('[藏宝洞收益] 已发布%s个，本次领取仙魄+%s'%(len(result.get('published',[])),amount),flush=True)
             elif kind=='dispatch':
                 import fairy_daily
                 result=fairy_daily.run(flow,slot,apply=True,**args)
@@ -51,7 +56,9 @@ def execute(flow,account,slot,jobs):
                 feed.emit_state(latest)
             else:
                 if kind=='card':
-                    count=min(args['count'],pet.free_quota(info)['remaining'])
+                    # 我的日常（auto）默认抽完当天剩余免费次数；手动页仍按填写次数，两者都不超过剩余免费数
+                    remaining=pet.free_quota(info)['remaining']
+                    count=remaining if args.get('auto') else min(args['count'],remaining)
                     result=[]
                     if count:result,info,user=pet.draw_free_cards(flow,info,user,count,lambda:enter(flow,slot))
                     if any(not x.get('free_verified') for x in result):raise RuntimeError('妖王帖核对失败')

@@ -5,6 +5,9 @@ from pathlib import Path
 from tkinter import messagebox
 ROOT=Path(__file__).resolve().parent
 
+# 邮件领取依赖手动选中，不属于可自动完成项；结束汇总里不提示
+SILENT_LABELS=frozenset(('领取选中邮件附件并删除',))
+
 class ModuleQueue:
     def __init__(self,window):
         self.window=window;self.app=window.app;self.active=False;self.pending=[];self._finished=False
@@ -62,15 +65,18 @@ class ModuleQueue:
         if problems or self.unexecuted:self.notify(reason,problems)
 
     def notify(self,reason,problems):
+        problems=[item for item in problems if not any(tag in item[0] for tag in SILENT_LABELS)]
+        unexecuted=[label for label in self.unexecuted if not any(tag in label for tag in SILENT_LABELS)]
+        if not problems and not unexecuted:return
         lines=['执行结束：'+reason]
         if problems:
             lines.extend(['','未完成，请补提交：'])
             for label,kind,message in problems[:20]:lines.append('  - %s（%s）：%s'%(label,kind,message))
             if len(problems)>20:lines.append('  ...另有%d项'%(len(problems)-20))
-        if self.unexecuted:
+        if unexecuted:
             lines.extend(['','未执行（本批停止或上一项中止）：'])
-            for label in self.unexecuted[:20]:lines.append('  - '+label)
-            if len(self.unexecuted)>20:lines.append('  ...另有%d项'%(len(self.unexecuted)-20))
+            for label in unexecuted[:20]:lines.append('  - '+label)
+            if len(unexecuted)>20:lines.append('  ...另有%d项'%(len(unexecuted)-20))
         text='\n'.join(lines)
         try:self.app.root.after_idle(lambda:messagebox.showwarning('我的日常',text,parent=self.app.root))
         except Exception:pass

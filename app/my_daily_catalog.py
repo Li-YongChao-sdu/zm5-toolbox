@@ -6,6 +6,7 @@ DEFINITIONS=(
  ('RUN_FUN_COLLECT_START','派遣宠物采集','start','宠物采集','沿用位置、材料和时长；宠物优先页面已选，未查询时运行时自动选第一只空闲宠物；无空闲则跳过'),
  ('RUN_FUN_MONSTER_CARD','妖王帖免费抽取','card','妖王帖','沿用原页面次数；仅剩余免费次数'),
  ('RUN_FUN_CARD_CAVE','藏宝洞免费挑战','cave','藏宝洞','沿用模式、次数和间隔；指定码在运行时自动核验，未填或格式无效时改按推荐最高守备强度；仅免费次数'),
+ ('RUN_FUN_CAVE_PUBLISH','领取藏宝洞已发布收益','publish','藏宝洞','查询本人已发布关卡并逐个领取仙魄；核对到账且点券、元宝、挑战次数不变；无已发布关卡跳过'),
  ('RUN_FUN_FAIRY_FEED','幻兽喂养','feed','幻兽喂养','沿用喂养角色、方式和次数；优先已选或缓存的幻兽，否则默认该角色身上的，喂不了再选等级最低的'),
 )
 BY_KEY={r[0]:r for r in DEFINITIONS}
@@ -43,7 +44,7 @@ def validate_plan(keys,plan,uid,slot):
     if not isinstance(plan,dict) or str(plan.get('uid'))!=str(uid) or plan.get('slot')!=slot:raise ValueError('趣味活动计划的账号或存档不符')
     jobs=plan.get('jobs')
     if not isinstance(jobs,list) or len(jobs)!=len(selected):raise ValueError('趣味活动计划数量不符')
-    fields={'black':set(),'reward':{'pos'},'start':{'pos','collect_id','entity','gear'},'card':{'count'},'cave':{'matches','wait','mode','code','fingerprint'}}
+    fields={'black':set(),'reward':{'pos'},'start':{'pos','collect_id','entity','gear'},'card':{'count'},'cave':{'matches','wait','mode','code','fingerprint'},'publish':set()}
     for job,(_,label,kind,_,_) in zip(jobs,selected):
         if job.get('kind')!=kind or job.get('label')!=label or not isinstance(job.get('args'),dict):raise ValueError('包含未选择或不支持的趣味活动')
         a=job['args']

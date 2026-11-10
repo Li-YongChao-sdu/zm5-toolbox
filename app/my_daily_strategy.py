@@ -32,6 +32,7 @@ def describe(app,key,modules):
     if key in ('RUN_FUN_CARD_CAVE','RUN_CARD_CAVE'):
         p=app.card_cave_target_page
         return '%s｜%s局｜等待%s秒'%(value(p,'mode'),value(p,'count'),value(p,'wait'))
+    if key=='RUN_FUN_CAVE_PUBLISH':return '查询本人已发布关卡并逐个领取仙魄；无发布则跳过'
     if key=='RUN_FUN_BLACK_MARKET':return '仅购买灵魂商品，使用VIP剩余免费刷新次数'
     if key=='RUN_FUN_MONSTER_CARD':return '免费抽取%s次'%value(app.pet_utility_page,'card_count')
     if key in ('RUN_FUN_COLLECT_REWARD','RUN_FUN_COLLECT_START'):

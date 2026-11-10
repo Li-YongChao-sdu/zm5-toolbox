@@ -32,7 +32,8 @@ def _checked(result, name):
     return result
 
 
-def _one_match(flow, events, match_seconds, battle_seconds, exit_seconds=20, controller=None):
+def _one_match(flow, events, match_seconds, battle_seconds, exit_seconds=20, controller=None,
+               keepalive=True):
     before = _checked(flow.request(R_INFO, {}), "读取乱斗状态")
     before_total = int(((before.get("petPvp") or {}).get("1") or {}).get("total") or 0)
     _checked(flow.request(R_MATCH, {}), "发起匹配")
@@ -119,6 +120,9 @@ def _one_match(flow, events, match_seconds, battle_seconds, exit_seconds=20, con
                     time.sleep(2)
                 if not total_ok:
                     print("[灵宠乱斗] 已结算但战绩尚未增加，本场不继续下一场", flush=True)
+                if not keepalive:
+                    print("[灵宠乱斗] 本场已结算，直接准备下一场", flush=True)
+                    return matched and total_ok
                 exit_deadline = time.monotonic() + exit_seconds
                 print("[灵宠乱斗] 保持心跳，等待房间关闭通知（最多%d秒）" % exit_seconds, flush=True)
             elif route == "onPetPvpBtlExit":
@@ -146,8 +150,8 @@ def main():
     args = parser.parse_args()
     if args.matches < 1:
         parser.error("匹配场数须为正整数")
-    if args.match_seconds < 10 or not 60 <= args.battle_seconds <= 600:
-        parser.error("匹配至少等待10秒，单场挂机时间须为60～600秒")
+    if args.match_seconds < 10 or not 60 <= args.battle_seconds <= 1800:
+        parser.error("匹配至少等待10秒，单场挂机时间须为60～1800秒")
     if not 5 <= args.exit_seconds <= 120:
         parser.error("结算等待须为5～120秒")
     flow = None
@@ -170,7 +174,8 @@ def main():
             while not events.empty():
                 events.get_nowait()
             print("[灵宠乱斗] 第 %d/%d 次" % (number, args.matches), flush=True)
-            if not _one_match(flow, events, args.match_seconds, args.battle_seconds, args.exit_seconds):
+            if not _one_match(flow, events, args.match_seconds, args.battle_seconds, args.exit_seconds,
+                              keepalive=number == args.matches):
                 break
             if number < args.matches:
                 time.sleep(3)

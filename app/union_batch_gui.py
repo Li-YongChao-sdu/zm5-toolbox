@@ -51,6 +51,8 @@ class UnionBatchWindow:
         self.settings_path = HERE / "union_batch_settings.json"
         self.login_busy = False
         self.dog_overview = {}
+        try:self.account_history=json.loads((HERE/'union_account_history.private.json').read_text(encoding='utf-8'))
+        except (OSError,ValueError):self.account_history={}
         self.jobs = {}
         self.files = {}
         self.proc = None
@@ -60,7 +62,9 @@ class UnionBatchWindow:
         root.geometry("850x780")
         root.minsize(640, 480)
         viewport = ttk.Frame(root)
-        viewport.pack(fill="both", expand=True)
+        root.rowconfigure(0, weight=1)
+        root.columnconfigure(0, weight=1)
+        viewport.grid(row=0, column=0, sticky="nsew")
         viewport.rowconfigure(0, weight=1)
         viewport.columnconfigure(0, weight=1)
         self.canvas = tk.Canvas(viewport, highlightthickness=0)
@@ -92,24 +96,38 @@ class UnionBatchWindow:
         self.slot.pack(side="left")
         ttk.Button(row,text="读取存档",command=self.query_slots).pack(side="left",padx=4)
         ttk.Button(row, text="添加", command=self.add_selected).pack(side="left", padx=6)
+        ttk.Button(outer,text="恢复当前名单旧槽位 / 标记新旧",command=self.restore_known_slots).pack(anchor="w",pady=4)
         ttk.Button(row, text="导入专用账号文件", command=self.import_file).pack(side="left")
         from union_batch_login import open_login
         ttk.Button(outer,text="独立登录（账密 / Cookie）",command=lambda:open_login(self)).pack(anchor="w",pady=4)
-        area = ttk.Frame(outer)
-        area.pack(fill="both", pady=8)
+        area = ttk.Frame(outer, width=780, height=225)
+        area.pack(anchor="w", pady=8)
+        area.grid_propagate(False)
+        area.rowconfigure(0, weight=1)
+        area.columnconfigure(0, weight=1)
+        self.canvas.bind("<Configure>", lambda event: area.configure(width=max(200, event.width-24)), add="+")
         from union_boss_batch import DOG_NAMES
-        columns=('account','slot','state','used','bonus','gift_today')+tuple('dog_'+str(n) for n in range(1,12))
+        columns=('account','slot','state','used','bonus','gift_today')+tuple('dog_'+str(n) for n in range(1,12))+('origin',)
         self.table = ttk.Treeview(area, columns=columns, show="headings", height=8)
-        headers=('执行账号','槽位','查询状态','已抽次数','额外次数','今日赠送')+DOG_NAMES
+        headers=('执行账号','槽位','查询状态','已抽次数','额外次数','今日赠送')+DOG_NAMES+('账号来源',)
         for key,title in zip(columns,headers):
             self.table.heading(key,text=title);self.table.column(key,width=160 if key=='account' else 95,stretch=False)
         self.table.tag_configure('giftable',foreground='#14532d',background='#dcfce7')
         self.table.tag_configure('failed',foreground='#991b1b',background='#fee2e2')
         self.table.bind('<<TreeviewSelect>>',lambda *_:self.show_dog_detail())
         scroll = ttk.Scrollbar(area, command=self.table.yview)
-        self.table.configure(yscrollcommand=scroll.set)
-        self.table.pack(side="left", fill="both", expand=True)
-        scroll.pack(side="right", fill="y")
+        table_horizontal = ttk.Scrollbar(area, orient="horizontal", command=self.table.xview)
+        self.table.configure(yscrollcommand=scroll.set, xscrollcommand=table_horizontal.set)
+        self.table.grid(row=0, column=0, sticky="nsew")
+        scroll.grid(row=0, column=1, sticky="ns")
+        table_horizontal.grid(row=1, column=0, sticky="ew")
+        self.task_tabs = ttk.Notebook(outer)
+        self.task_tabs.pack(fill='both', expand=True, pady=6)
+        dog_page = ttk.Frame(self.task_tabs, padding=6)
+        union_page = ttk.Frame(self.task_tabs, padding=6)
+        self.task_tabs.add(dog_page, text='狗卡')
+        self.task_tabs.add(union_page, text='联盟事务')
+        outer = dog_page
         overview_buttons=ttk.Frame(outer);overview_buttons.pack(fill='x')
         self.dog_filter=tk.StringVar(value='全部')
         ttk.Label(overview_buttons,text='今日赠送：').pack(side='left')
@@ -136,18 +154,39 @@ class UnionBatchWindow:
         ttk.Label(details,text='✓ 已激活（蓝）；○ 未激活有卡（橙）；★ 可赠送（绿）；无卡未激活（灰）').pack(anchor='w',padx=4,pady=4)
 
         ttk.Button(outer, text="移除选中账号", command=self.remove).pack(anchor="w")
-        ttk.Button(outer, text="设置选中账号二级密码（仅购买种子使用）", command=self.set_garden_password).pack(anchor="w")
-        options = ttk.LabelFrame(outer, text="执行设置", padding=8)
+        chain=ttk.LabelFrame(outer,text='按当前筛选结果接力（每账号今日最多额外抽一次）',padding=6);chain.pack(fill='x',pady=6)
+        from union_boss_batch import DOG_NAMES
+        self.chain_card=tk.StringVar(value=DOG_NAMES[1]);self.chain_seed=tk.StringVar(value='输入兑换码');self.chain_code=tk.StringVar()
+        ttk.Combobox(chain,textvariable=self.chain_card,values=(DOG_NAMES[1], DOG_NAMES[0], *DOG_NAMES[2:]),state='readonly',width=14).pack(side='left',padx=3)
+        ttk.Combobox(chain,textvariable=self.chain_seed,values=('输入兑换码','使用名单中余卡'),state='readonly',width=18).pack(side='left',padx=3)
+        ttk.Entry(chain,textvariable=self.chain_code,show='*',width=20).pack(side='left',padx=3)
+        ttk.Button(chain,text='一键接力＋额外抽卡',command=lambda:self.start(action_override='dog_chain',job_keys=self.table.get_children())).pack(side='left',padx=3)
+        ttk.Button(chain,text='查看上次链末码',command=self.view_chain_code).pack(side='left',padx=3)
+        single=ttk.LabelFrame(dog_page,text='单账号操作（先选中上方一个账号）',padding=6)
+        single.pack(fill='x',pady=6)
+        self.single_card=tk.StringVar(value=DOG_NAMES[0])
+        picker=ttk.Frame(single);picker.grid(row=0,column=0,columnspan=2,sticky='w',pady=4)
+        ttk.Label(picker,text='单账号卡种：').pack(side='left')
+        ttk.Combobox(picker,textvariable=self.single_card,values=(DOG_NAMES[1],DOG_NAMES[0],*DOG_NAMES[2:]),state='readonly',width=16).pack(side='left',padx=4)
+        self.single_code=tk.StringVar()
+        ttk.Entry(single,textvariable=self.single_code,show='*',width=26).grid(row=1,column=0,padx=3,pady=3)
+        ttk.Button(single,text='使用兑换码',command=lambda:self.single_dog_action('redeem')).grid(row=1,column=1,padx=3)
+        ttk.Button(single,text='仅生成赠送码',command=lambda:self.single_dog_action('gift')).grid(row=2,column=0,padx=3,pady=3)
+        ttk.Button(single,text='生成码＋额外抽卡',command=lambda:self.single_dog_action('gift_draw')).grid(row=2,column=1,padx=3)
+        ttk.Button(single,text='查询该账号服务器兑换码',command=self.view_single_codes).grid(row=3,column=0,columnspan=2,sticky='w',pady=3)
+        ttk.Button(single,text='激活所选卡种',command=lambda:self.single_dog_action('single_activate')).grid(row=4,column=0,sticky='w',pady=3)
+        options = ttk.LabelFrame(union_page, text="执行设置", padding=8)
         options.pack(fill="x", pady=8)
+        ttk.Button(options, text="设置选中账号二级密码（仅购买种子使用）", command=self.set_garden_password).pack(anchor="w")
         self.action = tk.StringVar(value="boss")
         ttk.Radiobutton(options, text="联盟贡献（每号一次，消耗1000灵魂）", variable=self.action, value="devote").pack(anchor="w")
         ttk.Radiobutton(options, text="联盟Boss · 九灵元圣", variable=self.action, value="boss").pack(anchor="w")
         ttk.Radiobutton(options, text="联盟药园（查看 / 收获 / 种植）", variable=self.action, value="garden").pack(anchor="w")
-        ttk.Radiobutton(options, text="每日免费抽狗卡（每号尝试1次，跨存档共享）", variable=self.action, value="dog").pack(anchor="w")
-        ttk.Label(options, text="狗卡仅普通抽取并核对到账，不购买、不赠送、不兑换；次数用完则跳过。", foreground="gray", wraplength=700).pack(anchor="w")
-        ttk.Button(options,text="查询狗卡库存 / 可赠送",command=lambda:self.start(action_override="dog_status")).pack(anchor="w",pady=4)
+        ttk.Button(dog_page, text="每日免费抽狗卡（每号尝试1次，跨存档共享）", command=lambda:self.start(action_override="dog")).pack(anchor="w")
+        ttk.Label(dog_page, text="狗卡仅普通抽取并核对到账，不购买、不赠送、不兑换；次数用完则跳过。", foreground="gray", wraplength=700).pack(anchor="w")
+        ttk.Button(dog_page,text="查询狗卡库存 / 可赠送",command=lambda:self.start(action_override="dog_status")).pack(anchor="w",pady=4)
         from union_boss_batch import DOG_NAMES
-        dogbox=ttk.LabelFrame(options,text='选择要激活的狗卡',padding=4);dogbox.pack(fill='x',pady=4)
+        dogbox=ttk.LabelFrame(dog_page,text='选择要激活的狗卡',padding=4);dogbox.pack(fill='x',pady=4)
         self.dog_activation={}
         for n,name in enumerate(DOG_NAMES,1):
             value=tk.BooleanVar(value=n==1);self.dog_activation['dog_activate_'+str(n)]=value
@@ -187,14 +226,16 @@ class UnionBatchWindow:
         ttk.Label(damage, text="默认使用当前面板/技能估算模型；此输入为备用参数").pack(side="left")
         ttk.Label(options, text="未勾选挂机则持续按期望伤害攻击。挂机每秒随机0～10000。奖励在游戏邮件领取。",
                   wraplength=600, foreground="gray").pack(anchor="w", pady=(6, 0))
-        controls = ttk.Frame(outer)
+        self.footer = ttk.Frame(root, padding=(12, 6, 12, 10))
+        self.footer.grid(row=1, column=0, sticky="ew")
+        controls = ttk.Frame(self.footer)
         controls.pack(fill="x", pady=(0, 6))
-        self.start_button = ttk.Button(controls, text="开始并行执行", command=self.start)
+        self.start_button = ttk.Button(controls, text="开始并行执行", command=lambda: self.start(action_override="dog" if self.task_tabs.index(self.task_tabs.select()) == 0 else (self.action.get() if self.action.get() != "dog" else "boss")))
         self.start_button.pack(side="left")
         self.stop_button = ttk.Button(controls, text="停止全部", command=self.stop, state="disabled")
         self.stop_button.pack(side="left", padx=8)
         ttk.Label(controls, text="同一账号只添加一个存档").pack(side="left")
-        self.log = ScrolledText(outer, height=10, wrap="word", state="disabled")
+        self.log = ScrolledText(self.footer, height=7, wrap="word", state="disabled")
         self.log.pack(fill="both", expand=True)
         self.refresh()
         self.restore_selection()
@@ -270,6 +311,7 @@ class UnionBatchWindow:
         if not hasattr(self,'dog_filter'):return
         choice=self.dog_filter.get()
         for key,row in self.jobs.items():
+            self.table.set(key,'origin','旧账号' if row['uid'] in self.account_history else '新加入（旧名单外）')
             data=self.dog_overview.get(key)
             known=bool(data and data.get('status')=='ok' and data.get('slot')==row['slot'])
             gifted=known and int((data.get('daily') or {}).get('addDouble11LotteryCnt',0))>0
@@ -283,6 +325,42 @@ class UnionBatchWindow:
             else:
                 self.table.selection_remove(key);self.table.detach(key)
         if hasattr(self,'dog_detail'):self.show_dog_detail()
+
+    def single_dog_action(self, action):
+        keys=self.table.selection()
+        if len(keys)!=1:
+            messagebox.showerror('选择账号','请只选中一个账号',parent=self.root);return
+        self.start(action_override='dog_'+action,job_keys=keys)
+
+    def view_single_codes(self):
+        keys=self.table.selection()
+        if len(keys)!=1:
+            messagebox.showerror('选择账号','请只选中一个账号',parent=self.root);return
+        self.start(action_override='dog_codes',job_keys=keys)
+
+    def show_server_codes(self,data):
+        if not any(row['uid']==str(data.get('uid')) and row['slot']==data.get('slot') for row in self.jobs.values()):return
+        rows=data.get('rows',[])
+        win=tk.Toplevel(self.root);win.title('服务器兑换码 · 槽'+str(data['slot']));win.geometry('600x300')
+        ttk.Label(win,text='本次实时查询结果；服务器未提供的使用状态不作推断。').pack(anchor='w',padx=8,pady=6)
+        table=ttk.Treeview(win,columns=('card','code'),show='headings',height=7)
+        for k,title in [('card','卡种'),('code','兑换码')]:table.heading(k,text=title);table.column(k,width=240)
+        for i,values in enumerate(rows):table.insert('','end',iid=str(i),values=values)
+        table.pack(fill='both',expand=True,padx=8)
+        if not rows:ttk.Label(win,text='服务器本次返回的兑换码列表为空。').pack()
+        def use():
+            chosen=table.selection()
+            if chosen:self.single_code.set(rows[int(chosen[0])][1]);win.destroy()
+        ttk.Button(win,text='填入领取框（不自动领取）',command=use).pack(pady=6)
+
+    def view_chain_code(self):
+        card=__import__('union_boss_batch').DOG_NAMES.index(self.chain_card.get())+1
+        members={(row['uid'],row['slot']) for key,row in self.jobs.items() if key in self.table.get_children()}
+        for path in sorted((HERE/'dog_chain_reports').glob('*.private.json'),reverse=True):
+            report=json.loads(path.read_text(encoding='utf8'))
+            if report.get('card')==card and report.get('status')=='complete' and report.get('current_code') and members.intersection({(x['uid'],x['slot']) for x in report.get('members',[])}):
+                self.chain_code.set(report['current_code']);self.chain_seed.set('输入兑换码');return
+        messagebox.showinfo('链末码','没有匹配当前名单和卡种的已完成接力码',parent=self.root)
 
     def refresh_selected_dogs(self):
         keys=self.table.selection()
@@ -317,7 +395,7 @@ class UnionBatchWindow:
             self.dog_detail_table.insert('', 'end',iid=str(n),values=(c['name'],c['count'],'✓ 已激活' if c['active'] else '○ 未激活',str(c['giftable'])+('张 ★ 可赠送' if c['giftable'] else '')),tags=(tag,))
 
     def execution_variables(self):
-        return {**{key:getattr(self,key) for key in ('action','garden_pick','garden_uproot','garden_mode','garden_count','idle','dps','dog_filter','dog_activation_filter')},**self.dog_activation}
+        return {**{key:getattr(self,key) for key in ('action','garden_pick','garden_uproot','garden_mode','garden_count','idle','dps','dog_filter','dog_activation_filter','chain_card','chain_seed','single_card')},**self.dog_activation}
 
     def save_selection(self):
         if self.restoring:return
@@ -341,10 +419,16 @@ class UnionBatchWindow:
                 for key,variable in self.execution_variables().items():
                     if key not in settings:continue
                     value=settings[key]
+                    # 狗卡状态仅在本次查询后可信，启动时先显示已保存的完整名单。
+                    if key in ('dog_filter','dog_activation_filter'):
+                        variable.set('全部')
+                        continue
                     if key=='action' and value not in ('boss','devote','garden','dog'):continue
                     if key=='garden_mode' and value not in ('direct','buy'):continue
                     if key=='dog_filter' and value not in ('全部','今日已赠送','今日未赠送'):continue
                     if key=='dog_activation_filter' and value not in ('全部','已激活博美汪','已激活斗牛汪','两种都未激活'):continue
+                    if key=='chain_seed' and value not in ('输入兑换码','使用名单中余卡'):continue
+                    if key in ('chain_card','single_card') and value not in __import__('union_boss_batch').DOG_NAMES:continue
                     if key in ('garden_pick','garden_uproot','idle') or key.startswith('dog_activate_'):
                         if not isinstance(value,bool):continue
                     elif not isinstance(value,str):continue
@@ -455,6 +539,21 @@ class UnionBatchWindow:
         except Exception:
             messagebox.showerror("账号不可用", "请选择工具箱保存的账号JSON文件；登录失效时需重新登录并保存。")
 
+    def restore_known_slots(self):
+        if self.proc is not None:return
+        count=0;new=0
+        for key,row in self.jobs.items():
+            history=self.account_history.get(row['uid'])
+            if history is None:new+=1;continue
+            slot=history.get('slot')
+            if type(slot) is not int or not 0<=slot<=7:continue
+            if row['slot']!=slot:
+                row['slot']=slot;row.pop('garden_password',None);self.dog_overview.pop(key,None)
+                values=list(self.table.item(key,'values'));values[1]=slot
+                self.table.item(key,values=values[:2]);count+=1
+        self.apply_dog_filter();self.save_selection()
+        self.messages.put('当前名单已恢复%s个旧槽位；%s个旧名单外账号保留当前槽位。未新增账号、未登录游戏。'%(count,new))
+
     def remove(self):
         if self.proc is not None:
             return
@@ -491,6 +590,26 @@ class UnionBatchWindow:
                 messagebox.showerror('未选择狗卡','请至少选择一种狗卡');return
             if not messagebox.askyesno('确认激活','对列表中全部账号激活所选狗卡；每种消耗1张，已激活或缺卡跳过。继续？',parent=self.root):return
             for n in selected:args+=['--dog-activate',str(n)]
+        single_secret=''
+        if action in ('dog_redeem','dog_gift','dog_gift_draw','dog_single_activate'):
+            if len(exec_jobs)!=1:messagebox.showerror('选择账号','请只选中一个账号');return
+            from union_boss_batch import DOG_NAMES
+            card=DOG_NAMES.index(self.single_card.get())+1
+            single_secret=self.single_code.get().strip() if action=='dog_redeem' else ''
+            if action=='dog_redeem' and not single_secret:messagebox.showerror('缺少兑换码','请填写兑换码');return
+            key=next(iter(exec_jobs));label=str(self.table.item(key,'values')[0])
+            title={'dog_redeem':'使用兑换码','dog_gift':'仅生成赠送码（消耗1张余卡，不抽卡）','dog_gift_draw':'生成码并额外抽卡','dog_single_activate':'激活所选卡种（消耗1张，已激活或缺卡跳过）'}[action]
+            if not messagebox.askyesno('确认单账号操作',label+' / 槽'+str(exec_jobs[key]['slot'])+'\n'+title+'\n卡种：'+DOG_NAMES[card-1],parent=self.root):return
+            args+=['--chain-card',str(card)]
+        chain_secret=''
+        if action=='dog_chain':
+            from union_boss_batch import DOG_NAMES
+            card=DOG_NAMES.index(self.chain_card.get())+1;mode='code' if self.chain_seed.get()=='输入兑换码' else 'inventory'
+            chain_secret=self.chain_code.get().strip() if mode=='code' else ''
+            if mode=='code' and not chain_secret:messagebox.showerror('缺少起始码','请输入兑换码或选择库存余卡启动');return
+            preview='\n'.join(str(self.table.item(key,'values')[0])+' / 槽'+str(row['slot']) for key,row in exec_jobs.items())
+            if not messagebox.askyesno('确认当前筛选名单接力','卡种：%s\n%s\n逐号核查后串行领取、转赠、额外抽一次；未激活或今日已参与的跳过；不新增激活或购买。继续？'%(self.chain_card.get(),preview),parent=self.root):return
+            args+=['--chain-card',str(card),'--chain-seed',mode]
         buying = False
         if action == "garden":
             pick = garden_operation == "pick" if garden_operation else self.garden_pick.get()
@@ -531,6 +650,10 @@ class UnionBatchWindow:
                 json.dump([{"path": row["path"], "slot": row["slot"], "uid": row["uid"]} for row in exec_jobs.values()], stream)
             args.extend(["--batch-file", str(self.batch_path)])
             env = dict(os.environ, PYTHONIOENCODING="utf-8")
+            env["ZM5_DOG_REDEEM_CODE"]=single_secret
+            if action=="dog_redeem":self.single_code.set('')
+            env["ZM5_DOG_CHAIN_CODE"]=chain_secret
+            if action=="dog_chain":self.chain_code.set('')
             env["ZM5_UNION_BATCH_ACCOUNTS"] = json.dumps({row["uid"]:row["session_account"] for row in exec_jobs.values() if row.get("session_account")})
             env["ZM5_UNION_BATCH_PASSWORDS"] = json.dumps({row["uid"]:row.get("garden_password", "") for row in exec_jobs.values()} if buying else {})
             self.proc = subprocess.Popen(args, cwd=HERE, env=env, stdout=subprocess.PIPE,
@@ -560,6 +683,10 @@ class UnionBatchWindow:
         try:
             while True:
                 message = self.messages.get_nowait()
+                if isinstance(message,str) and message.startswith('__UNION_DOG_CODES__'):
+                    try:self.show_server_codes(json.loads(message[len('__UNION_DOG_CODES__'):]))
+                    except (ValueError,TypeError,KeyError):self.messages.put('服务器兑换码结果格式异常')
+                    continue
                 if isinstance(message,str) and message.startswith('__UNION_DOG_OVERVIEW__'):
                     try:self.render_dog_overview(json.loads(message[len('__UNION_DOG_OVERVIEW__'):]))
                     except Exception:self.messages.put('狗卡总览显示失败，请重新查询。')

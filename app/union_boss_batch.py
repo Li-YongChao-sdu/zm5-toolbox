@@ -34,6 +34,16 @@ def run_batch(options):
     from teacher_trial import connect, enter
     from union_boss import run
     jobs = load_jobs(options.batch_file)
+    if options.action in ('dog_redeem','dog_gift','dog_gift_draw','dog_codes','dog_single_activate'):
+        from union_dog_single import run_single
+        import os
+        if len(jobs)!=1:raise ValueError('单账号操作只能选择一个账号')
+        return run_single(jobs[0][0],jobs[0][1],('activate' if options.action=='dog_single_activate' else options.action[4:]),options.chain_card,os.environ.pop('ZM5_DOG_REDEEM_CODE',''))
+    if options.action=='dog_chain':
+        from dog_card_chain import run_chain
+        import os
+        run_chain(jobs,options.chain_card,options.chain_seed,os.environ.pop('ZM5_DOG_CHAIN_CODE',''))
+        return True
     active={str(a['uid']) for a,s in jobs}
     active_lock=threading.Lock()
     def participant_count():
@@ -285,7 +295,9 @@ if __name__ == "__main__":
     import sys
     parser = argparse.ArgumentParser(description="多账号联盟贡献 / 联盟Boss")
     parser.add_argument("--batch-file", required=True)
-    parser.add_argument("--action", choices=["boss", "devote", "garden", "dog", "dog_status", "dog_activate"], required=True)
+    parser.add_argument("--action", choices=["boss", "devote", "garden", "dog", "dog_status", "dog_activate", "dog_chain", "dog_redeem", "dog_gift", "dog_gift_draw", "dog_codes", "dog_single_activate"], required=True)
+    parser.add_argument('--chain-card',type=int,choices=range(1,12),default=1)
+    parser.add_argument('--chain-seed',choices=('code','inventory'),default='code')
     parser.add_argument("--dog-activate",type=int,choices=range(1,12),action="append")
     parser.add_argument("--garden-pick", action="store_true")
     parser.add_argument("--garden-uproot", action="store_true")

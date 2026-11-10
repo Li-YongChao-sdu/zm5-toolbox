@@ -27,6 +27,21 @@ def checked(reply, action):
     return reply
 
 
+class SlotUnavailableError(ValueError):
+    pass
+
+
+def check_slot_records(records, slot):
+    if not isinstance(records,list):raise SlotUnavailableError('无法核实所选槽位状态，未进入存档')
+    rows=[row for row in records if isinstance(row,dict) and row.get('index')==slot]
+    if len(rows)!=1:raise SlotUnavailableError('所选槽位未找到或记录不唯一，未进入存档')
+    status=rows[0].get('status')
+    if status==0:raise SlotUnavailableError('所选槽位为空，未创建存档，请选择已有角色的槽位')
+    if status==3:raise SlotUnavailableError('所选存档已冻结，未进入存档')
+    if status!=1:raise SlotUnavailableError('所选存档状态未知，未进入存档')
+    return rows[0]
+
+
 def connect(account, slot):
     if not 0 <= slot <= 7:
         raise ValueError("存档槽位须为 0～7")
@@ -41,8 +56,13 @@ def connect(account, slot):
         try:
             host, port = flow.query_entry(gate, 3010)
             checked(flow.auth(host, port), "游戏服认证")
+            home=checked(flow.request('connector.roleHandler.getUserInfo',{}),'查询存档列表')
+            check_slot_records((home.get('user') or {}).get('records'),slot)
             info = enter(flow, slot)
             return flow, info
+        except SlotUnavailableError:
+            flow.disconnect()
+            raise
         except Exception as exc:
             last = exc
             flow.disconnect()

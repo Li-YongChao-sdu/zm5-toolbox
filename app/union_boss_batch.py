@@ -14,12 +14,18 @@ def load_jobs(path):
         slot = int(row["slot"])
         if not 0 <= slot <= 7:
             raise ValueError("存档须为0～7")
-        account = json.loads(Path(row["path"]).read_text(encoding="utf-8"))
+        import os
+        if row.get('path'):
+            account = json.loads(Path(row["path"]).read_text(encoding="utf-8-sig"))
+        else:
+            account=dict(json.loads(os.environ.get('ZM5_UNION_BATCH_ACCOUNTS','{}'))[str(row['uid'])])
         uid = str(account["uid"])
         if uid in seen:
             raise ValueError("同一账号只能选择一个存档，避免互相挤下线")
         seen.add(uid)
-        account['_garden_password'] = row.get('garden_password', '')
+        import os
+        passwords=json.loads(os.environ.get('ZM5_UNION_BATCH_PASSWORDS','{}'))
+        account['_garden_password'] = passwords.get(uid, row.get('garden_password', ''))
         jobs.append((account, slot))
     return jobs
 
@@ -44,6 +50,10 @@ def run_batch(options):
                 return run_garden(account, slot, label, garden_options)
             if getattr(options, "action", "boss") == "devote":
                 return run_devote(account, slot, label)
+            if options.action == "dog_activate":
+                return activate_dogs(account,slot,label,options.dog_activate or [1])
+            if options.action == "dog_status":
+                return query_dogs(account,slot,label)
             if options.action == "dog":
                 return run_dog(account, slot, label)
             result = run(options.level, options.percent_per_minute,
@@ -60,8 +70,8 @@ def run_batch(options):
             return result
         except Exception as exc:
             # 不输出登录异常详情，防止第三方响应包含认证数据。
-            print("[%s] 执行失败（%s），其他账号继续" %
-                  (label, type(exc).__name__), flush=True)
+            print("[%s] 执行失败：%s；其他账号继续" %
+                  (label, dog_failure_reason(exc)), flush=True)
             return False
         finally:
             with active_lock:active.discard(str(account['uid']))
@@ -69,7 +79,7 @@ def run_batch(options):
     with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
         futures = [pool.submit(worker, account, slot) for account, slot in jobs]
         results = [future.result() for future in as_completed(futures)]
-    print("[多账号%s] %s %s / %s" % ({'boss':'联盟Boss','devote':'联盟贡献','garden':'联盟药园','dog':'免费抽狗卡'}[options.action], '已完成核对（含次数用完跳过）' if options.action == 'dog' else '成功', sum(results), len(results)), flush=True)
+    print("[多账号%s] %s %s / %s" % ({'boss':'联盟Boss','devote':'联盟贡献','garden':'联盟药园','dog':'免费抽狗卡','dog_status':'狗卡库存查询','dog_activate':'激活所选狗卡'}[options.action], '已完成核对（含次数用完跳过）' if options.action == 'dog' else '成功', sum(results), len(results)), flush=True)
     return all(results)
 
 
@@ -77,10 +87,106 @@ DOG_NAMES = ('博美汪', '斗牛汪', '蝴蝶汪', '杜宾汪', '金毛汪', '�
              '贵宾汪', '松狮汪', '秋田汪', '冠毛汪', '藏獒汪')
 
 
+def activate_dogs(account,slot,label,ids,*,flow=None):
+    from teacher_trial import connect,checked
+    from datetime import datetime
+    own=flow is None
+    folder=Path('运行记录')/('狗卡激活_'+datetime.now().strftime('%Y%m%d_%H%M%S_%f'))
+    folder.mkdir(parents=True,exist_ok=True);record={'slot':slot,'steps':[]}
+    def save():
+        (folder/'result.json').write_text(json.dumps(record,ensure_ascii=False,indent=2),encoding='utf8')
+    try:
+        ids=list(dict.fromkeys(ids))
+        if not ids or any(type(n) is not int or not 1<=n<=11 for n in ids):raise ValueError('无效狗卡选择')
+        if own:flow,_=connect(account,slot)
+        for n in ids:
+            before=checked(flow.request('scene.activityHandler.getDouble11Data',{}),'查询狗卡')
+            row=dog_inventory(before)[n-1]
+            if row['active'] or not row['count']:
+                print('[%s] %s：%s，跳过'%(label,row['name'],'已激活' if row['active'] else '没有卡片'),flush=True);continue
+            user=checked(flow.request('connector.roleHandler.getUserInfo',{}),'读取余额')['user']
+            wallet={k:user[k] for k in ('ticket','yuanbao')}
+            step={'id':n,'before':before,'phase':'pending'};record['steps'].append(step);save()
+            reply=flow.request('scene.activityHandler.activeDouble11Dog',{'id':n,'type':0})
+            step.update(phase='returned',reply=reply);save();checked(reply,'激活')
+            after=checked(flow.request('scene.activityHandler.getDouble11Data',{}),'激活后查询')
+            rows=dog_inventory(after);old=dog_inventory(before)
+            user=checked(flow.request('connector.roleHandler.getUserInfo',{}),'核对余额')['user']
+            if any(user[k]!=wallet[k] for k in wallet):raise ValueError('激活后个人余额异常')
+            if not rows[n-1]['active'] or rows[n-1]['count']!=row['count']-1:raise ValueError('激活状态或卡片扣除未确认')
+            if any(rows[i]!=old[i] for i in range(11) if i!=n-1):raise ValueError('其他狗卡发生变化')
+            step.update(phase='verified',after=after);save()
+            print('[%s] %s激活成功，消耗1张，个人余额未变化'%(label,row['name']),flush=True)
+        record['status']='complete';save();return True
+    except Exception as exc:
+        record.update(status='stopped',error_type=type(exc).__name__);save()
+        print('[%s] 狗卡激活未完成（%s），不自动重发；记录%s'%(label,type(exc).__name__,folder),flush=True);return False
+    finally:
+        if own and flow:flow.disconnect()
+
+
+def dog_inventory(reply):
+    if not isinstance(reply,dict) or reply.get('code')!=200 or reply.get('error') or not isinstance(reply.get('data'),dict):
+        raise ValueError('狗卡库存查询未成功')
+    data=reply['data'];positions=data.get('dogPos') or {}
+    if not isinstance(positions,dict):raise ValueError('狗卡激活记录格式异常')
+    rows=[]
+    for n,name in enumerate(DOG_NAMES,1):
+        count=int(data.get('dog_'+str(n),0))
+        if count<0:raise ValueError('狗卡数量异常')
+        active=bool(positions.get(str(n)))
+        rows.append({'name':name,'count':count,'active':active,'giftable':count if active else 0})
+    return rows
+
+
+def query_dogs(account,slot,label,*,flow=None):
+    from teacher_trial import connect
+    own=flow is None
+    try:
+        info={}
+        if own:flow,info=connect(account,slot)
+        rows=dog_inventory(flow.request('scene.activityHandler.getDouble11Data',{}))
+        daily=info.get('everyDaySetting') or {}
+        print('__UNION_DOG_OVERVIEW__'+json.dumps({'uid':str(account.get('uid','')),'slot':slot,'status':'ok','cards':rows,'daily':{k:v for k,v in daily.items() if 'double11' in k.lower()}},ensure_ascii=False),flush=True)
+        print('[%s] 狗卡库存（账号共享）：'%label,flush=True)
+        for row in rows:
+            print('[%s] %s：%s张｜%s｜可赠送%s张'%(label,row['name'],row['count'],'已激活' if row['active'] else '未激活',row['giftable']),flush=True)
+        print('[%s] 可赠送按客户端“已激活且有余卡”规则判断；实际生成码仍由服务器校验。本次仅查询。'%label,flush=True)
+        return True
+    except Exception as exc:
+        print('__UNION_DOG_OVERVIEW__'+json.dumps({'uid':str(account.get('uid','')),'slot':slot,'status':'failed','error':dog_failure_reason(exc)},ensure_ascii=False),flush=True)
+        print('[%s] 库存查询失败（%s），未抽取或赠送'%(label,type(exc).__name__),flush=True)
+        return False
+    finally:
+        if own and flow:flow.disconnect()
+
+
+def dog_calendar_check():
+    """仅对跨年的旧狗卡配置交由服务器判定，不放开当期已结束活动。"""
+    from game_version import latest_config_folder, beijing_now, _date
+    from activity_availability import require_open
+    folder=latest_config_folder()
+    if folder is None:raise ValueError('缺少狗卡配置，未执行抽取')
+    common=json.loads((folder/'Double11Common.json').read_text(encoding='utf-8-sig'))['1']
+    activity=json.loads((folder/'Activity.json').read_text(encoding='utf-8-sig'))[str(common['startActivityId'])]
+    if _date(activity['underTime']).year < beijing_now().year:
+        return '狗卡配置仍为往年日期；先查询服务器，仅尝试一次普通抽取，由服务器核验资格'
+    require_open('RUN_DOG_CARD')
+    return ''
+
+
+def dog_failure_reason(exc):
+    from teacher_trial import SlotUnavailableError
+    if isinstance(exc,SlotUnavailableError):return str(exc)
+    text=str(exc)
+    for reason in ('已过期','尚未开放','未开放','抽奖次数已用完','未登录','没有下发狗卡余额',
+                   '点券发生变化','余额不一致','抽卡回复不完整','缺少狗卡配置'):
+        if reason in text:return reason
+    return '连接、响应或库存核验异常（%s）；详见本地记录，不自动重发' % type(exc).__name__
+
+
 def run_dog(account, slot, label, *, flow=None):
     """每账号一次普通抽取；任何未确认的抽卡请求都不自动重发。"""
-    from activity_availability import require_open
-    require_open('RUN_DOG_CARD')
     from datetime import datetime
     from teacher_trial import connect, checked
     folder = Path('运行记录') / ('狗卡_' + datetime.now().strftime('%Y%m%d_%H%M%S_%f'))
@@ -100,6 +206,8 @@ def run_dog(account, slot, label, *, flow=None):
         return user['ticket']
     own_connection = flow is None
     try:
+        note=dog_calendar_check()
+        if note:print('[%s] %s' % (label,note),flush=True)
         print('[%s] 正在连接并读取狗卡库存' % label, flush=True)
         if own_connection:
             flow, _ = connect(account, slot)
@@ -138,8 +246,9 @@ def run_dog(account, slot, label, *, flow=None):
     except Exception as exc:
         # 已发出的请求不重放，保留pending/checking和余额供下次人工核对。
         record['failure_type'] = type(exc).__name__
+        record['failure_reason'] = dog_failure_reason(exc)
         save()
-        print('[%s] 狗卡未完成核对；不自动重发，请查看%s' % (label, folder), flush=True)
+        print('[%s] 狗卡未完成：%s；记录%s' % (label, dog_failure_reason(exc), folder), flush=True)
         return False
     finally:
         if flow and own_connection:
@@ -176,7 +285,8 @@ if __name__ == "__main__":
     import sys
     parser = argparse.ArgumentParser(description="多账号联盟贡献 / 联盟Boss")
     parser.add_argument("--batch-file", required=True)
-    parser.add_argument("--action", choices=["boss", "devote", "garden", "dog"], required=True)
+    parser.add_argument("--action", choices=["boss", "devote", "garden", "dog", "dog_status", "dog_activate"], required=True)
+    parser.add_argument("--dog-activate",type=int,choices=range(1,12),action="append")
     parser.add_argument("--garden-pick", action="store_true")
     parser.add_argument("--garden-uproot", action="store_true")
     parser.add_argument("--garden-plant", type=int, default=0)

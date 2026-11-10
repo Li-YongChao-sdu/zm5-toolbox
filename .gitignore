@@ -45,3 +45,11 @@ __pycache__/
 *.py[cod]
 .venv/
 .pytest_cache/
+
+# 独立多账号凭据、选择与兑换码证据
+app/union_accounts/
+app/union_batch_settings.json
+app/运行记录/
+app/擂台预测检测/
+**/*.private.json
+**/*.private.jsonl

@@ -1444,11 +1444,21 @@ class DailyGUI:
 
 
 
-            page = ttk.Frame(notebook, padding=8)
-
-
-
-            notebook.add(page, text=title)
+            if title == '活动副本':
+                activity_container=ttk.Frame(notebook)
+                notebook.add(activity_container,text='限时活动')
+                self.limited_activity_notebook=ttk.Notebook(activity_container)
+                self.limited_activity_notebook.pack(fill=tk.BOTH,expand=True)
+                page=ttk.Frame(self.limited_activity_notebook,padding=8)
+                self.limited_activity_notebook.add(page,text='活动副本')
+                dog_launcher=ttk.Frame(self.limited_activity_notebook,padding=12)
+                self.limited_activity_notebook.add(dog_launcher,text='狗卡管理')
+                ttk.Label(dog_launcher,text='狗卡库存、激活、赠送后额外抽卡及兑换码领取。').pack(anchor='w',pady=8)
+                from dog_card_ui import open_window as open_dog_cards
+                ttk.Button(dog_launcher,text='打开狗卡管理',command=lambda:open_dog_cards(self)).pack(anchor='w',pady=6)
+            else:
+                page = ttk.Frame(notebook, padding=8)
+                notebook.add(page, text=title)
 
 
 
@@ -10467,6 +10477,11 @@ class DailyGUI:
                             self.pet_arena_paid_panel.render(json.loads(line[len('__PET_ARENA_PAID_STATE__'):]))
                         except Exception as exc:
                             self._append_log('[点券斗宠] 显示失败：'+str(exc))
+                    elif line.startswith('__DOG_CARD_STATE__'):
+                        try:
+                            render=getattr(self,'render_dog_cards',None)
+                            if render:render(json.loads(line[len('__DOG_CARD_STATE__'):]))
+                        except Exception:self._append_log('[狗卡管理] 结果显示失败，请重新查询库存。')
                     elif line.startswith('__PET_ARENA_RECOVERY_STATE__'):
                         try:self.pet_arena_paid_panel.recovery.render(json.loads(line[len('__PET_ARENA_RECOVERY_STATE__'):]))
                         except Exception as exc:self._append_log('[斗宠找回] 状态显示失败：'+str(exc))

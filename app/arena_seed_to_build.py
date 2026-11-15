@@ -10,7 +10,15 @@ HERE = Path(__file__).resolve().parent
 LAB = HERE.parent / 'new-chat' / 'pet_lab_v4750'
 if not (LAB/'ui'/'catalog.mjs').is_file():
     LAB = HERE/'附件'/'宠物对战研究室'
+CATALOG = LAB/'ui'/'catalog.mjs'
 TABLES = ('Equipment', 'Prop', 'PetElf', 'PetElfAtt', 'EquInject', 'PetPerks', 'Pet', 'Common', 'PetCharacter')
+
+
+def catalog_file():
+    """研究室目录文件；缺失时给出可操作提示，而不是底层 Errno 路径错误。"""
+    if not CATALOG.is_file():
+        raise ValueError('缺少宠物对战研究室目录文件：%s；请把研究室放到该目录后重试，或改用普通导出'%CATALOG)
+    return CATALOG
 
 def read(path):
     return json.loads(Path(path).read_text(encoding='utf-8-sig'))
@@ -94,13 +102,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('files', nargs='*', type=Path)
     parser.add_argument('--config', type=Path, help='指定快照对应的反编译配置目录；默认按快照cg版本查找')
-    parser.add_argument('--catalog', type=Path, default=LAB / 'ui' / 'catalog.mjs')
+    parser.add_argument('--catalog', type=Path, default=CATALOG)
     args = parser.parse_args()
     if not args.files:
         from tkinter import Tk, filedialog
         window = Tk(); window.withdraw()
         args.files = list(map(Path, filedialog.askopenfilenames(title='选择擂台导出 JSON（可多选）', filetypes=[('JSON', '*.json')])))
         window.destroy()
+    if not args.catalog.is_file():
+        parser.error('缺少宠物对战研究室目录文件：%s；请把研究室放到该目录，或用 --catalog 指定'%args.catalog)
     cat = catalog(args.catalog)
     failed = 0
     for source in args.files:

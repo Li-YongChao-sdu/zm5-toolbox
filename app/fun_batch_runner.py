@@ -3,7 +3,7 @@ import argparse,json,os
 from pathlib import Path
 from datetime import datetime
 ROOT=Path(__file__).resolve().parent
-KINDS={'black','reward','start','card','buy','cave','publish','feed','dispatch'}
+KINDS={'black','reward','start','cycle','card','buy','cave','publish','feed','dispatch'}
 def execute(flow,account,slot,jobs):
     from teacher_trial import enter,checked
     import pet_utilities as pet
@@ -35,6 +35,14 @@ def execute(flow,account,slot,jobs):
                 import fairy_daily
                 result=fairy_daily.run(flow,slot,apply=True,**args)
                 if result.get('status')!='complete':raise RuntimeError('幻兽派遣未完成，停止')
+            elif kind=='cycle':
+                # 只处理已完成的位置：先领取，再按该位置记录的原宠物、材料、时长重新派遣
+                outcome=pet.cycle(flow,info,user,lambda:enter(flow,slot))
+                info,user=outcome['info'],outcome['user'];claimed=outcome['claimed'];redispatched=outcome['redispatched']
+                result={'claimed':claimed,'redispatched':redispatched}
+                if not claimed:
+                    row.update(phase='skipped',reason='三个采集位都没有可领取的奖励',result=result);save();print('[采集并派遣] 三个位置都没有可领取的奖励，跳过',flush=True);continue
+                print('[采集并派遣] 本次领取%d个位置，重新派遣%d个位置'%(len(claimed),len(redispatched)),flush=True)
             elif kind=='feed':
                 import fairy_feed_run as feed
                 import fairy_feed_data as data
@@ -72,7 +80,7 @@ def execute(flow,account,slot,jobs):
                             if not animals:
                                 row.update(phase='skipped',reason='没有空闲宠物');save();print('[宠物采集] 没有空闲宠物，跳过派遣，不占用位置',flush=True);continue
                             chosen=animals[0];args=dict(args);args['entity']=chosen['entityId'];args['gear']=min(int(args.get('gear',0)),int(state['collectGear']))
-                            print('[宠物采集] 自动选择 %s（%s级，%s小时）'%(chosen['name'],chosen['level'],3*(int(args['gear'])+1)),flush=True)
+                            print('[宠物采集] 自动选择 %s（%s级，%s）'%(chosen['name'],chosen['level'],('3小时','6小时','12小时')[int(args['gear'])]),flush=True)
                     if kind=='reward' and not pet.status(info,user)['slots'][args['pos']]['finished']:
                         row['phase']='skipped';save();print('[趣味活动] 采集未完成或已领取，跳过',flush=True);continue
                     if kind=='buy':

@@ -11,9 +11,18 @@ ROUTES={('bag','warehouse'):'scene.recordHandler.bagToWarehouse',
         ('bag','super'):'scene.recordHandler.bagToSuperWarehouse',
         ('super','bag'):'scene.recordHandler.superWarehouseToBag'}
 
-def super_rules():return json.loads((CONFIG/'SuperWarehouse.json').read_text(encoding='utf-8-sig'))
+def _config_table(name):
+    """读取配置表；旧版安装包可能漏带该文件，回退到任一包含同名表的配置目录。"""
+    path=CONFIG/name
+    if path.is_file():return json.loads(path.read_text(encoding='utf-8-sig'))
+    candidates=[p/name for p in ROOT.glob('cg_config_out_cg1_*') if (p/name).is_file()]
+    if not candidates:
+        raise FileNotFoundError('缺少配置 %s，安装包不完整；请重新解压完整版本，或把该文件补到对应配置目录'%path)
+    return json.loads(max(candidates,key=lambda p:p.parent.name).read_text(encoding='utf-8-sig'))
 
-def props():return json.loads((CONFIG/'Prop.json').read_text(encoding='utf-8-sig'))
+def super_rules():return _config_table('SuperWarehouse.json')
+
+def props():return _config_table('Prop.json')
 def entries(info,location):return ((info.get('bag') or {}).get(TABLES[location]) or {})
 def quantity(info,location,item_id):
     return sum(int(v.get('count') or 0) for k,v in entries(info,location).items() if str(v.get('id',k))==str(item_id))

@@ -164,6 +164,28 @@ def perform(flow,info,user,action,refresh,*,pos=0,collect_id=None,entity=None,ge
         report['verified']=ok and report['ticket_unchanged'] and (not d or bool(d.get('reward')))
     return report,after,after_user
 
+def cycle(flow,info,user,refresh,out=print):
+    """领取三个位置已完成的采集，并按原宠物、材料、时长重新派遣。"""
+    state=status(info,user);claimed=[];redispatched=[];skipped=[];photos=[]
+    for pos in range(3):
+        current=state['slots'][pos]
+        if not current['finished']:continue
+        collect_id=current.get('collectId');gear=int(current.get('gear',0) or 0)
+        if not current.get('petEntityId') or not collect_id:
+            out('[采集并派遣] 位置%d记录缺少宠物或材料，跳过'%(pos+1));skipped.append(pos+1);continue
+        report,info,user=perform(flow,info,user,'reward',refresh,pos=pos)
+        if not report.get('verified'):raise RuntimeError('位置%d领取核对未通过，停止且不重发'%(pos+1))
+        if report.get('photos'):photos.append(report['photos'])
+        claimed.append(pos+1);state=status(info,user)
+        animal=next((p for p in state['pets'] if str(p['entityId'])==str(current.get('petEntityId'))),None)
+        if not animal or animal['busy']:
+            out('[采集并派遣] 位置%d已领取；原宠物不存在或仍在采集，未重新派遣'%(pos+1));skipped.append(pos+1);continue
+        report,info,user=perform(flow,info,user,'start',refresh,pos=pos,collect_id=int(collect_id),entity=animal['entityId'],gear=gear)
+        if not report.get('verified'):raise RuntimeError('位置%d重新派遣核对未通过，停止且不重发'%(pos+1))
+        redispatched.append(pos+1)
+        out('[采集并派遣] 位置%d：已领取并按原记录派遣 %s / %s / %s'%(pos+1,animal['name'],current.get('name','已记录材料'),('3小时','6小时','12小时')[gear]))
+    return {'claimed':claimed,'redispatched':redispatched,'skipped':skipped,'last_photo':photos[-1] if photos else None,'info':info,'user':user}
+
 def draw_free_cards(flow,info,user,count,refresh):
     if type(count) is not int or count<1:raise ValueError('抽取次数必须为正整数')
     available=free_quota(info)['remaining']
@@ -178,14 +200,21 @@ def draw_free_cards(flow,info,user,count,refresh):
     return reports,info,user
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--action',choices=['status','start','reward','card','buy'],default='status');p.add_argument('--pos',type=int,default=0);p.add_argument('--collect-id',type=int);p.add_argument('--entity');p.add_argument('--gear',type=int,default=0);p.add_argument('--shop',type=int);p.add_argument('--count',type=int,default=1);a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--action',choices=['status','start','reward','cycle','card','buy'],default='status');p.add_argument('--pos',type=int,default=0);p.add_argument('--collect-id',type=int);p.add_argument('--entity');p.add_argument('--gear',type=int,default=0);p.add_argument('--shop',type=int);p.add_argument('--count',type=int,default=1);a=p.parse_args()
     from teacher_trial import connect,enter
     account=json.loads((ROOT/'account.local.json').read_text(encoding='utf-8-sig'));slot=int(account.get('record_index',0));f=None
     try:
         f,info=connect(account,slot);user=checked(f.request('connector.roleHandler.getUserInfo',{}))['user']
+        last_photo=None
         if a.action!='status':
             if a.action=='card':
                 reports,info,user=draw_free_cards(f,info,user,a.count,lambda:enter(f,slot))
+            elif a.action=='cycle':
+                outcome=cycle(f,info,user,lambda:enter(f,slot))
+                info,user=outcome['info'],outcome['user'];last_photo=outcome['last_photo']
+                report={'action':'cycle','claimed':outcome['claimed'],'redispatched':outcome['redispatched'],'verified':True,'ticket_unchanged':True}
+                if not outcome['claimed']:print('[采集并派遣] 三个位置都没有可领取的奖励',flush=True)
+                reports=[report]
             else:
                 report,info,user=perform(f,info,user,a.action,lambda:enter(f,slot),pos=a.pos,collect_id=a.collect_id,entity=a.entity,gear=a.gear,shop=a.shop,count=a.count,password=os.environ.pop('ZM5_PET_UTILITY_PASSWORD',''))
                 reports=[report]
@@ -200,6 +229,7 @@ def main():
             if not report['ticket_unchanged']:print('[异常] 点券发生变化，停止；未重试。',flush=True)
         data=status(info,user);data.update(account=str(account.get('username','')),slot=slot)
         if a.action=='reward':data['last_photo_result']=report.get('photos')
+        elif last_photo:data['last_photo_result']=last_photo
         print('__PET_UTILITY_STATE__'+json.dumps(data,ensure_ascii=False),flush=True)
     finally:
         if f:f.disconnect()

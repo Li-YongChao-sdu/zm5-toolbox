@@ -2279,7 +2279,10 @@ class DailyGUI:
 
 
 
-        self.var_arena_target_rounds = tk.IntVar(value=5)
+        from arena_prefs import daily_rounds as _arena_daily_rounds
+
+
+        self.var_arena_target_rounds = tk.IntVar(value=_arena_daily_rounds())
 
 
 
@@ -2291,7 +2294,7 @@ class DailyGUI:
 
 
 
-        self.var_pet_arena_target_rounds = tk.IntVar(value=5)
+        self.var_pet_arena_target_rounds = tk.IntVar(value=_arena_daily_rounds())
 
 
 
@@ -2348,6 +2351,15 @@ class DailyGUI:
 
 
         self.var_pet_arena_target_rid = tk.StringVar(value='')
+
+
+
+        from arena_prefs import load as load_arena_prefs, restore as restore_arena_prefs
+        self.arena_prefs_path = os.path.join(HERE, 'arena_prefs.local.json')
+        _arena_saved = load_arena_prefs(self.arena_prefs_path)
+        restore_arena_prefs(self, _arena_saved)
+        if _arena_saved.get('hidden_unlock'):
+            self.spend_permissions.variables['dungeons'][2].set(True)
 
 
 
@@ -2436,7 +2448,18 @@ class DailyGUI:
 
 
 
-        arena_advanced_note = ttk.Label(arena_frame, text="随机模式从本榜前120名按战力取前N名，身份无法核对者跳过且不补位。排行榜、指定对手及借用列表只打免费次数；5局/10局为上限，以当天剩余免费次数为准。每局等待和局间等待均可自定义；竞技场默认22秒/22秒，斗宠默认2秒/8秒。借用列表须先查询并确认。目标查询或身份核对失败时停止。",
+        from arena_prefs import save as save_arena_prefs, variables as arena_prefs_variables
+        def persist_arena_prefs(*_):
+            try:
+                save_arena_prefs(self.arena_prefs_path, self)
+            except OSError:
+                pass
+        for _pref_var in [*arena_prefs_variables(self), *self.spend_permissions.variables['dungeons']]:
+            _pref_var.trace_add('write', persist_arena_prefs)
+
+
+
+        arena_advanced_note = ttk.Label(arena_frame, text="随机模式从本榜前120名按战力取前N名，身份无法核对者跳过且不补位。排行榜、指定对手及借用列表只打免费次数；5局/10局为上限，以当天剩余免费次数为准。每局等待和局间等待均可自定义；竞技场默认22秒/22秒，斗宠默认2秒/8秒。挑战方式、目标输入、次数与等待会自动记忆；查询确认结果不保存，指定对手与借用列表每次仍需重新查询并确认。目标查询或身份核对失败时停止。",
 
 
 
@@ -2595,7 +2618,7 @@ class DailyGUI:
 
 
 
-        ttk.Label(pvp_frame, text="开放时间：每天 12:00–14:00、19:00–21:00；默认3场，可填任意正整数。",
+        ttk.Label(pvp_frame, text="开放时间：每天 12:00–14:00、19:00–21:00；默认4场，可填任意正整数。",
 
 
 
@@ -2603,7 +2626,7 @@ class DailyGUI:
 
 
 
-        ttk.Label(pvp_frame, text="真人自然结束流程调试中；机器人立即胜利结算。",
+        ttk.Label(pvp_frame, text="真人场判定：默认按原仓库等对手退出报失败；开局投降为进场1–3秒直接报失败（测试用）；混合为等对手退出时按帧血量判胜负。机器人场始终胜利结算。",
 
 
 
@@ -2623,7 +2646,7 @@ class DailyGUI:
 
 
 
-        self.var_pvp_matches = tk.IntVar(value=3)
+        self.var_pvp_matches = tk.IntVar(value=4)
 
 
 
@@ -2640,7 +2663,22 @@ class DailyGUI:
 
 
         self.btn_pvp.pack(side=tk.LEFT, padx=12)
-        ttk.Label(pvp_row,text='开放时间：12:00–14:00；19:00–21:00（北京时间）').pack(side=tk.LEFT,padx=4)
+
+        pvp_mode_row = ttk.Frame(pvp_frame)
+        pvp_mode_row.pack(anchor=tk.W, padx=8, pady=(0, 7), before=pvp_row)
+        ttk.Label(pvp_mode_row, text="判定模式：").pack(side=tk.LEFT)
+        self.var_pvp_mode = tk.StringVar(value="原仓库：等对手退出（默认）")
+        ttk.Combobox(pvp_mode_row, textvariable=self.var_pvp_mode, state="readonly",
+                     width=26,
+                     values=("原仓库：等对手退出（默认）", "开局投降：进场1–3秒报失败", "混合：等对手退出+帧血量")
+                     ).pack(side=tk.LEFT, padx=4)
+        self.var_pvp_robot_fail = tk.BooleanVar(value=False)
+        ttk.Checkbutton(pvp_mode_row, text="机器人局也判负（连败",
+                        variable=self.var_pvp_robot_fail).pack(side=tk.LEFT, padx=(8, 0))
+        self.var_pvp_robot_streak = tk.IntVar(value=2)
+        ttk.Spinbox(pvp_mode_row, from_=1, to=10, width=3, state="readonly",
+                    textvariable=self.var_pvp_robot_streak).pack(side=tk.LEFT, padx=2)
+        ttk.Label(pvp_mode_row, text="场后）").pack(side=tk.LEFT)
 
 
 
@@ -2833,11 +2871,11 @@ class DailyGUI:
 
 
 
-        ttk.Checkbutton(elite_page, text="每次通关领取一次免费翻牌奖励",
-
-
-
-                        variable=self.var_elite_card).pack(anchor=tk.W, padx=8, pady=(3, 5))
+        self.elite_card_check = ttk.Checkbutton(elite_page, text="每次通关领取一次免费翻牌奖励",
+                        variable=self.var_elite_card)
+        self.elite_card_check.pack(anchor=tk.W, padx=8, pady=(3, 5))
+        self.var_elite_mode.trace_add('write', lambda *_: self._sync_elite_card_state())
+        self._sync_elite_card_state()
 
 
 
@@ -4349,7 +4387,7 @@ class DailyGUI:
 
         ttk.Label(mh_team_row, text="连续次数:").pack(side=tk.LEFT, padx=(10, 2))
         self.var_mh_times = tk.StringVar(value=str(max(1, int(_mh_saved_times or 1))))
-        self.spin_mh_times = ttk.Spinbox(mh_team_row, from_=1, to=5, width=3,
+        self.spin_mh_times = ttk.Spinbox(mh_team_row, from_=1, to=10, width=3,
                                          textvariable=self.var_mh_times, state="readonly")
         self.spin_mh_times.pack(side=tk.LEFT)
 
@@ -6007,7 +6045,7 @@ class DailyGUI:
 
 
 
-        self.spend_permissions.reset()
+        self.spend_permissions.reset(keep_hidden=True)
 
 
 
@@ -6806,6 +6844,12 @@ class DailyGUI:
         self.var_growth_summary.set("状态：读取失败（%s）" % message)
         self._append_log("[!] 成长挑战状态读取失败: %s" % message)
 
+    def _sync_elite_card_state(self):
+        if self.var_elite_mode.get() == "扫荡":
+            self.elite_card_check.state(["disabled"])
+        else:
+            self.elite_card_check.state(["!disabled"])
+
     def _sync_elite_tasks(self):
 
 
@@ -6891,7 +6935,7 @@ class DailyGUI:
 
 
 
-        self.spend_permissions.reset()
+        self.spend_permissions.reset(keep_hidden=True)
 
 
 
@@ -8745,7 +8789,7 @@ class DailyGUI:
             return
         claims = ['1' if var.get() else '0' for var in self.manhuang_claim_vars[:size]]
         try:
-            times = max(1, min(5, int(self.var_mh_times.get())))
+            times = max(1, min(10, int(self.var_mh_times.get())))
         except (ValueError, tk.TclError):
             times = 1
         try:
@@ -9740,7 +9784,15 @@ class DailyGUI:
 
 
 
-        self._launch([os.path.join(HERE, "pvp_idle.py"), "--matches", str(matches)])
+        mode = self.var_pvp_mode.get()
+        extra = []
+        if mode.startswith("开局"):
+            extra.append("--instant-fail")
+        elif mode.startswith("混合"):
+            extra.append("--model-fail")
+        if self.var_pvp_robot_fail.get():
+            extra.extend(["--robot-fail-streak", str(self.var_pvp_robot_streak.get())])
+        self._launch([os.path.join(HERE, "pvp_idle.py"), "--matches", str(matches)] + extra)
 
 
 

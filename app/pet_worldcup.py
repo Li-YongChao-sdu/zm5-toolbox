@@ -177,8 +177,8 @@ def export_inputs(raw, match, folder, count=3):
 
 
 def export_standard_inputs(files):
-    from arena_seed_to_build import convert, catalog, LAB, HERE, TABLES
-    cat = catalog(LAB / 'ui' / 'catalog.mjs')
+    from arena_seed_to_build import convert, catalog, catalog_file, HERE, TABLES
+    cat = catalog(catalog_file())
     outputs = []
     # 全部转换完成后才写入，避免部分成功被误认为完整导出。
     converted = []
@@ -236,6 +236,10 @@ class WorldCupPage:
         self.detect.pack(side=tk.LEFT, padx=4)
         self.standard = ttk.Button(bar, text='导出标准版JSON（可改宠物/真灵）', command=lambda: self.export(standard=True), state='disabled')
         self.standard.pack(side=tk.LEFT, padx=4)
+        from arena_seed_to_build import CATALOG as LAB_CATALOG
+        if not LAB_CATALOG.is_file():
+            ttk.Label(page, text='标准版导出需要 %s；当前未找到，请改用“预测检测：导出JSON”。'%LAB_CATALOG,
+                      foreground='#a02020', wraplength=850).pack(fill=tk.X, pady=(4, 0))
         visibility_bar = ttk.Frame(page)
         visibility_bar.pack(fill=tk.X, pady=(8, 0))
         self.visibility_flags = [tk.BooleanVar(value=False) for _ in range(3)]
@@ -417,6 +421,10 @@ class WorldCupPage:
             match = self.rows[int(selected[0])]
             if not export_allowed(match,self.is_snapshot_mode()):
                 raise ValueError('服务器名单尚未公开本场双方宠物，当前模式无法导出；公开后请刷新名单')
+            if standard:
+                from arena_seed_to_build import CATALOG as LAB_CATALOG
+                if not LAB_CATALOG.is_file():
+                    raise ValueError('缺少宠物对战研究室目录文件：%s；请把研究室放到该目录后重试，或改用“预测检测：导出JSON”'%LAB_CATALOG)
         except Exception as exc:
             messagebox.showerror('擂台竞猜', str(exc))
             return

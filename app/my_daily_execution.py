@@ -5,8 +5,9 @@ from my_daily_policy import FreeDailyFlow, is_readonly_route
 
 FATAL_EXIT = 20
 PREPARE = ('RUN_FLUSHOU', 'RUN_GROWTH_BUFF', 'RUN_WEEKEND_BUFF')
-FINISH = ('RUN_CELEBRATION', 'RUN_CELEBRATION_ONLINE', 'RUN_WEEKEND_ONLINE',
-          'RUN_PERMANENT_FASHION', 'RUN_WHITE_DRAGON', 'RUN_LIVENESS')
+FINISH = ('RUN_CELEBRATION', 'RUN_WEEKEND_ONLINE', 'RUN_WHITE_DRAGON',
+          'RUN_CELEBRATION_ONLINE', 'RUN_PERMANENT_FASHION', 'RUN_FASHION_ONLINE',
+          'RUN_LIVENESS')  # 在线时长类置底（15/20分钟），活跃奖励仍最后领取
 
 def is_expected_skip(message):
     return any(text in str(message) for text in (

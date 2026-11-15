@@ -950,7 +950,9 @@ def _clear_main_stage(flow, mid, name):
         return False
     time.sleep(0.5)
     finished = flow.request("scene.copyHandler.finishSingleCopy",
-                            {"win": 1, "rnd": int(created["rnd"]) ^ client_rnd, "star": 3})
+                            {"win": 1, "rnd": int(created["rnd"]) ^ client_rnd, "star": 3,
+                             "starInfo": 7, "sceneBuffScore": 0, "maxCombo": 0,
+                             "killMonsterCnt": 0, "useMagicWeaponCnt": 0, "useBossCardCnt": 0})
     if not isinstance(finished, dict) or finished.get("error") or finished.get("code") != 200:
         err = finished.get("error") if isinstance(finished, dict) else str(finished)
         print("[成长通关] %s 结算失败: %s" % (name, err))
@@ -1166,7 +1168,7 @@ def claim_growth_manhuang_tasks(flow, info, qids=_USE_IDS):
                 print("[成长蛮荒] %s 创建失败: %s" % (name, r1))
                 break
             r2 = flow.request("scene.copyHandler.finishSingleCopy",
-                              {"win": 1, "rnd": int(r1["rnd"]) ^ my_rnd, "star": 3})
+                              {"win": 1, "rnd": int(r1["rnd"]) ^ my_rnd, "star": 3, "starInfo": 7})
             if not isinstance(r2, dict) or r2.get("error") or r2.get("code") != 200:
                 print("[成长蛮荒] %s 结算失败: %s" % (name, r2))
                 break
@@ -1914,11 +1916,11 @@ def clear_dungeon(flow, info, mid, label, open_chest=False, quota=None, claim_ca
             if not chest_drop:
                 cr0 = r1["rnd"] ^ my_rnd
                 flow.request("scene.copyHandler.finishSingleCopy",
-                             {"win": 1, "rnd": cr0, "star": 3})
+                             {"win": 1, "rnd": cr0, "star": 3, "starInfo": 7})
                 print("[%s] 共享宝箱已空, 停止" % label); break
             _agg_drops(bag, chest_drop)
 
-        finish_args = {"win": 1, "rnd": r1["rnd"] ^ my_rnd, "star": 3}
+        finish_args = {"win": 1, "rnd": r1["rnd"] ^ my_rnd, "star": 3, "starInfo": 7}
         if claim_card:
             finish_args.update({"starInfo": 7, "sceneBuffScore": 0,
                                 "maxCombo": 0, "killMonsterCnt": 0,
@@ -2225,7 +2227,7 @@ def run_dungeons(flow, info):
                 break
             time.sleep(0.5)
             r2 = flow.request("scene.copyHandler.finishSingleCopy",
-                              {"win": 1, "rnd": r1["rnd"] ^ my_rnd, "star": 3})
+                              {"win": 1, "rnd": r1["rnd"] ^ my_rnd, "star": 3, "starInfo": 7})
             _agg_drops(cbag, r1.get("drops"))
             _agg_drops(cbag, r2.get("drops"))
             done += 1
@@ -3535,6 +3537,7 @@ def main():
         _step('副本总调度', run_dungeons, flow, info)
     # 精英翻牌优先计入今日强化石，再读取服务器状态补齐；不叠加本地次数。
     if RUN_ELITE_STONE:
+        stone_halted = getattr(flow, 'halted', False)
         try:
             from elite_stone_tool import run as run_elite_stone
             from teacher_trial import enter as refresh_stone_info
@@ -3546,6 +3549,15 @@ def main():
             info.clear()
             info.update(stone_info)
         except Exception as exc:
+            # 免费副本的网络超时只影响本项计数核对，不阻断后续互不相关的日常；
+            # 付费拦截、金额核对失败等非网络异常仍保持停止。
+            cause, depth = exc, 0
+            while (cause is not None and depth < 6
+                   and not isinstance(cause, (TimeoutError, ConnectionError, OSError))):
+                cause = cause.__cause__ or cause.__context__
+                depth += 1
+            if cause is not None and not stone_halted and getattr(flow, 'halted', False):
+                flow.halted = False
             print('[万能强化石日常] 本项停止，继续后续任务：%s' % exc)
     # 万象古树/丹熏山(mid=300113, 独立副本, 每天免费2次)
     if RUN_WANXIANG:

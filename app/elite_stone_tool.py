@@ -48,10 +48,11 @@ def run(flow, slot, *, wait_seconds=25, max_rounds=160, report_dir=None, log=pri
         save()
         try:
             reply = flow.request(route, params)
-        except Exception:
+        except Exception as exc:
             row['phase'] = 'uncertain'
+            row['error'] = '%s: %s' % (type(exc).__name__, exc)
             save()
-            raise RuntimeError('请求结果不明，停止且不重发，请先刷新状态') from None
+            raise RuntimeError('请求结果不明，停止且不重发，请先刷新状态（%s）' % type(exc).__name__) from exc
         row.update(phase='returned', reply=reply)
         save()
         return checked(reply, route)
@@ -147,7 +148,7 @@ def run(flow, slot, *, wait_seconds=25, max_rounds=160, report_dir=None, log=pri
     except Exception as exc:
         report.update(status='stopped', error=str(exc) if isinstance(exc, (RuntimeError, ValueError)) else type(exc).__name__)
         save()
-        raise RuntimeError('%s；记录：%s' % (report['error'], path)) from None
+        raise RuntimeError('%s；记录：%s' % (report['error'], path)) from exc
 
 
 def main():

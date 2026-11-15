@@ -66,6 +66,10 @@ def run_batch(options):
                 return query_dogs(account,slot,label)
             if options.action == "dog":
                 return run_dog(account, slot, label)
+            if options.action == "star_maze":
+                return run_star_maze_account(account, slot, label)
+            if options.action == "redevote_buy":
+                return run_redevote_buy(account, slot, label)
             result = run(options.level, options.percent_per_minute,
                          options.max_seconds, options.expected_dps,
                          options.target_percent, options.idle_only,
@@ -89,7 +93,7 @@ def run_batch(options):
     with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
         futures = [pool.submit(worker, account, slot) for account, slot in jobs]
         results = [future.result() for future in as_completed(futures)]
-    print("[多账号%s] %s %s / %s" % ({'boss':'联盟Boss','devote':'联盟贡献','garden':'联盟药园','dog':'免费抽狗卡','dog_status':'狗卡库存查询','dog_activate':'激活所选狗卡'}[options.action], '已完成核对（含次数用完跳过）' if options.action == 'dog' else '成功', sum(results), len(results)), flush=True)
+    print("[多账号%s] %s %s / %s" % ({'boss':'联盟Boss','devote':'联盟贡献','garden':'联盟药园','dog':'免费抽狗卡','dog_status':'狗卡库存查询','dog_activate':'激活所选狗卡','star_maze':'星斗幻境','redevote_buy':'购买补贡券'}[options.action], '已完成核对（含次数用完跳过）' if options.action == 'dog' else '成功', sum(results), len(results)), flush=True)
     return all(results)
 
 
@@ -290,12 +294,45 @@ def run_devote(account, slot, label):
         flow.disconnect()
 
 
+def run_star_maze_account(account, slot, label):
+    """星斗幻境：只走免费周箱与普通重置，不使用点券。"""
+    from teacher_trial import connect
+    from star_maze import run_star_maze
+    flow, info = connect(account, slot)
+    try:
+        chapters, bag = run_star_maze(flow, info, slot)
+        print('[%s] 星斗幻境结束：本次已通大层%d，收获%s' %
+              (label, chapters, bag or '无'), flush=True)
+        return True
+    except Exception as exc:
+        print('[%s] 星斗幻境未完成：%s' % (label, exc), flush=True)
+        return False
+    finally:
+        flow.disconnect()
+
+
+def run_redevote_buy(account, slot, label):
+    """一键购买补贡券：只用星辰石在星斗商店按周限兑换，绝不使用点券。"""
+    from teacher_trial import connect
+    import union_redevote as redevote
+    flow, info = connect(account, slot)
+    try:
+        acct = dict(account, record_index=slot)
+        redevote.stock_coupons(flow, info, acct, lambda s: print('[%s] %s' % (label, s), flush=True))
+        return True
+    except Exception as exc:
+        print('[%s] 购买补贡券未完成：%s' % (label, exc), flush=True)
+        return False
+    finally:
+        flow.disconnect()
+
+
 if __name__ == "__main__":
     import argparse
     import sys
     parser = argparse.ArgumentParser(description="多账号联盟贡献 / 联盟Boss")
     parser.add_argument("--batch-file", required=True)
-    parser.add_argument("--action", choices=["boss", "devote", "garden", "dog", "dog_status", "dog_activate", "dog_chain", "dog_redeem", "dog_gift", "dog_gift_draw", "dog_codes", "dog_single_activate"], required=True)
+    parser.add_argument("--action", choices=["boss", "devote", "garden", "dog", "dog_status", "dog_activate", "dog_chain", "dog_redeem", "dog_gift", "dog_gift_draw", "dog_codes", "dog_single_activate", "star_maze", "redevote_buy"], required=True)
     parser.add_argument('--chain-card',type=int,choices=range(1,12),default=1)
     parser.add_argument('--chain-seed',choices=('code','inventory'),default='code')
     parser.add_argument("--dog-activate",type=int,choices=range(1,12),action="append")

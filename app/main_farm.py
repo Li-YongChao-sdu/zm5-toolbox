@@ -140,9 +140,13 @@ def _pickup_all(flow, created, client_rnd, loot="all", pickup_supplies=True):
 
 
 def _finish(flow, created, client_rnd, win):
-    return _response(flow, "scene.copyHandler.finishSingleCopy", {
-        "win": int(win), "rnd": int(created["rnd"]) ^ client_rnd,
-        "star": 3 if win else 0})
+    payload = {"win": int(win), "rnd": int(created["rnd"]) ^ client_rnd,
+               "star": 3 if win else 0}
+    if win:
+        # 不传 starInfo 会被服务器按 0 星评价覆盖，主线关卡界面显示 0 星
+        payload.update({"starInfo": 7, "sceneBuffScore": 0, "maxCombo": 0,
+                        "killMonsterCnt": 0, "useMagicWeaponCnt": 0, "useBossCardCnt": 0})
+    return _response(flow, "scene.copyHandler.finishSingleCopy", payload)
 
 
 def _target(mid, loot):

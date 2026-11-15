@@ -344,7 +344,9 @@ def main():
                 time.sleep(0.45)
 
             fin = flow.request("scene.copyHandler.finishSingleCopy",
-                               {"win": 1, "rnd": (r1.get("rnd") or 0) ^ my_rnd, "star": 3})
+                               {"win": 1, "rnd": (r1.get("rnd") or 0) ^ my_rnd, "star": 3,
+                                "starInfo": 7, "sceneBuffScore": 0, "maxCombo": 0,
+                                "killMonsterCnt": 0, "useMagicWeaponCnt": 0, "useBossCardCnt": 0})
             log("  本关抓到 %d 只，结算 code=%s" % (here, (fin or {}).get("code")))
             time.sleep(1.2)
 

@@ -65,7 +65,8 @@ class ArenaModePanel:
         ttk.Spinbox(self.n_frame, from_=10, to=100, textvariable=top_n, width=5).pack(side='left', padx=6)
         self.rounds_frame = ttk.Frame(parent)
         self.rounds_frame.grid(row=2, column=0, columnspan=2, sticky='w', padx=6, pady=4)
-        ttk.Label(self.rounds_frame, text='连续挑战上限：').pack(side='left')
+        from arena_prefs import daily_rounds
+        ttk.Label(self.rounds_frame, text='连续挑战上限（今日免费%d次）：' % daily_rounds()).pack(side='left')
         ttk.Combobox(self.rounds_frame, textvariable=rounds, values=(5, 10),
                      state='readonly', width=5).pack(side='left', padx=6)
         ttk.Label(self.rounds_frame, text='局（只使用当天剩余免费次数）').pack(side='left')

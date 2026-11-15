@@ -220,7 +220,12 @@ def run(flow, info, slot, scope='all', allow_spirit_backup=False, password=''):
 
             # Pomelo客户端自带后台心跳；等待期间不轮询任务、不重入存档。
             while time.monotonic() - start < wait:
-                time.sleep(max(0, min(30, wait - (time.monotonic() - start))))
+                left = wait - (time.monotonic() - start)
+                time.sleep(max(0, min(30, left)))
+                elapsed = min(wait, time.monotonic() - start)
+                print('[庆典任务] 在线15分钟等待中：已等%d/%d秒，剩余%d秒' %
+                      (elapsed, wait, max(0, wait - elapsed)), flush=True)
+            print('[庆典任务] 在线15分钟等待结束，开始核对领奖', flush=True)
             online = tasks().get('online') or {}
             if not online.get('id'):
                 raise RuntimeError('在线等待结束后任务已变化，未提交领奖')

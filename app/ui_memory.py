@@ -7,7 +7,13 @@ from tkinter import ttk,messagebox,filedialog
 
 VERSION=1
 EXCLUDED={'var_login_user','var_login_pwd','var_login_cookie','var_remember','var_paid_confirm',
-          'var_daily_task_quota','var_daily_task_selection','var_wish_day','var_elite_sell_password'}
+          'var_daily_task_quota','var_daily_task_selection','var_wish_day','var_elite_sell_password',
+          # 竞技场/斗宠策略由 arena_prefs 独立记忆（含隐藏解锁），不再走通用配置记忆。
+          'var_arena_mode','var_arena_target_uid','var_arena_target_r_number','var_arena_target_rounds',
+          'var_arena_top_n','var_arena_target_input','var_arena_target_rid','var_arena_battle_wait','var_arena_round_wait',
+          'var_pet_arena_mode','var_pet_arena_target_uid','var_pet_arena_target_r_number','var_pet_arena_target_rounds',
+          'var_pet_arena_top_n','var_pet_arena_target_input','var_pet_arena_target_rid','var_pet_arena_battle_wait',
+          'var_pet_arena_round_wait'}
 
 def read_settings(path):
     path=Path(path)

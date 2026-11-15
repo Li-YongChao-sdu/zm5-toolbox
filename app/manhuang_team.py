@@ -13,6 +13,7 @@
 """
 import argparse
 import json
+import random
 import sys
 import threading
 import time
@@ -26,6 +27,7 @@ from halo_solo import _bag_counts, _request
 from pypomelo.client import PomeloClient
 
 CREATE_ROOM = "room.waitingRoomHandler.createWaitingRoom"
+SET_PASSWORD = "room.waitingRoomHandler.setPasswordForWaitingRoom"
 JOIN_ROOM = "room.waitingRoomHandler.joinWaitingRoom"
 CHANGE_STATUS = "room.waitingRoomHandler.changePlayerStatus"
 PREPARE = "room.waitingRoomHandler.prepareCreateOnlineCopy"
@@ -43,6 +45,11 @@ def _brief(value, limit=300):
 def _gains(before, after):
     return {k: after[k] - before.get(k, 0)
             for k in after if after[k] > before.get(k, 0)}
+
+
+def _room_uids(room):
+    return [str(row.get("uid")) for row in (room.get("players") or [])
+            if isinstance(row, dict)]
 
 
 def _unlocked_mids(info):
@@ -119,23 +126,41 @@ def _play_round(sessions, mid, claim_flags, log):
         room_id = room.get("roomId")
         if made.get("code") != 200 or made.get("error") or not room_id:
             log("[蛮荒组队] 建房失败: %s" % _brief(made))
-            return "fail"
+            return "retry"
         log("[蛮荒组队] 建房 roomId=%s 座位=%s" % (room_id, room.get("seating")))
+        password = "%04d" % random.randint(0, 9999)
+        locked = host["flow"].request(SET_PASSWORD, {"roomId": room_id, "pwd": password})
+        if locked.get("code") != 200 or locked.get("error"):
+            log("[蛮荒组队] 设置房间密码失败: %s" % _brief(locked))
+            return "retry"
+        joined = None
         for session in sessions[1:]:
-            joined = session["flow"].request(JOIN_ROOM, {"roomId": room_id})
+            joined = session["flow"].request(JOIN_ROOM, {"roomId": room_id, "pwd": password})
             if joined.get("code") != 200 or joined.get("error"):
                 log("[蛮荒组队] %s 加入失败: %s" % (session["tag"], _brief(joined)))
-                return "fail"
+                return "retry"
             log("[蛮荒组队] %s 已加入，座位=%s"
                 % (session["tag"], (joined.get("room") or {}).get("seating")))
 
+        expected = {str(s["info"].get("uid")) for s in sessions}
+        room_now = joined.get("room") or {}
+        uids = _room_uids(room_now)
+        if set(uids) != expected or len(uids) != len(expected):
+            log("[蛮荒组队] 房间成员异常（%s），可能有其他人加入，重建房间" % uids)
+            return "retry"
+
         for session in sessions:
             session["flow"].request(CHANGE_STATUS, {"roomId": room_id, "status": 1})
-        time.sleep(2)
-        prepared = host["flow"].request(PREPARE, {"roomId": room_id})
+        time.sleep(0.5)
+        prepared = {}
+        for _ in range(3):
+            prepared = host["flow"].request(PREPARE, {"roomId": room_id})
+            if prepared.get("code") == 200 and not prepared.get("error"):
+                break
+            time.sleep(0.5)
         if prepared.get("code") != 200 or prepared.get("error"):
             log("[蛮荒组队] 准备开局失败: %s" % _brief(prepared))
-            return "fail"
+            return "retry"
         for session in sessions:
             if not session["prepared_evt"].wait(15):
                 log("[蛮荒组队] %s 未收到准备通知，继续加载" % session["tag"])
@@ -147,7 +172,7 @@ def _play_round(sessions, mid, claim_flags, log):
         for session in sessions:
             if not session["online_evt"].wait(30):
                 log("[蛮荒组队] %s 未收到战斗实例" % session["tag"])
-                return "fail"
+                return "retry"
 
         first = sessions[0]["online"]
         for session in sessions[1:]:
@@ -155,12 +180,12 @@ def _play_round(sessions, mid, claim_flags, log):
                 if session["online"].get(key) != first.get(key):
                     log("[蛮荒组队] 实例 %s 不一致: %s vs %s"
                         % (key, session["online"].get(key), first.get(key)))
-                    return "fail"
+                    return "retry"
         rows = [x for x in (first.get("playerInfos") or []) if isinstance(x, dict)]
         order = [str(row.get("uid") or row.get("playerId")) for row in rows]
-        if set(order) != {str(s["info"].get("uid")) for s in sessions} or len(order) != len(sessions):
-            log("[蛮荒组队] 实例玩家与登录账号不一致: %s" % order)
-            return "fail"
+        if set(order) != expected or len(order) != len(expected):
+            log("[蛮荒组队] 实例玩家与登录账号不一致: %s，重建房间" % order)
+            return "retry"
         log("[蛮荒组队] 实例 instId=%s ip=%s port=%s 玩家=%s"
             % (first.get("instId"), first.get("ip"), first.get("port"), order))
 
@@ -198,8 +223,9 @@ def _play_round(sessions, mid, claim_flags, log):
             finished = _request(session["team"], "copy.copyHandler.battleExit", {
                 "battleResult": 4, "playerInfo": [], "data": [],
                 "frameNum": 0, "bossHp": 0})
-            log("[蛮荒组队] %s 结算: code=%s error=%s"
-                % (session["tag"], finished.get("code"), finished.get("error")))
+            log("[蛮荒组队] %s 结算: code=%s error=%s star=%s starInfo=%s"
+                % (session["tag"], finished.get("code"), finished.get("error"),
+                   finished.get("star"), finished.get("starInfo")))
             if finished.get("code") != 200 or finished.get("error"):
                 log("[蛮荒组队] 结算失败: %s" % _brief(finished))
                 return "fail"
@@ -311,12 +337,22 @@ def run(accounts, mid=0, log=print, claim_flags=None, times=1):
         for round_index in range(1, times + 1):
             if times > 1:
                 log("[蛮荒组队] === 第 %d/%d 局 ===" % (round_index, times))
-            status = _play_round(sessions, mid, claim_flags, log)
+            status = "retry"
+            for attempt in range(1, 4):
+                status = _play_round(sessions, mid, claim_flags, log)
+                if status != "retry":
+                    break
+                if attempt < 3:
+                    log("[蛮荒组队] 房间被抢或开局未准备完成，2秒后重建房间重试（%d/3）" % attempt)
+                    time.sleep(2)
             if status == "short":
                 if round_index == 1:
                     return False
                 log("[蛮荒组队] 服务器剩余次数不足，连续执行到此结束")
                 break
+            if status == "retry":
+                log("[蛮荒组队] 连续 3 次未能正常开局，停止")
+                return False
             if status != "ok":
                 return False
             if round_index < times:
@@ -367,8 +403,10 @@ def _apply_claim(accounts, text):
 
 def main():
     parser = argparse.ArgumentParser(description="多人蛮荒（2~3 个账号正常开局，各自领宝箱）")
-    parser.add_argument("--accounts", required=True,
+    parser.add_argument("--accounts", default="",
                         help="2~3 个账号名（accounts 目录下文件名），逗号分隔")
+    parser.add_argument("--paths", default="",
+                        help="2~3 个账号文件的绝对路径，逗号分隔；与 --accounts 二选一，供联盟多账号专用目录使用")
     parser.add_argument("--slots", default="",
                         help="逐账号存档槽位，如 6,0,1（顺序对应 --accounts；省略则用账号文件 record_index）")
     parser.add_argument("--claim", default="",
@@ -380,12 +418,22 @@ def main():
     args = parser.parse_args()
     times = max(1, int(args.times or 1))
     names = [x.strip() for x in args.accounts.split(",") if x.strip()]
+    paths = [x.strip() for x in args.paths.split(",") if x.strip()]
+    if bool(names) == bool(paths):
+        raise SystemExit("--accounts 与 --paths 必须且只能提供一个")
     accounts = []
-    for name in names:
-        path = HERE / "accounts" / (name + ".json")
-        if not path.exists():
-            raise SystemExit("找不到账号文件: %s" % path)
-        accounts.append(json.loads(path.read_text(encoding="utf-8-sig")))
+    if paths:
+        for value in paths:
+            path = Path(value)
+            if not path.exists():
+                raise SystemExit("找不到账号文件: %s" % path)
+            accounts.append(json.loads(path.read_text(encoding="utf-8-sig")))
+    else:
+        for name in names:
+            path = HERE / "accounts" / (name + ".json")
+            if not path.exists():
+                raise SystemExit("找不到账号文件: %s" % path)
+            accounts.append(json.loads(path.read_text(encoding="utf-8-sig")))
     _apply_slots(accounts, args.slots)
     flags = _apply_claim(accounts, args.claim)
     for account, flag in zip(accounts, flags if flags is not None else [True] * len(accounts)):

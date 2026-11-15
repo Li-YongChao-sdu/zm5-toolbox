@@ -12,6 +12,9 @@ MAZE_REWARD_MAX=3
 
 
 def _config_dir():
+    from game_version import latest_config_folder
+    latest=latest_config_folder()
+    if latest:return latest
     for name in ('cg_config_out_cg1_20261026_1','cg_config_out_cg1_20261012_1'):
         path=ROOT/name
         if path.exists():return path
@@ -128,6 +131,43 @@ def buy_coupons(flow,info,account,need,log):
         if have<need:
             raise RuntimeError('补贡券仍不足(%d/%d)，停止，不使用点券'%(have,need))
     return info
+
+
+def stock_coupons(flow,info,account,log):
+    """一键购买：按本周商店剩余额度与现有星辰石买满补贡券；不补贡、不跑星斗、绝不使用点券。"""
+    from feature_account import entry
+    rule=shop_rule();limit=int(rule.get('weekPurchaseMaxNum') or 0)
+    st=week_state(info);stones=quantity(info,'bag',STONE);have0=quantity(info,'bag',COUPON)
+    bought0=st['shop_bought']
+    if limit<=0:
+        log('星斗商店未配置周限，本次不购买补贡券')
+        return info,0
+    left=max(0,limit-bought0)
+    want=min(left,stones)
+    log('补贡券%d张，星辰石%d颗，本周已换%d/%d；本次兑换%d张'
+        %(have0,stones,bought0,limit,want))
+    if want<=0:
+        log('本周兑换次数已用完，无需购买' if left<=0 else '星辰石不足，未购买补贡券')
+        return info,0
+    for _ in range(want):
+        r=flow.request('scene.shopHandler.buy',{'shopId':SHOP_ID,'count':1})
+        if not isinstance(r,dict) or r.get('error'):
+            raise RuntimeError('星斗商店兑换失败：%s'%(r.get('error') if isinstance(r,dict) else r))
+        given=sum(int(x.get('count') or 0) for x in (r.get('give') or []) if str(x.get('subType'))==COUPON)
+        used=sum(int(x.get('count') or 0) for x in (r.get('consume') or []) if str(x.get('subType'))==STONE)
+        if given!=1 or used!=1:
+            raise RuntimeError('星斗商店兑换回包异常：give=%s consume=%s'%(r.get('give'),r.get('consume')))
+        time.sleep(.4)
+    info=entry(flow,account)
+    have1=quantity(info,'bag',COUPON);stones1=quantity(info,'bag',STONE)
+    st=week_state(info)
+    if have1-have0!=want:raise RuntimeError('补贡券到账核对失败：%d→%d，应+%d'%(have0,have1,want))
+    if stones-stones1!=want:raise RuntimeError('星辰石扣除核对失败：%d→%d，应-%d'%(stones,stones1,want))
+    if limit>0 and st['shop_bought']!=bought0+want:
+        raise RuntimeError('本周兑换次数核对失败：%d→%d，应+%d'%(bought0,st['shop_bought'],want))
+    log('兑换完成：补贡券%d→%d张，星辰石%d→%d颗，本周已换%d/%d'
+        %(have0,have1,stones,stones1,st['shop_bought'],limit))
+    return info,want
 
 
 def run(flow,info,account,log,max_days=0,use_maze=True,use_shop=True):

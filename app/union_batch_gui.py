@@ -44,6 +44,39 @@ def describe_slots(records):
     return choices,lines
 
 
+def probe_account(account):
+    """登录一次并逐个进入非空存档，返回 [(槽位, 战力, 角色)]；只查询，不执行任何任务。"""
+    from teacher_trial import GATES, GameLoginFlow, enter, fetch_game_token, checked
+    token=fetch_game_token(account['uid'],account['username'],account['cookies'])
+    last=None
+    for gate in GATES[:3]:
+        flow=None
+        try:
+            flow=GameLoginFlow(uid=account['uid'],token=token)
+            host,port=flow.query_entry(gate,3010);checked(flow.auth(host,port),'认证')
+            home=checked(flow.request('connector.roleHandler.getUserInfo',{}),'查询存档')
+            records=(home.get('user') or {}).get('records')
+            if not isinstance(records,list):raise ValueError('未读取到存档列表')
+            found=[]
+            for row in sorted((r for r in records if isinstance(r,dict)
+                               and type(r.get('index')) is int and 0<=r['index']<=7),
+                              key=lambda r:r['index']):
+                if row.get('status')!=1:continue
+                roles=['%s Lv%s'%(p.get('name') or p.get('charId','角色'),p.get('level','?'))
+                       for p in (row.get('p1'),row.get('p2')) if isinstance(p,dict) and p]
+                try:
+                    power=enter(flow,row['index']).get('power')
+                except Exception:
+                    continue
+                found.append((row['index'],power if isinstance(power,int) else None,' + '.join(roles)))
+            return found
+        except Exception as exc:
+            last=exc
+        finally:
+            if flow:flow.disconnect()
+    raise RuntimeError('存档探测失败：%s'%network_error_label(last))
+
+
 class UnionBatchWindow:
     def __init__(self, root):
         self.root = root
@@ -58,7 +91,7 @@ class UnionBatchWindow:
         self.proc = None
         self.batch_path = None
         self.messages = queue.Queue()
-        root.title("联盟多账号 · 贡献 / 九灵元圣 / 药园 / 狗卡")
+        root.title("联盟多账号 · 贡献 / 九灵元圣 / 药园 / 狗卡 / 星斗幻境 / 补贡券")
         root.geometry("850x780")
         root.minsize(640, 480)
         viewport = ttk.Frame(root)
@@ -95,8 +128,10 @@ class UnionBatchWindow:
         self.slot.set("0")
         self.slot.pack(side="left")
         ttk.Button(row,text="读取存档",command=self.query_slots).pack(side="left",padx=4)
+        ttk.Button(row,text="探测存档",command=self.probe_slots).pack(side="left",padx=4)
         ttk.Button(row, text="添加", command=self.add_selected).pack(side="left", padx=6)
         ttk.Button(outer,text="恢复当前名单旧槽位 / 标记新旧",command=self.restore_known_slots).pack(anchor="w",pady=4)
+        ttk.Button(outer,text="探测名单存档槽（自动选最高战力）",command=self.probe_all).pack(anchor="w",pady=(0,4))
         ttk.Button(row, text="导入专用账号文件", command=self.import_file).pack(side="left")
         from union_batch_login import open_login
         ttk.Button(outer,text="独立登录（账密 / Cookie）",command=lambda:open_login(self)).pack(anchor="w",pady=4)
@@ -127,6 +162,10 @@ class UnionBatchWindow:
         union_page = ttk.Frame(self.task_tabs, padding=6)
         self.task_tabs.add(dog_page, text='狗卡')
         self.task_tabs.add(union_page, text='联盟事务')
+        extra_page = ttk.Frame(self.task_tabs, padding=6)
+        self.task_tabs.add(extra_page, text='星斗 / 补贡')
+        team_page = ttk.Frame(self.task_tabs, padding=6)
+        self.task_tabs.add(team_page, text='蛮荒组队')
         outer = dog_page
         overview_buttons=ttk.Frame(outer);overview_buttons.pack(fill='x')
         self.dog_filter=tk.StringVar(value='全部')
@@ -182,8 +221,10 @@ class UnionBatchWindow:
         ttk.Radiobutton(options, text="联盟贡献（每号一次，消耗1000灵魂）", variable=self.action, value="devote").pack(anchor="w")
         ttk.Radiobutton(options, text="联盟Boss · 九灵元圣", variable=self.action, value="boss").pack(anchor="w")
         ttk.Radiobutton(options, text="联盟药园（查看 / 收获 / 种植）", variable=self.action, value="garden").pack(anchor="w")
+        ttk.Label(options, text="星斗幻境与补贡券请在“星斗 / 补贡”子页面执行。",
+                  foreground="gray", wraplength=700).pack(anchor="w", pady=(2, 0))
         ttk.Button(dog_page, text="每日免费抽狗卡（每号尝试1次，跨存档共享）", command=lambda:self.start(action_override="dog")).pack(anchor="w")
-        ttk.Label(dog_page, text="狗卡仅普通抽取并核对到账，不购买、不赠送、不兑换；次数用完则跳过。", foreground="gray", wraplength=700).pack(anchor="w")
+        ttk.Label(dog_page, text="狗卡仅普通抽取并核对到账，不购买、不赠送、不兑换；次数用完则跳过。槽位默认0，可先点上方“探测存档”自动选战力最高的可用槽。", foreground="gray", wraplength=700).pack(anchor="w")
         ttk.Button(dog_page,text="查询狗卡库存 / 可赠送",command=lambda:self.start(action_override="dog_status")).pack(anchor="w",pady=4)
         from union_boss_batch import DOG_NAMES
         dogbox=ttk.LabelFrame(dog_page,text='选择要激活的狗卡',padding=4);dogbox.pack(fill='x',pady=4)
@@ -226,15 +267,45 @@ class UnionBatchWindow:
         ttk.Label(damage, text="默认使用当前面板/技能估算模型；此输入为备用参数").pack(side="left")
         ttk.Label(options, text="未勾选挂机则持续按期望伤害攻击。挂机每秒随机0～10000。奖励在游戏邮件领取。",
                   wraplength=600, foreground="gray").pack(anchor="w", pady=(6, 0))
+        star_box = ttk.LabelFrame(extra_page, text="星斗幻境", padding=8)
+        star_box.pack(fill="x", pady=6)
+        ttk.Label(star_box, text="每个账号只领免费翡翠周箱；未领满则续接当前进度免费打通三大层，通关领奖后普通重置。不花点券、不买体力。",
+                  wraplength=720).pack(anchor="w")
+        ttk.Button(star_box, text="对当前名单执行星斗幻境",
+                   command=lambda: self.start(action_override="star_maze")).pack(anchor="w", pady=6)
+        coupon_box = ttk.LabelFrame(extra_page, text="购买补贡券", padding=8)
+        coupon_box.pack(fill="x", pady=6)
+        ttk.Label(coupon_box, text="每个账号用星辰石在星斗商店兑换补贡券（1颗换1张，本周上限3张）；换满或星辰石不足时提示并跳过。绝不使用点券；星辰石不足时先跑星斗幻境。本操作只买券，不自动补贡。",
+                  wraplength=720).pack(anchor="w")
+        ttk.Button(coupon_box, text="一键购买补贡券（星辰石兑换）",
+                   command=lambda: self.start(action_override="redevote_buy")).pack(anchor="w", pady=6)
+        ttk.Label(extra_page, text="两个操作都按上方“执行账号”名单并行，每号独立连接；单个账号异常不影响其他账号。",
+                  foreground="gray", wraplength=720).pack(anchor="w", pady=(6, 0))
+        team_box = ttk.LabelFrame(team_page, text="多人蛮荒（2~3人）", padding=8)
+        team_box.pack(fill="x", pady=6)
+        ttk.Label(team_box, text="在上方账号表选中2~3个账号（按列表顺序组队，第一个账号建房），使用各自槽位；关卡自动选共同已解锁的最高层，共享宝箱每天最多累积10次。",
+                  wraplength=720).pack(anchor="w")
+        team_row = ttk.Frame(team_box)
+        team_row.pack(anchor="w", pady=6)
+        ttk.Label(team_row, text="连续次数:").pack(side="left")
+        self.var_team_times = tk.StringVar(value="1")
+        ttk.Spinbox(team_row, from_=1, to=10, width=3, textvariable=self.var_team_times,
+                    state="readonly").pack(side="left", padx=4)
+        self.var_team_claim = tk.BooleanVar(value=True)
+        ttk.Checkbutton(team_row, text="领取共享宝箱", variable=self.var_team_claim).pack(side="left", padx=(12, 0))
+        ttk.Button(team_row, text="组队开打", command=self.launch_manhuang_team).pack(side="left", padx=(12, 0))
+        ttk.Label(team_page, text="只支持已保存到文件的账号；临时登录账号请先在主程序保存。执行时三个号会同时连接，请勿重复启动。",
+                  foreground="gray", wraplength=720).pack(anchor="w")
         self.footer = ttk.Frame(root, padding=(12, 6, 12, 10))
         self.footer.grid(row=1, column=0, sticky="ew")
         controls = ttk.Frame(self.footer)
         controls.pack(fill="x", pady=(0, 6))
-        self.start_button = ttk.Button(controls, text="开始并行执行", command=lambda: self.start(action_override="dog" if self.task_tabs.index(self.task_tabs.select()) == 0 else (self.action.get() if self.action.get() != "dog" else "boss")))
+        self.start_button = ttk.Button(controls, text="开始并行执行", command=self.start_from_footer)
         self.start_button.pack(side="left")
         self.stop_button = ttk.Button(controls, text="停止全部", command=self.stop, state="disabled")
         self.stop_button.pack(side="left", padx=8)
         ttk.Label(controls, text="同一账号只添加一个存档").pack(side="left")
+        self.task_tabs.bind("<<NotebookTabChanged>>", self.on_tab_changed)
         self.log = ScrolledText(self.footer, height=7, wrap="word", state="disabled")
         self.log.pack(fill="both", expand=True)
         self.refresh()
@@ -306,6 +377,82 @@ class UnionBatchWindow:
             finally:
                 if flow:flow.disconnect()
         threading.Thread(target=work,daemon=True).start()
+
+    def probe_slots(self):
+        """探测当前账号的所有存档槽并显示战力，自动选中战力最高的槽位。"""
+        if self.proc is not None or self.login_busy:return
+        try:
+            selected=self.table.selection()
+            row=self.jobs.get(selected[0]) if selected else None
+            if row:
+                account=row.get('session_account') or json.loads(Path(row['path']).read_text(encoding='utf-8-sig'))
+            else:
+                path=self.files.get(self.account.get())
+                if not path:raise ValueError('请先选择账号，或选中执行列表中的临时账号')
+                account=json.loads(path.read_text(encoding='utf-8-sig'))
+        except (OSError,ValueError,KeyError):
+            messagebox.showerror('探测存档','请先选择有效账号');return
+        title=account.get('username') or str(account.get('uid'))
+        self.login_busy=True
+        self.messages.put('[探测] %s 开始探测存档槽，只查询战力，不执行任务…'%title)
+        def show(items,error):
+            self.login_busy=False
+            if error:
+                self.messages.put('[探测] %s 失败：%s'%(title,error));return
+            self.slot.configure(values=['%s 战力%s %s'%(slot,power if power is not None else '?',roles)
+                                        for slot,power,roles in items])
+            best=max(items,key=lambda item:item[1] if isinstance(item[1],int) else -1) if items else None
+            if best:self.slot.set('%s 战力%s %s'%(best[0],best[1] if best[1] is not None else '?',best[2]))
+            summary='、'.join('槽%s(战力%s)'%(slot,power if power is not None else '?') for slot,power,roles in items) or '无可用存档'
+            self.messages.put('[探测] %s 探测完成：可扫槽 %s%s'%(title,summary,'；已选槽%s'%best[0] if best else ''))
+        def work():
+            try:
+                items=probe_account(account)
+                self.messages.put(('callback',lambda:show(items,None)))
+            except Exception as exc:
+                error=str(exc) if isinstance(exc,RuntimeError) else network_error_label(exc)
+                self.messages.put(('callback',lambda:show(None,error)))
+        threading.Thread(target=work,daemon=True).start()
+
+    def probe_all(self):
+        """逐个探测执行列表账号的存档槽，并把槽位更新为战力最高的可用槽。"""
+        if self.proc is not None or self.login_busy:return
+        jobs=list(self.jobs.items())
+        if not jobs:
+            messagebox.showinfo('探测存档','请先添加账号');return
+        self.login_busy=True
+        self.messages.put('[探测] 开始探测 %s 个账号的存档槽，只查询战力，不执行任务…'%len(jobs))
+        def work():
+            for key,row in jobs:
+                name=str(row.get('uid'))
+                try:
+                    account=row.get('session_account') or json.loads(Path(row['path']).read_text(encoding='utf-8-sig'))
+                    name=account.get('username') or name
+                    items=probe_account(account)
+                    summary='、'.join('槽%s(战力%s)'%(slot,power if power is not None else '?') for slot,power,roles in items) or '无可用存档'
+                    best=max(items,key=lambda item:item[1] if isinstance(item[1],int) else -1) if items else None
+                    self.messages.put(('callback',lambda k=key,b=best,s=summary,n=name:self.apply_probe_result(k,b,s,n)))
+                except Exception as exc:
+                    error=str(exc) if isinstance(exc,RuntimeError) else network_error_label(exc)
+                    self.messages.put(('callback',lambda n=name,e=error:self.messages.put('[探测] %s 失败：%s'%(n,e))))
+            self.messages.put(('callback',self.finish_probe))
+        threading.Thread(target=work,daemon=True).start()
+
+    def apply_probe_result(self,key,best,summary,name):
+        row=self.jobs.get(key)
+        if row is None:return
+        if best:
+            row['slot']=int(best[0])
+            self.table.set(key,'slot',str(best[0]))
+            self.save_selection()
+            self.messages.put('[探测] %s 探测完成：可扫槽 %s；已选槽%s(战力%s)'%(
+                name,summary,best[0],best[1] if best[1] is not None else '?'))
+        else:
+            self.messages.put('[探测] %s 探测完成：%s；保留原槽位%s'%(name,summary,row['slot']))
+
+    def finish_probe(self):
+        self.login_busy=False
+        self.messages.put('[探测] 名单探测结束；可执行狗卡等操作。')
 
     def apply_dog_filter(self):
         if not hasattr(self,'dog_filter'):return
@@ -572,6 +719,63 @@ class UnionBatchWindow:
         if password is not None:
             self.jobs[selected[0]]['garden_password'] = password
 
+    def on_tab_changed(self, _event=None):
+        if self.proc is None:
+            extra = self.task_tabs.index(self.task_tabs.select()) >= 2
+            self.start_button.configure(state="disabled" if extra else "normal")
+
+    def start_from_footer(self):
+        index = self.task_tabs.index(self.task_tabs.select())
+        if index == 0:
+            self.start(action_override="dog")
+        elif index == 1:
+            self.start(action_override=self.action.get() if self.action.get() != "dog" else "boss")
+
+    def launch_manhuang_team(self):
+        if self.proc is not None:
+            return
+        selected = list(self.table.selection())
+        if len(selected) not in (2, 3):
+            messagebox.showerror("未执行", "请在账号表选中2~3个账号（按列表顺序组队，第一个账号建房）。", parent=self.root)
+            return
+        rows = [self.jobs[key] for key in selected]
+        names = [str(self.table.item(key, "values")[0]) for key in selected]
+        missing = [name for name, row in zip(names, rows) if not row.get("path")]
+        if missing:
+            messagebox.showerror("未执行", "以下账号是临时登录、未保存到文件，暂不能组队：\n" + "\n".join(missing), parent=self.root)
+            return
+        slots = [str(row["slot"]) for row in rows]
+        claim = "1" if self.var_team_claim.get() else "0"
+        try:
+            times = max(1, min(10, int(self.var_team_times.get())))
+        except (ValueError, tk.TclError):
+            times = 1
+        preview = "\n".join("%s / 槽%s" % (name, slot) for name, slot in zip(names, slots))
+        if not messagebox.askyesno("确认蛮荒组队",
+                                   "%s\n按列表顺序组队，第一个账号建房；连续%d局，%s共享宝箱。\n三个号会同时连接，继续？"
+                                   % (preview, times, "领取" if claim == "1" else "不领取"),
+                                   parent=self.root):
+            return
+        args = ([sys.executable, "--worker", "manhuang_team.py"]
+                if getattr(sys, "frozen", False) else
+                [sys.executable, "-u", str(HERE / "manhuang_team.py")])
+        args += ["--paths", ",".join(row["path"] for row in rows),
+                 "--slots", ",".join(slots), "--claim", ",".join([claim] * len(rows)),
+                 "--times", str(times)]
+        try:
+            env = dict(os.environ, PYTHONIOENCODING="utf-8")
+            self.proc = subprocess.Popen(args, cwd=HERE, env=env, stdout=subprocess.PIPE,
+                                         stderr=subprocess.STDOUT, encoding="utf-8", errors="replace",
+                                         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        except Exception:
+            self.cleanup()
+            messagebox.showerror("启动失败", "无法启动蛮荒组队程序，请检查程序文件是否齐全。", parent=self.root)
+            return
+        self.start_button.configure(state="disabled")
+        self.stop_button.configure(state="normal")
+        self.messages.put("开始蛮荒组队，共%s个账号。" % len(rows))
+        threading.Thread(target=self.read_output, args=(self.proc,), daemon=True).start()
+
     def start(self, garden_operation=None, action_override=None, job_keys=None):
         if self.proc is not None:
             return
@@ -610,6 +814,9 @@ class UnionBatchWindow:
             preview='\n'.join(str(self.table.item(key,'values')[0])+' / 槽'+str(row['slot']) for key,row in exec_jobs.items())
             if not messagebox.askyesno('确认当前筛选名单接力','卡种：%s\n%s\n逐号核查后串行领取、转赠、额外抽一次；未激活或今日已参与的跳过；不新增激活或购买。继续？'%(self.chain_card.get(),preview),parent=self.root):return
             args+=['--chain-card',str(card),'--chain-seed',mode]
+        if action=='redevote_buy':
+            preview='\n'.join(str(self.table.item(key,'values')[0])+' / 槽'+str(row['slot']) for key,row in exec_jobs.items())
+            if not messagebox.askyesno('确认购买补贡券','%s\n每号用星辰石在星斗商店兑换补贡券，本周上限3张；只花星辰石，绝不使用点券。继续？'%preview,parent=self.root):return
         buying = False
         if action == "garden":
             pick = garden_operation == "pick" if garden_operation else self.garden_pick.get()
@@ -697,7 +904,7 @@ class UnionBatchWindow:
                 if isinstance(message, tuple):
                     self.proc = None
                     self.cleanup()
-                    self.start_button.configure(state="normal")
+                    self.start_button.configure(state="disabled" if self.task_tabs.index(self.task_tabs.select()) >= 2 else "normal")
                     self.stop_button.configure(state="disabled")
                     message = "执行结束，返回码：%s" % message[1]
                 self.log.configure(state="normal")

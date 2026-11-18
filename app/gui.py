@@ -3838,12 +3838,7 @@ class DailyGUI:
         self.var_ttr_full_reward=tk.BooleanVar(value=True)
         ttk.Checkbutton(rob_frame,text='仅抢满额奖励目标（按自身和船主等级自动筛选）',variable=self.var_ttr_full_reward).pack(anchor=tk.W,padx=8,pady=4)
         from tongtian_reward_filter import explanation as ttr_level_explanation
-        try:
-            ttr_level_text = ttr_level_explanation()
-        except ValueError as exc:
-            ttr_level_text = ("%s；源码包需把游戏配置目录 cg_config_out_cg1_* 放到 app 下，"
-                              "否则通天河抢船/发船不可用" % exc)
-        ttk.Label(rob_frame,text=ttr_level_text,wraplength=790).pack(anchor=tk.W,padx=28,pady=(0,4))
+        ttk.Label(rob_frame,text=ttr_level_explanation(),wraplength=790).pack(anchor=tk.W,padx=28,pady=(0,4))
         self.var_ttr_qi_only = tk.BooleanVar(value=True)
 
 

@@ -9,7 +9,7 @@
   各得 2~3 件材料、各自扣 1 次宝箱次数；2 人房与 3 人房每人掉落一致。
 
 连续次数（--times N）：登录一次后连续打 N 局，每局重新建房/战斗/结算/领宝箱；
-每局开始前重新拉存档核对共享宝箱剩余次数，不足即停，不会多扣次数。
+每局开始前重新拉存档核对共享宝箱剩余次数；0次数成员跟队但不领宝箱，全员不足才停。
 """
 import argparse
 import json
@@ -75,8 +75,8 @@ def _common_mid(sessions):
     return max(common)
 
 
-def _prepare_round(sessions, mid, log):
-    """刷新各账号存档并核对宝箱次数/关卡；返回 ok / short / fail。"""
+def _prepare_round(sessions, mid, claim_flags, log):
+    """刷新各账号存档并核对宝箱次数/关卡；0次数成员跟队但不领宝箱。"""
     for session in sessions:
         fresh = teacher_trial.enter(session["flow"], session["slot"])
         session["info"].clear()
@@ -100,9 +100,13 @@ def _prepare_round(sessions, mid, log):
     if missing:
         log("[蛮荒组队] 关卡 %s 未解锁: %s，不建房" % (target, "、".join(missing)))
         return "fail"
-    short = [s["tag"] for s in sessions if s["remain"] <= 0]
-    if short:
-        log("[蛮荒组队] 宝箱次数不足，停止连续执行: %s" % "、".join(short))
+    for index, session in enumerate(sessions):
+        wanted = True if claim_flags is None else bool(claim_flags[index])
+        session["claim"] = wanted and session["remain"] > 0
+        if session["remain"] <= 0:
+            log("[蛮荒组队] %s 宝箱次数为 0，本局跟队但不领宝箱" % session["tag"])
+    if all(s["remain"] <= 0 for s in sessions):
+        log("[蛮荒组队] 全员宝箱次数为 0，跳过本局")
         return "short"
     for session in sessions:
         session["target"] = target
@@ -112,7 +116,7 @@ def _prepare_round(sessions, mid, log):
 
 def _play_round(sessions, mid, claim_flags, log):
     """打一局：建房→加入→准备→加载→战斗→结算→领宝箱→核对。返回 ok / short / fail。"""
-    status = _prepare_round(sessions, mid, log)
+    status = _prepare_round(sessions, mid, claim_flags, log)
     if status != "ok":
         return status
 
@@ -232,8 +236,7 @@ def _play_round(sessions, mid, claim_flags, log):
         time.sleep(3)
 
         all_ok = True
-        for index, session in enumerate(sessions):
-            session["claim"] = True if claim_flags is None else bool(claim_flags[index])
+        for session in sessions:
             session["chest"] = {}
             if not session["claim"]:
                 log("[蛮荒组队] %s 不领取宝箱，保留次数" % session["tag"])
@@ -303,7 +306,7 @@ def run(accounts, mid=0, log=print, claim_flags=None, times=1):
     """2~3 个账号同房正常开局，各自领取共享宝箱，连续执行 times 局。
 
     claim_flags: 逐账号领取标记（True=领、False=不领、保留宝箱次数）；None 时全部领取。
-    times: 连续执行局数；每局开始前按服务器剩余宝箱次数核对，不足即停。
+    times: 连续执行局数；每局开始前按服务器剩余宝箱次数核对，0次数成员不领宝箱，全员不足才停。
     返回 True 表示所有执行的局全部核对通过。
     """
     if not 2 <= len(accounts) <= 3:
@@ -348,7 +351,7 @@ def run(accounts, mid=0, log=print, claim_flags=None, times=1):
             if status == "short":
                 if round_index == 1:
                     return False
-                log("[蛮荒组队] 服务器剩余次数不足，连续执行到此结束")
+                log("[蛮荒组队] 全员宝箱次数不足，连续执行到此结束")
                 break
             if status == "retry":
                 log("[蛮荒组队] 连续 3 次未能正常开局，停止")
@@ -414,7 +417,7 @@ def main():
     parser.add_argument("--mid", type=int, default=0,
                         help="副本 id（0=自动选共同已解锁的最高关）")
     parser.add_argument("--times", type=int, default=1,
-                        help="连续执行局数（默认1）；每局按服务器剩余宝箱次数核对，不足即停")
+                        help="连续执行局数（默认1）；0次数成员跟队不领宝箱，全员不足才停")
     args = parser.parse_args()
     times = max(1, int(args.times or 1))
     names = [x.strip() for x in args.accounts.split(",") if x.strip()]

@@ -12,7 +12,7 @@
   奖励次数、各得一份 3000 分档奖励。
 
 连续次数（--times N）：登录一次后连续打 N 局，每局重新建房/战斗/结算/领奖；
-每局开始前重新拉存档核对剩余奖励次数，不足即停，不会多扣次数。
+每局开始前重新拉存档核对剩余奖励次数；0次数成员跟队但不领奖，全员不足才停。
 """
 import argparse
 import json
@@ -69,8 +69,8 @@ def _dungeon_requirement(dungeon_id):
     return int(limits.get(str(dungeon_id), 0))
 
 
-def _prepare_round(sessions, log):
-    """刷新三人存档并核对剩余次数/关卡/战力；返回 ok / short / fail。"""
+def _prepare_round(sessions, claim, claim_flags, log):
+    """刷新三人存档并核对次数/关卡/战力；0次数成员跟队但不领奖。"""
     for session in sessions:
         fresh = teacher_trial.enter(session["flow"], session["slot"])
         session["info"].clear()
@@ -92,9 +92,13 @@ def _prepare_round(sessions, log):
             % (session["tag"], fresh.get("uid"), session["did"],
                session["remain"], fresh.get("power")))
 
-    short = [s["tag"] for s in sessions if s["remain"] <= 0]
-    if short:
-        log("[十绝阵组队] 奖励次数不足，停止连续执行: %s" % "、".join(short))
+    for index, session in enumerate(sessions):
+        wanted = bool(claim_flags[index]) if claim_flags is not None else (claim == "all" or index == 0)
+        session["claim"] = wanted and session["remain"] > 0
+        if session["remain"] <= 0:
+            log("[十绝阵组队] %s 奖励次数为 0，本局跟队但不领奖" % session["tag"])
+    if all(s["remain"] <= 0 for s in sessions):
+        log("[十绝阵组队] 三人都没有奖励次数，跳过本局")
         return "short"
     if len({s["did"] for s in sessions}) != 1:
         log("[十绝阵组队] 三人的十绝阵关卡不一致，无法同房: %s"
@@ -111,7 +115,7 @@ def _prepare_round(sessions, log):
 
 def _play_round(sessions, claim, claim_flags, log):
     """打一局：建房→加入→准备→加载→战斗→结算→领奖→核对。返回 ok / short / fail。"""
-    status = _prepare_round(sessions, log)
+    status = _prepare_round(sessions, claim, claim_flags, log)
     if status != "ok":
         return status
 
@@ -230,12 +234,6 @@ def _play_round(sessions, claim, claim_flags, log):
             log("[十绝阵组队] %s 服务器结算 score=%s drops=%s"
                 % (session["tag"], session["score"], _brief(result.get("drops"), 400)))
 
-        if claim_flags is not None:
-            for session, flag in zip(sessions, claim_flags):
-                session["claim"] = bool(flag)
-        else:
-            for session in sessions:
-                session["claim"] = True if claim == "all" else session is sessions[0]
         for session in sessions:
             if not session["claim"]:
                 log("[十绝阵组队] %s 不领奖，保留奖励次数" % session["tag"])
@@ -288,7 +286,7 @@ def run(accounts, target_score=TARGET_SCORE, claim="all", log=print, claim_flags
 
     accounts: 账号 dict 列表（含 uid/username/cookies/record_index），长度必须为 3。
     claim_flags: 逐账号领取标记（True=领、False=不领、保留次数）；None 时按 claim 决定。
-    times: 连续执行局数；每局开始前按服务器剩余奖励次数核对，不足即停。
+    times: 连续执行局数；每局开始前按服务器剩余奖励次数核对，0次数成员不领奖，全员不足才停。
     返回 True 表示所有执行的局全部结算并核对通过。
     """
     if len(accounts) != 3:
@@ -333,7 +331,7 @@ def run(accounts, target_score=TARGET_SCORE, claim="all", log=print, claim_flags
             if status == "short":
                 if round_index == 1:
                     return False
-                log("[十绝阵组队] 服务器剩余次数不足，连续执行到此结束")
+                log("[十绝阵组队] 三人都没有奖励次数，连续执行到此结束")
                 break
             if status != "ok":
                 return False
@@ -394,7 +392,7 @@ def main():
     parser.add_argument("--claim-main-only", action="store_true",
                         help="只让第一个账号领奖；副账号不领服务器奖励、保留奖励次数")
     parser.add_argument("--times", type=int, default=1,
-                        help="连续执行局数（默认1）；每局按服务器剩余奖励次数核对，不足即停")
+                        help="连续执行局数（默认1）；0次数成员跟队不领奖，全员不足才停")
     args = parser.parse_args()
     times = max(1, int(args.times or 1))
     names = [x.strip() for x in args.accounts.split(",") if x.strip()]

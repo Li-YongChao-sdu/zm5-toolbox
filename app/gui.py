@@ -3838,7 +3838,12 @@ class DailyGUI:
         self.var_ttr_full_reward=tk.BooleanVar(value=True)
         ttk.Checkbutton(rob_frame,text='仅抢满额奖励目标（按自身和船主等级自动筛选）',variable=self.var_ttr_full_reward).pack(anchor=tk.W,padx=8,pady=4)
         from tongtian_reward_filter import explanation as ttr_level_explanation
-        ttk.Label(rob_frame,text=ttr_level_explanation(),wraplength=790).pack(anchor=tk.W,padx=28,pady=(0,4))
+        try:
+            ttr_level_text = ttr_level_explanation()
+        except ValueError:
+            ttr_level_text = ('缺少通天河等级奖励配置：请到“备用功能 → 配置更新”页点“检查并更新配置”，'
+                              '会自动从官方资源服下载并解压，完成后重启工具箱即可使用通天河')
+        ttk.Label(rob_frame,text=ttr_level_text,wraplength=790).pack(anchor=tk.W,padx=28,pady=(0,4))
         self.var_ttr_qi_only = tk.BooleanVar(value=True)
 
 
@@ -4982,14 +4987,16 @@ class DailyGUI:
 
 
         from pet_utilities_ui import PetUtilityPage
+        try:
+            self.pet_utility_page = PetUtilityPage(self, self.fun_activity_notebook)
+        except Exception as exc:
+            self.pet_utility_page = None
+            missing = ttk.Frame(self.fun_activity_notebook, padding=12)
+            self.fun_activity_notebook.add(missing, text='宠物采集')
+            ttk.Label(missing, text='宠物采集不可用：%s' % exc, wraplength=760).pack(anchor=tk.W)
 
-
-
-        self.pet_utility_page = PetUtilityPage(self, self.fun_activity_notebook)
-
-
-
-        self.feature_buttons.extend(self.pet_utility_page.buttons)
+        if self.pet_utility_page:
+            self.feature_buttons.extend(self.pet_utility_page.buttons)
 
 
 
@@ -5011,11 +5018,13 @@ class DailyGUI:
 
         fun_tabs = {self.fun_activity_notebook.tab(tab, 'text'): tab for tab in self.fun_activity_notebook.tabs()}
         for title in ('黑市', '宠物采集', '妖王帖', '藏宝仙魄商店', '藏宝洞', '幻兽派遣', '幻兽喂养'):
-            self.fun_activity_notebook.insert('end', fun_tabs[title])
+            if title in fun_tabs:
+                self.fun_activity_notebook.insert('end', fun_tabs[title])
 
         backup_tabs = {self.backup_function_notebook.tab(tab, 'text'): tab for tab in self.backup_function_notebook.tabs()}
         for title in ('联盟仓库', '刷去益灵花', '灵宠试炼', '材料置换', '背包/仓库', '抓宠', '宠物上推荐', '炼丹炉'):
-            self.backup_function_notebook.insert('end', backup_tabs[title])
+            if title in backup_tabs:
+                self.backup_function_notebook.insert('end', backup_tabs[title])
 
         tabs = list(notebook.tabs())
 

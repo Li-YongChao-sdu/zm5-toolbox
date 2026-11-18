@@ -23,7 +23,9 @@ class ConfigSyncPage:
         try:settings=json.loads(self.settings_path.read_text(encoding='utf-8'))
         except (OSError,ValueError):settings={}
         if not isinstance(settings,dict):settings={}
-        self.auto=tk.BooleanVar(value=settings.get('auto_check_on_start') is True)
+        self.auto=tk.BooleanVar(value=settings.get('auto_check_on_start') is True or local is None)
+        if local is None:
+            self.status.set('本地未找到配置表：启动后自动从官方资源服下载并解压')
         ttk.Checkbutton(self.page,text='启动时自动检查并解析本周 cg1',variable=self.auto,command=self.save_settings).pack(anchor='w')
         row=ttk.Frame(self.page);row.pack(fill='x',pady=4)
         self.start_button=ttk.Button(row,text='检查并更新配置',command=self.start,width=20);self.start_button.pack(side='left')

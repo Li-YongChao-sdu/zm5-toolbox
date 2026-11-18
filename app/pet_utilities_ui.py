@@ -8,6 +8,14 @@ from pet_utilities import table,scrolls,limit as scroll_limit
 ROOT=Path(__file__).resolve().parent
 class PetUtilityPage:
     def __init__(self,app,notebook):
+        try:
+            table('Collect');scrolls()
+        except ValueError as exc:
+            self.app=app;self.data=None;self.buttons=[]
+            self.page=ttk.Frame(notebook,padding=12);notebook.add(self.page,text='宠物采集')
+            self.pages={'宠物采集':self.page};self.permission_parents={'宠物采集':self.page}
+            ttk.Label(self.page,text='宠物采集不可用：%s'%exc,wraplength=760).pack(anchor='w')
+            return
         self.app=app;self.data=None;self.buttons=[];self.pets={};self.goods={}
         self.page=ttk.Frame(notebook,padding=8);notebook.add(self.page,text='宠物采集')
         self.pages={'宠物采集':self.page}

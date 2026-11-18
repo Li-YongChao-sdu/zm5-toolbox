@@ -4,9 +4,18 @@ from pathlib import Path
 from datetime import datetime
 from bag_warehouse import quantity
 from old_shop import inventory
+from game_version import latest_config_folder
 ROOT=Path(__file__).resolve().parent
-CFG=ROOT/'cg_config_out_cg1_20261102_1'
-def table(name):return json.loads((CFG/(name+'.json')).read_text(encoding='utf-8-sig'))
+def _folders():
+    latest=latest_config_folder(ROOT)
+    if latest:yield latest
+    for p in sorted(ROOT.glob('cg_config_out_cg1_*'),reverse=True):
+        if p!=latest:yield p
+def table(name):
+    for folder in _folders():
+        path=folder/(name+'.json')
+        if path.is_file():return json.loads(path.read_text(encoding='utf-8-sig'))
+    raise ValueError('缺少配置表 %s，请到“备用功能 → 配置更新”下载配置表'%name)
 def checked(reply):
     if not isinstance(reply,dict) or reply.get('code')!=200 or reply.get('error'):raise RuntimeError('服务器拒绝：'+str(reply))
     return reply

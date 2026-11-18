@@ -45,8 +45,8 @@ pip install -r requirements.txt
 ## 首次配置
 
 1. 复制 `account.example.json` 为 `app/account.local.json`，填入自己的 Cookie 与存档槽位。
-2. 将游戏配置表目录放到 `app/`，例如 `app/cg_config_out_cg1_20261026_1/`；部分模块还会读取 `app/feature_config/`。
-3. 仓库不提供上述数据；缺少配置时，对应功能会在运行时提示找不到文件。
+2. 配置表无需手动准备：打开“配置更新”页点“检查并更新配置”，内置程序会从 4399 官方资源服下载本周 `cg1_*.swf` 并解包为 `app/cg_config_out_cg1_*`；本地没有任何配置时，首次启动会自动执行一次。
+3. 也可手动放入配置目录，例如 `app/cg_config_out_cg1_20261026_1/`；仓库不提供配置数据。
 4. `app/account.local.json`、`app/accounts/` 已在 `.gitignore` 中忽略，不要提交。
 
 ## 运行

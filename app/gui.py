@@ -8350,10 +8350,10 @@ class DailyGUI:
                         flow.disconnect()
                     except Exception:
                         pass
-            self.after(0, lambda: self._finish_fashion_money(text, token, info))
+            self.root.after(0, lambda: self._finish_fashion_money(text, token, info))
 
         threading.Thread(target=worker, daemon=True).start()
-        self.after(45000, lambda: self._fashion_money_timeout(token))
+        self.root.after(45000, lambda: self._fashion_money_timeout(token))
 
     def _finish_fashion_money(self, text, token, info=None):
         if token != getattr(self, '_fashion_money_token', 0):

@@ -46,7 +46,7 @@ pip install -r requirements.txt
 
 1. 复制 `account.example.json` 为 `app/account.local.json`，填入自己的 Cookie 与存档槽位。
 2. 将游戏配置表目录放到 `app/`，例如 `app/cg_config_out_cg1_20261026_1/`；部分模块还会读取 `app/feature_config/`。
-3. 仓库不提供上述数据；缺少配置时，对应功能会在运行时提示找不到文件。
+3. 仓库不提供上述数据；缺少配置时程序仍可启动，通天河等依赖配置表的功能会在界面上提示“缺少配置”，其余功能不受影响。
 4. `app/account.local.json`、`app/accounts/` 已在 `.gitignore` 中忽略，不要提交。
 
 ## 运行

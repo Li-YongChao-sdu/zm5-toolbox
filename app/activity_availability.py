@@ -138,11 +138,6 @@ def availability_snapshot(now=None, root=None):
                        'name': chosen['name'] if chosen else '',
                        'start': chosen['start'].isoformat() if chosen else '',
                        'end': chosen['end'].isoformat() if chosen else ''}
-    # 2026-11-17夕阳宏槽0已验证噩梦500110两次；仅旧配置当日临时放行。
-    # 新cg1安装或跨日后自动失效，避免将一次实测误当作长期活动日期。
-    if source == 'cg_config_out_cg1_20261109_1' and now.strftime('%Y-%m-%d') == '2026-11-17':
-        states['RUN_ACT_MONKIAN'].update(status='open', reason='', name='挑战牛魔王',
-                                         verification='服务器噩梦两次实测通过')
     states.update({key: dict(states[target]) for key, target in ALIASES.items()})
     return states
 

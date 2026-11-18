@@ -2656,6 +2656,10 @@ class DailyGUI:
         self.btn_brawl_shop_money.pack(side=tk.LEFT, padx=(8, 0))
         ttk.Label(brawl_shop_head, text='只显示当前赛季在售商品；每周限购按服务器计数扣减。',
                   foreground='gray').pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Label(brawl_shop_head, text='二级密码（未设置留空）').pack(side=tk.LEFT, padx=(12, 2))
+        self.var_brawl_shop_password = tk.StringVar()
+        ttk.Entry(brawl_shop_head, textvariable=self.var_brawl_shop_password,
+                  show='*', width=14).pack(side=tk.LEFT)
         self.var_brawl_shop_ids = {}
         self.var_brawl_shop_qty = {}
         self.var_brawl_shop_labels = {}
@@ -8544,6 +8548,9 @@ class DailyGUI:
         args = [os.path.join(HERE, 'brawl_shop.py')]
         for sid, count in picked:
             args += ['--buy', '%d:%d' % (sid, count)]
+        password = self.var_brawl_shop_password.get().strip()
+        if password:
+            args += ['--password', password]
         args.append('--apply')
         self._launch(args)
 

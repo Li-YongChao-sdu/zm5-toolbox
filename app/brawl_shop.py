@@ -88,6 +88,7 @@ def fmt_remaining(week_cap, total_cap, shop_used, week_used):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--slot', type=int)
+    parser.add_argument('--password', default='', help='二级密码；仅在账号已设置时填写')
     parser.add_argument('--status', action='store_true', help='查询余额与每周限购')
     parser.add_argument('--buy', action='append', default=[], metavar='ID:数量')
     parser.add_argument('--apply', action='store_true', help='真正发送购买请求')
@@ -146,8 +147,15 @@ def main():
             if not args.apply:
                 print('[乱斗商店] 预览：%d %s × %d，共 %d 乱斗币；未下单' % (sid, name, count, cost * count), flush=True)
                 continue
-            reply = flow.request('scene.shopHandler.buy', {'shopId': sid, 'count': count})
+            params = {'shopId': sid, 'count': count}
+            if args.password:
+                params['password'] = args.password
+            reply = flow.request('scene.shopHandler.buy', params)
             print('[乱斗商店] %d %s × %d 回复：%s' % (sid, name, count, json.dumps(reply, ensure_ascii=False)), flush=True)
+            if isinstance(reply, dict) and reply.get('code') == 502:
+                print('[乱斗商店] 该账号需要正确的二级密码，请在界面填写后重试；本次未扣费' if not args.password
+                      else '[乱斗商店] 二级密码错误，已在首个请求后停止；本次未扣费', flush=True)
+                break
             if not isinstance(reply, dict) or reply.get('code') != 200:
                 break
             money -= cost * count

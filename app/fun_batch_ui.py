@@ -50,8 +50,10 @@ class FunBatchPage:
             if kind=='start' and not auto:
                 if not p.data or p.data['account']!=str(account.get('username','')) or p.data['slot']!=slot:raise ValueError('请先刷新当前存档的采集状态')
             if kind=='card':
-                args['count']=int(p.card_count.get())
-                if args['count']<0:raise ValueError('妖王帖次数须为非负整数；0表示跳过')
+                if auto:args['auto']=True
+                else:
+                    args['count']=int(p.card_count.get())
+                    if args['count']<0:raise ValueError('妖王帖次数须为非负整数；0表示跳过')
             if kind=='buy':
                 args.update(shop=sid,count=int(p.shop_rows[sid]['count'].get()))
                 if not 1<=args['count']<=5:raise ValueError(label+'数量须为1～5')

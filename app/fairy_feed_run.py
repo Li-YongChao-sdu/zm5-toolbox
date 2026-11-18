@@ -109,7 +109,7 @@ def _print_status(st):
     print("今日灵魂喂养（主/副角色独立计数，同角色幻兽共用）：")
     for role, label in ((0, "主角色(1p)"), (1, "副角色(2p)")):
         item = st["quotas"][str(role)]
-        print("  %s: 已用 %d / %d（剩 %d）  配额 feedDayNum=%d + VIP%d 加成 %d"
+        print("  %s: 已用 %d / %d（剩 %d）  配额 基础%d + VIP%d 加成 %d"
               % (label, item["used"], item["total"], item["left"],
                  item["base"], item["vipLevel"], item["vipBonus"]))
     print("  [每条计数按 everyDaySetting.feedDayNum_0/1，非按幻兽]")

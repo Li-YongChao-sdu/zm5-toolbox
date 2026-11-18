@@ -290,7 +290,7 @@ class UnionBatchWindow:
         ttk.Label(team_row, text="连续次数:").pack(side="left")
         self.var_team_times = tk.StringVar(value="1")
         ttk.Spinbox(team_row, from_=1, to=10, width=3, textvariable=self.var_team_times,
-                    state="readonly").pack(side="left", padx=4)
+                    state="normal").pack(side="left", padx=4)
         self.var_team_claim = tk.BooleanVar(value=True)
         ttk.Checkbutton(team_row, text="领取共享宝箱", variable=self.var_team_claim).pack(side="left", padx=(12, 0))
         ttk.Button(team_row, text="组队开打", command=self.launch_manhuang_team).pack(side="left", padx=(12, 0))

@@ -12,6 +12,8 @@ def summary(app,key,modules=None):
     except (AttributeError,KeyError,ValueError,TypeError,tk.TclError):return '设置尚未完善，请打开原页面检查'
 
 def describe(app,key,modules):
+    if key=='RUN_PET_PVE_FIRST':return '补齐未首通关卡至第6关；首通免次数'
+    if key=='RUN_PET_PVE_DAILY':return '仅重复第6关，完成当天剩余免费次数；无点券消耗'
     row=modules.get(key,{});page=row.get('page','')
     if key in ('RUN_ARENA','RUN_PET_ARENA'):
         from arena_target_ui import MODE_CHOICES
@@ -34,7 +36,7 @@ def describe(app,key,modules):
         return '%s｜%s局｜等待%s秒'%(value(p,'mode'),value(p,'count'),value(p,'wait'))
     if key=='RUN_FUN_CAVE_PUBLISH':return '查询本人已发布关卡并逐个领取仙魄；无发布则跳过'
     if key=='RUN_FUN_BLACK_MARKET':return '仅购买灵魂商品，使用VIP剩余免费刷新次数'
-    if key=='RUN_FUN_MONSTER_CARD':return '免费抽取%s次'%value(app.pet_utility_page,'card_count')
+    if key=='RUN_FUN_MONSTER_CARD':return '抽完剩余免费次数'
     if key in ('RUN_FUN_COLLECT_REWARD','RUN_FUN_COLLECT_START'):
         p=app.pet_utility_page
         return '位置%s｜普通领取'%value(p,'pos') if key.endswith('REWARD') else '位置%s｜%s｜%s'%(value(p,'pos'),value(p,'material'),value(p,'gear'))

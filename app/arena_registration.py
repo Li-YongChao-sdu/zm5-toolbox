@@ -49,6 +49,18 @@ def enrolled(info, handler):
     return rank is not None and rank >= 0
 
 
+def enrolled_now(flow, handler, info=None, slot=None):
+    """只读检测本周是否已报名；不会发送报名请求。"""
+    if handler not in ROUTES:
+        raise ValueError('未知报名类型')
+    if info is None:
+        info = entry_info(flow, slot)
+    info = info or {}
+    if not enrolled(info, handler):
+        info = _merge_home(flow, handler, info)
+    return enrolled(info, handler)
+
+
 def registration_open(now=None):
     """报名时段：周五16:00至周日22:00（北京时间）。"""
     now = now or datetime.now(timezone(timedelta(hours=8)))

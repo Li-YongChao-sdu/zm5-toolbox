@@ -16,9 +16,19 @@ def run_chain(jobs,card,seed_mode,code='',folder=None,connect_fn=connect,executo
     if seed_mode=='code' and not code:raise ValueError('缺少起始兑换码')
     folder=Path(folder or ROOT/'dog_chain_reports');folder.mkdir(exist_ok=True)
     members={(str(a['uid']),slot) for a,slot in jobs}
+    def unsettled(old):
+        for node in old.get('steps') or []:
+            for req in (node.get('report') or {}).get('requests') or []:
+                if req.get('phase')!='returned':return True
+        return False
+    today=beijing_now().date().isoformat()
     for path in folder.glob('*.private.json'):
         old=json.loads(path.read_text(encoding='utf8'))
-        if old.get('status')!='complete' and old.get('started_mutation') and members.intersection({(x['uid'],x['slot']) for x in old.get('members',[])}):raise ValueError('名单存在未完成接力，请先核对私有记录，不能重复提交')
+        if old.get('status')=='complete' or not old.get('started_mutation'):continue
+        if old.get('date')!=today:continue
+        if not members.intersection({(x['uid'],x['slot']) for x in old.get('members',[])}):continue
+        if unsettled(old):raise ValueError('名单存在未完成接力且有请求结果未知（%s），请先核对私有记录，不能重复提交'%path.name)
+        print('[接力] 上次同日接力未完成，但请求结果均已确认，继续执行；已参与账号会自动跳过',flush=True)
     lock=folder/'active.lock'
     fd=os.open(lock,os.O_CREAT|os.O_EXCL|os.O_WRONLY);os.close(fd)
     path=folder/(datetime.now().strftime('%Y%m%d_%H%M%S_%f')+'.private.json')

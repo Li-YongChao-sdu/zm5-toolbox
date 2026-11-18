@@ -289,14 +289,52 @@ def feed_used(info, index=None):
         return 0
 
 
+def feed_activity_open(activity_id, now=None):
+    """FairyFeed.activityId 对应的活动当前是否开放（按最新 cg1 的 Activity 起止与星期）。"""
+    try:
+        activity_id = int(activity_id)
+    except (TypeError, ValueError):
+        return False
+    if activity_id <= 0:
+        return False
+    from game_version import beijing_now, latest_config_folder, _date
+    folder = latest_config_folder()
+    if folder is None:
+        return False
+    try:
+        with open(os.path.join(folder, "Activity.json"), encoding="utf-8-sig") as f:
+            table = json.load(f)
+    except (OSError, ValueError):
+        return False
+    row = table.get(str(activity_id)) or next(
+        (v for v in table.values() if isinstance(v, dict)
+         and str(v.get("id")) == str(activity_id)), None)
+    if not isinstance(row, dict):
+        return False
+    now = beijing_now(now)
+    try:
+        start = _date(row["shelfTime"])
+        end = _date(row["underTime"])
+        weekdays = {int(v) for v in str(row.get("weekDay", "0;1;2;3;4;5;6")).split(";")}
+    except (KeyError, TypeError, ValueError):
+        return False
+    return start <= now <= end and (now.weekday() + 1) % 7 in weekdays
+
+
 def feed_quota(info, cfg=None, role=None):
-    """今日灵魂喂养配额（按出战角色独立）。返回 {used,total,left,base,vipBonus,index}。"""
+    """今日灵魂喂养配额（按出战角色独立，活动期取 feedDayNum_Activity）。"""
     cfg = cfg or FeedConfig()
     index = role_index(info, role)
     fairies = list_fairies(info)
     level = fairies[0]["level"] if fairies else 1
-    tier = cfg.tier(level)
-    base = int((tier or {}).get("feedDayNum") or FALLBACK_FEED_DAY_NUM)
+    tier = cfg.tier(level) or {}
+    base = int(tier.get("feedDayNum") or FALLBACK_FEED_DAY_NUM)
+    try:
+        activity_base = int(tier.get("feedDayNumActivity") or 0)
+    except (TypeError, ValueError):
+        activity_base = 0
+    if activity_base > 0 and feed_activity_open(tier.get("activityId")):
+        base = activity_base
     try:
         vip_level = int(((info or {}).get("vip") or {}).get("level") or 0)
     except (TypeError, ValueError):

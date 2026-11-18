@@ -6,6 +6,8 @@
 服务器先推 onPVPFinish/onCopyAbnormal → 直接采用，不再提交。
 默认只用原仓库信号；加 --model-fail 为混合方案：模型判死不提交，等对手掉线时才提交，
 血量高于 25% 报胜利，25% 以内报失败。
+加 --surrender 为投降方案：真人局双方加载完成后随机 3–6 秒直接提交失败，机器人场仍判胜。
+默认跑 7 场真人局，机器人局不计入该次数。
 """
 
 import argparse
@@ -27,6 +29,7 @@ FPS = 30
 TIME_LIMIT_FRAMES = 5670      # 客户端 PvP 时间到：5670 帧（约 189 秒）
 FINISH_WAIT = 30              # 提交 battleExit 后等待 onPVPFinish 的秒数
 INSTANT_FAIL_RANGE = (1.0, 3.0)  # --instant-fail：开局随机 1–3 秒内提交失败（仅测试）
+SURRENDER_RANGE = (3.0, 6.0)     # --surrender：真人局加载完成后随机 3–6 秒提交失败（机器人判胜）
 BATTLE_WAIT = 240             # 原仓库挂机最长等待（略长于 189 秒时间上限）
 EVENTS = ("onPVPMatchResult", "onPlayerJoinWaitingRoom", "onPrepareCreateOnlineCopy",
           "onCreateOnlineCopy", "onCreateOnlineCopyError", "onPlayerLeaveWaitingRoom",
@@ -304,8 +307,9 @@ def _confirm_match(flow, slot, before):
 
 def _one_match(flow, events, slot, before, match_seconds, battle_seconds,
                robot_fail=False, instant_fail=False, model_fail=False,
-               robot_fail_streak=0, loss_streak=0):
+               robot_fail_streak=0, loss_streak=0, surrender=False):
     instant_delay = random.uniform(*INSTANT_FAIL_RANGE) if instant_fail else None
+    surrender_delay = random.uniform(*SURRENDER_RANGE) if surrender else None
     reply = _checked(flow.request("scene.pvpHandler.matchStart", {}), "斗神匹配")
     if reply.get("robot"):
         robot = reply["robot"]
@@ -325,11 +329,15 @@ def _one_match(flow, events, slot, before, match_seconds, battle_seconds,
         result = _checked(flow.request("scene.pvpHandler.robotPVPFinish", {
             "win": win, "name": robot["name"], "entityId": robot["entityId"]}), "机器人战斗结算")
         win_type = int((result.get("data") or {}).get("winType") or 0)
+        reward = result.get("data") or {}
+        if "addScore" in reward or "addPetBtlM" in reward:
+            print("[斗神大会] 机器人结算奖励：addScore=%s addPetBtlM=%s"
+                  % (reward.get("addScore"), reward.get("addPetBtlM")), flush=True)
         if instant_fail:
             print("[斗神大会] 机器人失败结算返回：winType=%d" % win_type, flush=True)
         elif win_type != win:
             raise RuntimeError("机器人结算结果异常：winType=%d（期望 %d）" % (win_type, win))
-        return _confirm_match(flow, slot, before), bool(win)
+        return _confirm_match(flow, slot, before), bool(win), True
     print("[斗神大会] 已发起匹配", flush=True)
     room_id = None
     team = None
@@ -361,17 +369,17 @@ def _one_match(flow, events, slot, before, match_seconds, battle_seconds,
             if battle_start is None:
                 if now >= deadline:
                     print("[斗神大会] 匹配/进场超时，本场停止", flush=True)
-                    return False, None
+                    return False, None, False
             elif now >= battle_start + BATTLE_WAIT + FINISH_WAIT + 10:
                 print("[斗神大会] 挂机与结算等待均超时，本场停止", flush=True)
-                return False, None
+                return False, None, False
             if accepted and finish_deadline is not None and now >= finish_deadline:
                 print("[斗神大会] 提交后 %d 秒未收到服务器结算，停止连续匹配"
                       % FINISH_WAIT, flush=True)
-                return False, final_win
+                return False, final_win, False
             if team_closed and not accepted:
                 print("[斗神大会] 未提交结算即断开，本场停止", flush=True)
-                return False, None
+                return False, None, False
             if room_id and team is None and now >= next_ping:
                 flow.request("room.waitingRoomHandler.ping", {
                     "roomId": str(room_id), "code": 200,
@@ -436,7 +444,12 @@ def _one_match(flow, events, slot, before, match_seconds, battle_seconds,
                 live_frame = frames.frame
                 reason = ""
                 killed = False
-                if instant_fail and elapsed >= instant_delay:
+                if surrender and surrender_delay is not None and elapsed >= surrender_delay:
+                    killed = True
+                    live_frame = 1
+                    reason = ("真人局加载完成后 %.1f 秒投降（--surrender，实际第 %.1f 秒）"
+                              % (surrender_delay, elapsed))
+                elif instant_fail and elapsed >= instant_delay:
                     killed = True
                     live_frame = 1
                     reason = ("开局随机 %.1f 秒提交失败（--instant-fail，实际第 %.1f 秒）"
@@ -495,7 +508,7 @@ def _one_match(flow, events, slot, before, match_seconds, battle_seconds,
                               % (label, code, submit_tries), flush=True)
                 if submit_tries >= 5 and not accepted:
                     print("[斗神大会] 结算多次未受理，本场停止", flush=True)
-                    return False, None
+                    return False, None, False
             try:
                 route, body = events.get(timeout=min(2, max(.1, deadline - now)))
             except queue.Empty:
@@ -581,7 +594,7 @@ def _one_match(flow, events, slot, before, match_seconds, battle_seconds,
                     continue
                 print("[斗神大会] 服务器异常结束（code=%s），不再提交结算"
                       % data.get("code"), flush=True)
-                return _confirm_match(flow, slot, before), None
+                return _confirm_match(flow, slot, before), None, False
             elif route == "onPVPFinish":
                 season = data.get("pvpSeason") or {}
                 model = ""
@@ -594,6 +607,9 @@ def _one_match(flow, events, slot, before, match_seconds, battle_seconds,
                       % (data.get("winType"), season.get("fail"),
                          season.get("escape"), season.get("totalEscape"), model,
                          data.get("reportId")), flush=True)
+                if "addScore" in data or "addPetBtlM" in data:
+                    print("[斗神大会] 结算奖励：addScore=%s addPetBtlM=%s"
+                          % (data.get("addScore"), data.get("addPetBtlM")), flush=True)
                 for result in data.get("playerResult") or []:
                     if not isinstance(result, dict):
                         continue
@@ -603,7 +619,7 @@ def _one_match(flow, events, slot, before, match_seconds, battle_seconds,
                              exited.get("frameNum")), flush=True)
                 win_type = _num(data.get("winType"))
                 outcome = True if win_type == 1 else (False if win_type == 0 else None)
-                return _confirm_match(flow, slot, before), outcome
+                return _confirm_match(flow, slot, before), outcome, False
     finally:
         if team:
             team.disconnect()
@@ -615,8 +631,9 @@ def _one_match(flow, events, slot, before, match_seconds, battle_seconds,
 
 
 def main():
-    parser = argparse.ArgumentParser(description="斗神大会匹配，默认4场")
-    parser.add_argument("--matches", type=int, default=4)
+    parser = argparse.ArgumentParser(description="斗神大会匹配，默认7场真人局（机器人局不计入）")
+    parser.add_argument("--matches", type=int, default=7,
+                        help="真人局场数，机器人局不计入（默认7）")
     parser.add_argument("--match-seconds", type=int, default=90)
     parser.add_argument("--battle-seconds", type=int, default=240)
     parser.add_argument("--robot-fail", action="store_true", help="机器人场也提交失败结算")
@@ -624,6 +641,8 @@ def main():
                         help="连败达到 N 场后再遇到机器人时，机器人局也提交失败（0=关闭）")
     parser.add_argument("--instant-fail", action="store_true",
                         help="进战斗后立即按 alld 提交失败（仅测试服务器判定，勿用于正式挂机）")
+    parser.add_argument("--surrender", action="store_true",
+                        help="真人局双方加载完成后随机3-6秒直接投降；机器人场仍判胜")
     parser.add_argument("--model-fail", action="store_true",
                         help="混合方案：模型判死不提交；对手掉线时血量高于25%%报胜利，否则报失败")
     parser.add_argument("--account", default="", help="账号文件名或路径，默认 account.local.json")
@@ -652,28 +671,40 @@ def main():
             flow.on(route, lambda body, name=route: events.put((name, body)))
         progress = _task_progress(info)
         season = info.get("pvpSeason") or {}
-        print("[斗神大会] 存档槽 %d，今日任务 %s，逃跑 %s/%s，本次计划 %d 场" %
+        print("[斗神大会] 存档槽 %d，今日任务 %s，逃跑 %s/%s，本次计划 %d 场真人局（机器人局不计入）" %
               (slot, "%d/%d" % (progress, TARGET) if progress is not None else "未显示",
                season.get("escape"), season.get("totalEscape"), args.matches), flush=True)
         loss_streak = 0
-        for number in range(args.matches):
+        real_played = 0
+        attempts = 0
+        max_attempts = args.matches * 5 + 5
+        while real_played < args.matches and attempts < max_attempts:
+            attempts += 1
             while not events.empty():
                 events.get_nowait()
-            print("[斗神大会] 第 %d/%d 场" % (number + 1, args.matches), flush=True)
-            ok, won = _one_match(flow, events, slot, _match_count(info),
-                                 args.match_seconds, args.battle_seconds,
-                                 args.robot_fail, args.instant_fail, args.model_fail,
-                                 args.robot_fail_streak, loss_streak)
+            print("[斗神大会] 真人局进度 %d/%d（第 %d 次匹配）"
+                  % (real_played + 1, args.matches, attempts), flush=True)
+            ok, won, robot = _one_match(flow, events, slot, _match_count(info),
+                                        args.match_seconds, args.battle_seconds,
+                                        args.robot_fail, args.instant_fail, args.model_fail,
+                                        args.robot_fail_streak, loss_streak, args.surrender)
             if not ok:
                 break
+            if robot:
+                print("[斗神大会] 本场为机器人局，不计入真人局次数", flush=True)
+            else:
+                real_played += 1
             if won is True:
                 loss_streak = 0
             elif won is False:
                 loss_streak += 1
                 print("[斗神大会] 当前连败 %d 场" % loss_streak, flush=True)
             info = enter(flow, slot)
-            if number + 1 < args.matches:
+            if real_played < args.matches and attempts < max_attempts:
                 time.sleep(3)
+        if real_played < args.matches and attempts >= max_attempts:
+            print("[斗神大会] 已匹配 %d 次仍未完成 %d 场真人局，停止"
+                  % (attempts, args.matches), flush=True)
     except (OSError, ValueError, RuntimeError) as exc:
         print("[斗神大会] %s" % exc, flush=True)
         return 1

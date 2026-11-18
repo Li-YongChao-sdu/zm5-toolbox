@@ -558,9 +558,9 @@ TASKS = [
 
 
 
-    ("竞技场(创建战斗)",   "RUN_ARENA",        True,  False, "按当天免费次数挑战"),
+    ("竞技场(创建战斗)",   "RUN_ARENA",        True,  False, "按当天免费次数挑战；需单独勾选报名，打竞技场不会自动报名"),
 
-    ("斗宠大会(创建战斗)", "RUN_PET_ARENA",   True,  False, "按当天免费次数挑战"),
+    ("斗宠大会(创建战斗)", "RUN_PET_ARENA",   True,  False, "按当天免费次数挑战；需单独勾选报名，打斗宠不会自动报名"),
 
     ("神兽森林",          "RUN_FOREST",        True,  False, "默认速通扫荡，可选固定关卡手打或材料预览"),
 
@@ -594,7 +594,7 @@ TASKS = [
 
 
 
-    ("牛魔王",           "RUN_ACT_MONKIAN",  True,  False, "免费2次"),
+    ("挑战牛魔王",       "RUN_ACT_MONKIAN",  True,  False, "默认噩梦；普通/噩梦共享免费2次，执行完剩余免费次数"),
 
 
 
@@ -663,6 +663,8 @@ TASKS = [
 
 
 
+    ("万兽秘境首通至第6关", "RUN_PET_PVE_FIRST", False, False, "仅补尚未首通的关卡；首通免每日次数；每场三胜结束"),
+    ("万兽秘境第6关免费挑战", "RUN_PET_PVE_DAILY", False, False, "第6关已首通才执行；重复挑战至当天免费次数用完，不花点券"),
     ("灵宠试炼",         "RUN_PET_TOWER",     True,  False, "每日重置"),
 
 
@@ -768,8 +770,8 @@ TASKS += [
 
 
 
-    ('竞技场报名', 'RUN_ARENA_SIGNUP', False, False, '仅在报名时段内、本周未报名时发送一次 applyFor；已报名不重发'),
-    ('斗宠大会报名', 'RUN_PET_ARENA_SIGNUP', False, False, '同竞技场；斗宠阵容为空时跳过报名'),
+    ('竞技场报名', 'RUN_ARENA_SIGNUP', False, False, '独立任务，默认不勾选；打竞技场不会自动报名。仅在报名时段内、本周未报名时发送一次 applyFor'),
+    ('斗宠大会报名', 'RUN_PET_ARENA_SIGNUP', False, False, '独立任务，默认不勾选；打斗宠不会自动报名。斗宠阵容为空时跳过'),
     ('竞技场上届领奖', 'RUN_ARENA_REWARD', False, False, '仅领上届奖励并核对竞技币；不报名、不挑战'),
     ('斗宠大会上届领奖', 'RUN_PET_ARENA_REWARD', False, False, '仅领上届奖励并核对斗宠币和道具；不报名、不挑战'),
 
@@ -895,7 +897,7 @@ TASK_PAGES = {
 
 
 
-        "RUN_WANXIANG", "RUN_PET_TOWER",
+        "RUN_WANXIANG", "RUN_PET_TOWER", "RUN_PET_PVE_FIRST", "RUN_PET_PVE_DAILY",
 
 
 
@@ -2374,7 +2376,9 @@ class DailyGUI:
             button=ttk.Button(registration_box,text=title,command=lambda h=handler:self.launch_arena_registration(h))
             button.pack(side=tk.LEFT,padx=6,pady=5)
             self.arena_registration_buttons.append(button)
-        # 一键日常开启竞技场任务时会自动检查并报名；这里保留手动入口。
+        ttk.Label(registration_box,
+                  text='报名是独立任务，默认不勾选；打竞技场／斗宠不会自动报名。',
+                  foreground='#666666').pack(side=tk.LEFT,padx=(8,6),pady=5)
 
         self.arena_target_controls = {}
 
@@ -2618,7 +2622,7 @@ class DailyGUI:
 
 
 
-        ttk.Label(pvp_frame, text="开放时间：每天 12:00–14:00、19:00–21:00；默认4场，可填任意正整数。",
+        ttk.Label(pvp_frame, text="开放时间：每天 12:00–14:00、19:00–21:00；默认7场真人局（机器人局不计入），可填任意正整数。",
 
 
 
@@ -2626,7 +2630,7 @@ class DailyGUI:
 
 
 
-        ttk.Label(pvp_frame, text="真人场判定：默认按原仓库等对手退出报失败；开局投降为进场1–3秒直接报失败（测试用）；混合为等对手退出时按帧血量判胜负。机器人场始终胜利结算。",
+        ttk.Label(pvp_frame, text="真人场判定：默认双方加载完成后3–6秒投降，机器人场判胜；备用方案1为原仓库等对手退出报失败；开局投降为进场1–3秒直接报失败（测试用）；混合为等对手退出时按帧血量判胜负。",
 
 
 
@@ -2642,11 +2646,11 @@ class DailyGUI:
 
 
 
-        ttk.Label(pvp_row, text="本次场数：").pack(side=tk.LEFT)
+        ttk.Label(pvp_row, text="真人场数：").pack(side=tk.LEFT)
 
 
 
-        self.var_pvp_matches = tk.IntVar(value=4)
+        self.var_pvp_matches = tk.IntVar(value=7)
 
 
 
@@ -2667,10 +2671,11 @@ class DailyGUI:
         pvp_mode_row = ttk.Frame(pvp_frame)
         pvp_mode_row.pack(anchor=tk.W, padx=8, pady=(0, 7), before=pvp_row)
         ttk.Label(pvp_mode_row, text="判定模式：").pack(side=tk.LEFT)
-        self.var_pvp_mode = tk.StringVar(value="原仓库：等对手退出（默认）")
+        self.var_pvp_mode = tk.StringVar(value="真人3–6秒投降（机器人判胜，默认）")
         ttk.Combobox(pvp_mode_row, textvariable=self.var_pvp_mode, state="readonly",
-                     width=26,
-                     values=("原仓库：等对手退出（默认）", "开局投降：进场1–3秒报失败", "混合：等对手退出+帧血量")
+                     width=30,
+                     values=("真人3–6秒投降（机器人判胜，默认）", "备用方案1：原仓库等对手退出",
+                             "开局投降：进场1–3秒报失败", "混合：等对手退出+帧血量")
                      ).pack(side=tk.LEFT, padx=4)
         self.var_pvp_robot_fail = tk.BooleanVar(value=False)
         ttk.Checkbutton(pvp_mode_row, text="机器人局也判负（连败",
@@ -4388,7 +4393,7 @@ class DailyGUI:
         ttk.Label(mh_team_row, text="连续次数:").pack(side=tk.LEFT, padx=(10, 2))
         self.var_mh_times = tk.StringVar(value=str(max(1, int(_mh_saved_times or 1))))
         self.spin_mh_times = ttk.Spinbox(mh_team_row, from_=1, to=10, width=3,
-                                         textvariable=self.var_mh_times, state="readonly")
+                                         textvariable=self.var_mh_times, state="normal")
         self.spin_mh_times.pack(side=tk.LEFT)
 
         self._sync_mh_team()
@@ -8764,7 +8769,7 @@ class DailyGUI:
         for index, btn in enumerate(getattr(self, 'manhuang_claim_buttons', [])):
             btn.state(['!disabled'] if (team and index < size) else ['disabled'])
         if hasattr(self, 'spin_mh_times'):
-            self.spin_mh_times.configure(state='readonly' if team else 'disabled')
+            self.spin_mh_times.configure(state='normal' if team else 'disabled')
         self.btn_manhuang_team.configure(state=tk.NORMAL if team else tk.DISABLED)
 
 
@@ -9786,7 +9791,9 @@ class DailyGUI:
 
         mode = self.var_pvp_mode.get()
         extra = []
-        if mode.startswith("开局"):
+        if mode.startswith("真人"):
+            extra.append("--surrender")
+        elif mode.startswith("开局"):
             extra.append("--instant-fail")
         elif mode.startswith("混合"):
             extra.append("--model-fail")

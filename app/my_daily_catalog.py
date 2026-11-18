@@ -4,7 +4,7 @@ DEFINITIONS=(
  ('RUN_FUN_BLACK_MARKET','黑市灵魂日常','black','黑市','仅买灵魂商品，并使用VIP剩余免费刷新；不花点券'),
  ('RUN_FUN_COLLECT_REWARD','领取采集奖励','reward','宠物采集','普通领取原页面选中位置；未完成或已领取时跳过'),
  ('RUN_FUN_COLLECT_START','派遣宠物采集','start','宠物采集','沿用位置、材料和时长；宠物优先页面已选，未查询时运行时自动选第一只空闲宠物；无空闲则跳过'),
- ('RUN_FUN_MONSTER_CARD','妖王帖免费抽取','card','妖王帖','沿用原页面次数；仅剩余免费次数'),
+ ('RUN_FUN_MONSTER_CARD','妖王帖免费抽取','card','妖王帖','自动抽完当天剩余免费次数'),
  ('RUN_FUN_CARD_CAVE','藏宝洞免费挑战','cave','藏宝洞','沿用模式、次数和间隔；指定码在运行时自动核验，未填或格式无效时改按推荐最高守备强度；仅免费次数'),
  ('RUN_FUN_CAVE_PUBLISH','领取藏宝洞已发布收益','publish','藏宝洞','查询本人已发布关卡并逐个领取仙魄；核对到账且点券、元宝、挑战次数不变；无已发布关卡跳过'),
  ('RUN_FUN_FAIRY_FEED','幻兽喂养','feed','幻兽喂养','沿用喂养角色、方式和次数；优先已选或缓存的幻兽，否则默认该角色身上的，喂不了再选等级最低的'),
@@ -53,6 +53,12 @@ def validate_plan(keys,plan,uid,slot):
             if 'auto' in a:
                 if a['auto'] is not True or 'entity_id' in a or 'ordinal' in a:raise ValueError('幻兽喂养参数无效')
             elif ('entity_id' in a)==('ordinal' in a):raise ValueError('幻兽喂养须指定幻兽或序号')
+        elif kind=='card':
+            if set(a)=={'auto'}:
+                if a['auto'] is not True:raise ValueError('免费妖王帖参数无效')
+            elif set(a)=={'count'}:
+                if type(a['count'])!=int or a['count']<0:raise ValueError('免费妖王帖次数无效')
+            else:raise ValueError('包含未选择或不支持的趣味活动')
         elif kind!='start' and set(a)!=fields[kind]:raise ValueError('包含未选择或不支持的趣味活动')
         if kind in ('reward','start') and (type(a['pos'])!=int or not 0<=a['pos']<=2):raise ValueError('采集位置无效')
         if kind=='start':
@@ -61,7 +67,6 @@ def validate_plan(keys,plan,uid,slot):
                 if a['auto'] is not True or 'entity' in a:raise ValueError('采集派遣参数无效')
             elif not isinstance(a.get('entity'),str) or not a.get('entity'):raise ValueError('采集派遣参数无效')
             if type(a['collect_id'])!=int or a['collect_id']<=0 or type(a['gear'])!=int or not 0<=a['gear']<=2:raise ValueError('采集派遣参数无效')
-        if kind=='card' and (type(a['count'])!=int or a['count']<0):raise ValueError('免费妖王帖次数无效')
         if kind=='cave':
             if type(a['matches'])!=int or not 1<=a['matches']<=5 or not math.isfinite(float(a['wait'])) or not 0<=float(a['wait'])<=3600 or a['mode'] not in ('recommend','specified'):raise ValueError('藏宝洞参数无效')
             if a['mode']=='specified' and (not isinstance(a['code'],str) or not a['code'] or not isinstance(a['fingerprint'],str)):raise ValueError('指定藏宝洞挑战码无效')

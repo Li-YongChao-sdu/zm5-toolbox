@@ -219,6 +219,8 @@ RUN_DEMON_TOWER2 = True  # 镇妖塔，独立于噩梦关卡
 NIGHTMARE_CLAIM_FREE_CARD = True
 NIGHTMARE_CARD_PAID = False  # 显式开启才允许消耗翡翠钥匙额外翻牌
 NIGHTMARE_CARD_STRATEGY = 'dynamic'  # free / static / dynamic，默认动态策略
+RUN_PET_PVE_FIRST = False
+RUN_PET_PVE_DAILY = False
 RUN_PET_TOWER = True
 RUN_FREE_MAZE = True       # 造梦迷宫：每日活跃任务最多3次
 FREE_MAZE_TARGET_CODE = ''
@@ -1615,16 +1617,15 @@ def battle_arena(flow, handler="arena", label="竞技场", max_rounds=None, info
     顺序为 周日~周六: 周日10/周一5/周二5/周三5/周四5/周五10/周六10, 即周567=10)。
     预检: 用 getArenaInfo 的 jjcChallengeNum 当天值做免费上限;
     免费段只调 beginArenaBattle/endArenaBattle, 付费续战仅在开关启用后执行。
-    开打前按客户端路由补报名（周五16点~周日22点），斗宠未设阵容则跳过。"""
+    报名是独立任务：这里只读检查本周报名状态，未报名则跳过，不会自动报名。"""
     import arena_registration
     if info is None:
         info = arena_registration.entry_info(flow)
     if handler == 'petArena' and not (info.get('petTeam') or []):
         print("[%s] 斗宠阵容未设置（请先在游戏内设置斗宠阵容），跳过" % label)
         return
-    if not arena_registration.ensure(flow, handler, label, info=info,
-                                     require_registration=False):
-        print("[%s] 报名未确认且无法继续，跳过对战" % label)
+    if not arena_registration.enrolled_now(flow, handler, info=info):
+        print("[%s] 本周未报名，跳过对战（报名是独立任务，请先勾选报名或手动报名）" % label)
         return
     home = flow.request("scene.%sHandler.getArenaInfo" % handler, {})
     if not isinstance(home, dict) or home.get("error"):
@@ -2401,7 +2402,7 @@ def run_activity(flow, info):
                   % (name, max_n, max_n))
             continue
         order = ([(act["hard"], "-噩梦"), (act["normal"], "-普通")]
-                 if ACTIVITY_PREFER == "hard"
+                 if act["name"] == "牛魔王" or ACTIVITY_PREFER == "hard"
                  else [(act["normal"], "-普通"), (act["hard"], "-噩梦")])
         # 只执行剩余免费次数, 避免已有使用次数后把后续请求变成付费场次
         rounds = max_n if remain is None else min(max_n, max(0, remain))
@@ -3359,26 +3360,103 @@ def claim_dragon_treasure_tasks(flow, info):
     print("[龙宫寻宝] 已领取%d/%d个已完成任务" % (claimed, len(ready)))
     return claimed
 
-def claim_liveness(flow):
-    # 1. 先领每日活跃任务奖励（990001~990032），用 questHandler.commitQuest
-    n_task = 0
-    for qid in range(990001, 990033):
-        r = flow.request("scene.questHandler.commitQuest", {"qId": qid})
-        err = r.get("error") if isinstance(r, dict) else None
-        if err:
-            continue  # 没完成/已领，跳过
-        give = r.get("give") or r.get("drops") or r
-        print("[活跃任务] id%s 领取成功: %s" % (qid, give))
-        n_task += 1
-        time.sleep(SLEEP)
-    print("[活跃任务] 共领 %d 个任务奖励" % n_task)
+_LIVENESS_RANGE = (990001, 990032)  # 每日活跃任务 qId 段（getQuestList 不返回 label/name）
+_LIVENESS_FALLBACK = ((1, 0, 30), (2, 0, 60), (3, 0, 90), (4, 0, 120), (5, 0, 150),
+                      (11, 1, 450), (12, 1, 900))
 
-    # 2. 再领里程碑奖励（30/60/90/120/150点 + 每周450/900点）
-    for rid in [1, 2, 3, 4, 5, 11, 12]:
+
+def _liveness_rewards():
+    """LivenessReward.json → [(rewardId, livenessType, activePoint)]，0=日 1=周。"""
+    try:
+        from game_version import latest_config_folder
+        folder = latest_config_folder()
+        if folder is not None:
+            with open(os.path.join(folder, "LivenessReward.json"), encoding="utf-8-sig") as f:
+                table = json.load(f)
+            rows = []
+            for key, row in table.items():
+                rows.append((int(row.get("id") or key),
+                             int(row.get("livenessType") or 0),
+                             int(row.get("activePoint") or 0)))
+            if rows:
+                return sorted(rows)
+    except (OSError, ValueError, TypeError, AttributeError):
+        pass
+    return list(_LIVENESS_FALLBACK)
+
+
+def claim_liveness(flow, info=None):
+    """领每日活跃：先按任务列表筛选 990001~990032 且 status==2，再按活跃点数领里程碑。
+
+    不再盲提交整段 qId；只提交服务器已下发且已完成待领的活跃任务。
+    info 可用时还会跳过已领/未到点的里程碑。
+    """
+    n_task = 0
+    try:
+        r = flow.request("scene.questHandler.getQuestList", {})
+    except Exception as e:
+        print("[活跃任务] 任务列表查询失败：%s" % e)
+        r = None
+    quests = (r.get("quest") if isinstance(r, dict) else None) or []
+    ready = []
+    for q in quests:
+        if not isinstance(q, dict):
+            continue
+        try:
+            qid = int(q.get("id") or 0)
+            status = int(q.get("status") or 0)
+        except (TypeError, ValueError):
+            continue
+        if _LIVENESS_RANGE[0] <= qid <= _LIVENESS_RANGE[1] and status == 2:
+            ready.append((qid, str(q.get("name") or "")))
+    if not ready:
+        print("[活跃任务] 没有已完成待领取的活跃任务")
+    for qid, name in ready:
+        try:
+            rr = flow.request("scene.questHandler.commitQuest", {"qId": qid})
+        except Exception as e:
+            print("[活跃任务] id%s 领取异常(不重试): %s" % (qid, e))
+            continue
+        if isinstance(rr, dict) and not rr.get("error"):
+            give = rr.get("give") or rr.get("drops") or rr
+            print("[活跃任务] id%s%s 领取成功: %s"
+                  % (qid, "「%s」" % name if name else "", give))
+            n_task += 1
+            time.sleep(SLEEP)
+        else:
+            print("[活跃任务] id%s 领取失败: %s" % (qid, rr))
+    print("[活跃任务] 共领 %d 个任务奖励（待领 %d）" % (n_task, len(ready)))
+
+    # 领完任务后刷新存档，让刚加的活跃点立即参与里程碑判断
+    if isinstance(info, dict):
+        try:
+            fresh = flow.request("connector.entryHandler.entry",
+                                 {"index": RECORD_INDEX, "userAgent": flow.user_agent})
+            if isinstance(fresh, dict) and isinstance(fresh.get("info"), dict):
+                info = fresh["info"]
+        except Exception as e:
+            print("[活跃任务] 领奖后刷新活跃点失败(沿用旧值): %s" % e)
+
+    # 2. 里程碑：仅领已达到活跃点且未领过的档位
+    day_claimed = week_claimed = set()
+    day_point = week_point = 0
+    if isinstance(info, dict):
+        daily = info.get("everyDaySetting") or {}
+        weekly = info.get("everyWeekSetting") or {}
+        day_claimed = {int(k) for k in (daily.get("livenessReward") or {})}
+        week_claimed = {int(k) for k in (weekly.get("livenessReward") or {})}
+        day_point = int(daily.get("activePoint") or 0)
+        week_point = int(weekly.get("activePoint") or 0)
+    for rid, kind, need in _liveness_rewards():
+        if isinstance(info, dict):
+            if rid in (day_claimed if kind == 0 else week_claimed):
+                continue
+            if (day_point if kind == 0 else week_point) < need:
+                continue
         r = flow.request("scene.livenessHandler.getReward", {"rewardId": rid})
         err = r.get("error") if isinstance(r, dict) else None
         if err:
-            print("[活跃里程碑] id%s 未到点: %s" % (rid, err)); continue
+            print("[活跃里程碑] id%s 未到点/已领: %s" % (rid, err)); continue
         print("[活跃里程碑] id%s 领取成功: %s" % (rid, r.get("give") or r.get("drops") or r))
         time.sleep(SLEEP)
 
@@ -3579,6 +3657,12 @@ def main():
         _step('噩梦关卡', run_nightmare, flow, info)
     if RUN_DEMON_TOWER2:
         _step('恶魔塔', run_demon_tower, flow, info)
+    if RUN_PET_PVE_FIRST or RUN_PET_PVE_DAILY:
+        from pet_pve_daily import run as run_pet_pve
+        if RUN_PET_PVE_FIRST:
+            _step('万兽秘境首通', run_pet_pve, flow, RECORD_INDEX, 'first')
+        if RUN_PET_PVE_DAILY:
+            _step('万兽秘境免费挑战', run_pet_pve, flow, RECORD_INDEX, 'daily')
     if RUN_PET_TOWER:
         _step('宠物塔', run_pet_tower, flow, info)
     if RUN_STAR_MAZE:
@@ -3730,7 +3814,7 @@ def main():
             if fresh.get('code', 200) != 200 or fresh.get('error') or not isinstance(fresh.get('info'), dict):
                 raise RuntimeError('最终活跃领奖前刷新存档失败，未发送领取')
             print('[每日活跃] 本批其它任务结束，最后领取任务积分和里程碑奖励')
-            return claim_liveness(flow)
+            return claim_liveness(flow, fresh['info'])
         _step('每日活跃', _liveness)
     flow.disconnect()
 

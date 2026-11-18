@@ -415,9 +415,14 @@ def fashion_shop_items():
     return _FASHION_SHOP_ITEMS
 
 
-def fashion_shop_label(sid, name, cost, cap):
-    """玉珠商店一行文字：名称、单价、限购。"""
-    limit = '不限购' if cap < 0 else '限购%d' % cap
+def fashion_shop_label(sid, name, cost, cap, already=None):
+    """玉珠商店一行文字：名称、单价、限购；查到已购数量时显示剩余。"""
+    if cap < 0:
+        limit = '不限购' if already is None else '不限购（已购%d）' % already
+    elif already is None:
+        limit = '限购%d' % cap
+    else:
+        limit = '限购%d（已购%d，剩%d）' % (cap, already, max(0, cap - already))
     return '%s %s · %d玉珠 · %s' % (sid, name, cost, limit)
 
 
@@ -1905,6 +1910,13 @@ class DailyGUI:
             shop_frame = ttk.LabelFrame(
                 fp, text="玉珠商店（限购按已购数量自动扣减；默认只勾选要买的商品）")
             shop_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 6))
+            shop_head = ttk.Frame(shop_frame)
+            shop_head.pack(fill=tk.X, padx=8, pady=(4, 0))
+            self.var_fashion_money = tk.StringVar(value='剩余玉珠：未查询')
+            ttk.Label(shop_head, textvariable=self.var_fashion_money).pack(side=tk.LEFT)
+            self.btn_fashion_money = ttk.Button(shop_head, text='刷新余额',
+                                                command=self._refresh_fashion_money)
+            self.btn_fashion_money.pack(side=tk.LEFT, padx=(8, 0))
             shop_canvas = tk.Canvas(shop_frame, highlightthickness=0)
             shop_bar = ttk.Scrollbar(shop_frame, orient=tk.VERTICAL, command=shop_canvas.yview)
             shop_canvas.configure(yscrollcommand=shop_bar.set)
@@ -1918,14 +1930,19 @@ class DailyGUI:
                              lambda e, c=shop_canvas, w=shop_win: c.itemconfigure(w, width=e.width))
             self.var_fashion_shop_ids = {}
             self.var_fashion_shop_qty = {}
+            self.var_fashion_shop_labels = {}
+            self._fashion_shop_meta = {}
             for sid, name, cost, cap in fashion_shop_items():
                 row = ttk.Frame(shop_body)
                 row.pack(anchor=tk.W, fill=tk.X, padx=8, pady=1)
                 var = tk.BooleanVar(value=False)
                 qty = tk.StringVar(value='1')
+                label_var = tk.StringVar(value=fashion_shop_label(sid, name, cost, cap))
                 self.var_fashion_shop_ids[sid] = var
                 self.var_fashion_shop_qty[sid] = qty
-                ttk.Checkbutton(row, text=fashion_shop_label(sid, name, cost, cap),
+                self.var_fashion_shop_labels[sid] = label_var
+                self._fashion_shop_meta[sid] = (name, cost, cap)
+                ttk.Checkbutton(row, textvariable=label_var,
                                 variable=var).pack(side=tk.LEFT)
                 ttk.Label(row, text='数量').pack(side=tk.LEFT, padx=(10, 2))
                 ttk.Spinbox(row, from_=1, to=999, width=5,
@@ -8296,6 +8313,83 @@ class DailyGUI:
             self._start('新手有礼', group_keys=(key,))
         finally:
             var.set(old)
+
+    def _refresh_fashion_money(self):
+        """只读查询当前账号/存档的玉珠余额与已购数量。"""
+        if self.running:
+            messagebox.showinfo('玉珠余额', '有任务正在执行，请稍后再查询。')
+            return
+        if getattr(self, '_fashion_money_running', False):
+            return
+        if not os.path.exists(ACCOUNT_FILE):
+            messagebox.showerror('玉珠余额', '未找到 account.local.json，请先登录账号。')
+            return
+        slot = int(self.cmb_slot.get()) if hasattr(self, 'cmb_slot') else 0
+        self._fashion_money_token = getattr(self, '_fashion_money_token', 0) + 1
+        token = self._fashion_money_token
+        self._fashion_money_running = True
+        self.var_fashion_money.set('剩余玉珠：查询中…（登录游戏服可能需要几十秒）')
+        if hasattr(self, 'btn_fashion_money'):
+            self.btn_fashion_money.configure(state='disabled')
+
+        def worker():
+            flow = None
+            info = None
+            try:
+                with open(ACCOUNT_FILE, encoding='utf-8-sig') as f:
+                    account = json.load(f)
+                from teacher_trial import connect
+                flow, info = connect(account, slot)
+                money = int((info.get('dailyTaskSpecial') or {}).get('dailyTaskMoney') or 0)
+                text = '剩余玉珠：%d' % money
+            except Exception as exc:
+                text = '剩余玉珠：查询失败（%s）' % exc
+            finally:
+                if flow is not None:
+                    try:
+                        flow.disconnect()
+                    except Exception:
+                        pass
+            self.after(0, lambda: self._finish_fashion_money(text, token, info))
+
+        threading.Thread(target=worker, daemon=True).start()
+        self.after(45000, lambda: self._fashion_money_timeout(token))
+
+    def _finish_fashion_money(self, text, token, info=None):
+        if token != getattr(self, '_fashion_money_token', 0):
+            return
+        self._fashion_money_token += 1
+        self._fashion_money_running = False
+        self.var_fashion_money.set(text)
+        if hasattr(self, 'btn_fashion_money'):
+            self.btn_fashion_money.configure(state='normal')
+        self._apply_fashion_shop_limits(info)
+
+    def _fashion_money_timeout(self, token):
+        if token != getattr(self, '_fashion_money_token', 0):
+            return
+        self._fashion_money_token += 1
+        self._fashion_money_running = False
+        self.var_fashion_money.set('剩余玉珠：查询超时（45秒），请稍后重试')
+        if hasattr(self, 'btn_fashion_money'):
+            self.btn_fashion_money.configure(state='normal')
+
+    def _apply_fashion_shop_limits(self, info):
+        """用存档 shop 的 buyCount 刷新每件商品的已购/剩余限购。"""
+        if not info or not hasattr(self, '_fashion_shop_meta'):
+            return
+        shop = info.get('shop') or {}
+        if not isinstance(shop, dict):
+            return
+        counts = {}
+        for sid, rec in shop.items():
+            try:
+                counts[str(sid)] = int((rec or {}).get('buyCount') or 0) if isinstance(rec, dict) else int(rec or 0)
+            except (TypeError, ValueError):
+                pass
+        for sid, var in getattr(self, 'var_fashion_shop_labels', {}).items():
+            name, cost, cap = self._fashion_shop_meta[sid]
+            var.set(fashion_shop_label(sid, name, cost, cap, counts.get(str(sid), 0)))
 
     def _start(self, page_title=None, task_key=None, task_keys=None, free_only=False, group_keys=None):
 

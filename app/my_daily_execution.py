@@ -1,6 +1,5 @@
 """日常逐项执行：普通失败继续，未知消耗与账号变化停止。"""
 import json
-from pathlib import Path
 from my_daily_policy import FreeDailyFlow, is_readonly_route
 
 FATAL_EXIT = 20
@@ -34,10 +33,8 @@ def ordered_tasks(keys):
 
 
 def load_shops():
-    from game_version import latest_config_folder
-    root = latest_config_folder()
-    path = (root if root is not None else Path(__file__).resolve().parent / 'feature_config') / 'Shop.json'
-    return json.loads(path.read_text(encoding='utf-8-sig'))
+    from game_version import feature_config_path
+    return json.loads(feature_config_path('Shop').read_text(encoding='utf-8-sig'))
 
 
 class TaskFlow(FreeDailyFlow):

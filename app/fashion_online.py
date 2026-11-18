@@ -65,8 +65,8 @@ def observe_reply(flow,route,reply):
         if quest:clock_for(flow).sample(quest)
 
 def target_seconds():
-    from game_version import latest_config_folder
-    folder=latest_config_folder() or ROOT/'feature_config'
+    from game_version import latest_config_folder, feature_config_path
+    folder=latest_config_folder() or feature_config_path('DailyTask').parent
     row=json.loads((folder/'DailyTask.json').read_text(encoding='utf-8-sig'))[str(TASK_ID)]
     target=int(str(row['targetNum']).split(';')[0])
     if target<=0:raise ValueError('在线任务目标时长无效')

@@ -1,8 +1,7 @@
 """乱斗准备信息及手动操作；请求在原房间连接上串行执行。"""
 import copy,json,math,queue,threading,time
-from pathlib import Path
+from game_version import feature_config_path
 
-ROOT=Path(__file__).resolve().parent
 ATTRS='hpMax atk phyDef reHP hit dodge critical toughness lucky guardian'.split()
 RESISTS='lightResist darkResist waterResist fireResist woodResist soilResist windResist rayResist'.split()
 LABELS='生命 攻击 防御 回血 命中 闪避 暴击 韧性 幸运 守护 光抗 暗抗 水抗 火抗 木抗 土抗 风抗 雷抗'.split()
@@ -20,8 +19,10 @@ class Catalog:
  def __init__(self):
   self.data={}
   for name in ['Pet','PetBattleLocker','PetBattleLockerAtt','PetElf','PetElfAtt','PetCharacter','Common','PetBattleFuLu','PetPerks']:
-   path=ROOT/'feature_config'/(name+'.json')
-   self.data[name]=json.loads(path.read_text(encoding='utf-8-sig')) if path.exists() else {}
+   try:
+    path=feature_config_path(name)
+    self.data[name]=json.loads(path.read_text(encoding='utf-8-sig')) if path.exists() else {}
+   except Exception:self.data[name]={}
  def prop(self,id):
   return self.data['PetBattleFuLu'].get(str(id),{}).get('name',str(id))
  def describe(self,pet):

@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk,messagebox
+from game_version import feature_config_path
 ROOT=Path(__file__).resolve().parent
 POOLS=('彻悟池','无量池','轮回池','圆满池')
 class WishPoolPanel:
@@ -39,7 +40,7 @@ class WishPoolPanel:
     def render(self,state):
         if (str(state['uid']),int(state['slot']))!=self.binding():return False
         self.data=state
-        props=json.loads((ROOT/'feature_config/Prop.json').read_text(encoding='utf-8-sig'))
+        props=json.loads(feature_config_path('Prop').read_text(encoding='utf-8-sig'))
         def name(item):return '%s×%s（ID：%s）'%((props.get(str(item.get('subType'))) or {}).get('name','未知物品'),item.get('count',0),item.get('subType','未知'))
         found={c['pool']:c for c in state['cells']}
         for pool in POOLS:

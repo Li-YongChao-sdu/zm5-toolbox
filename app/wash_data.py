@@ -26,9 +26,11 @@
 import json
 import os
 
+from game_version import feature_config_path
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-DEFAULT_CONFIG_DIR = os.path.join(HERE, "feature_config")
+DEFAULT_CONFIG_DIR = str(feature_config_path('Prop').parent)
 
 # 各系统免费洗练所需的二级密码保护（SecondPassword.json 用路由名的 MD5 做键）
 # 说明：服务端要求请求体里带 password 字段，否则返回 code=502 二级密码错误。

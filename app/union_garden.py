@@ -1,11 +1,11 @@
 """联盟药园：仅本账号已开放土地，普通收获和已有种子种植。"""
 import json
 import time
-from pathlib import Path
+from game_version import feature_config_path
 
 
 def catalog():
-    rows=json.loads((Path(__file__).parent/'feature_config'/'GardenPlant.json').read_text(encoding='utf-8'))
+    rows=json.loads(feature_config_path('GardenPlant').read_text(encoding='utf-8'))
     return {int(row['id']):row for row in rows.values()}
 
 
@@ -40,7 +40,7 @@ def run_garden(account,slot,label,options):
     password = getattr(options, 'garden_password', '')
     if selected and mode == 'buy' and not password:
         raise ValueError('购买并种植须填写该账号的二级密码')
-    shops = json.loads((Path(__file__).parent/'feature_config'/'GardenSeedShop.json').read_text(encoding='utf-8'))
+    shops = json.loads(feature_config_path('GardenSeedShop').read_text(encoding='utf-8'))
     planted = 0
     flow,info=connect(account,slot)
     try:

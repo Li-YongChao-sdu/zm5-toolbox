@@ -36,9 +36,11 @@ import json
 import os
 import time
 
+from game_version import feature_config_path
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-DEFAULT_CONFIG_DIR = os.path.join(HERE, "feature_config")
+DEFAULT_CONFIG_DIR = str(feature_config_path('Prop').parent)
 
 ROUTE_GET_REWARD = "scene.activityHandler.getMonthCardReward"
 ROUTE_BUY = "scene.shopHandler.buyMonthCard"

@@ -687,7 +687,8 @@ def claim_vip_gift(flow, info):
     if level <= 0:
         print("[VIP礼包] 当前没有VIP等级，跳过")
         return
-    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "feature_config", "VIP.json")
+    from game_version import feature_config_path
+    config_path = feature_config_path("VIP")
     with open(config_path, encoding="utf-8") as stream:
         row = json.load(stream).get(str(level)) or {}
     gift_id = int(row.get("giftBagId") or 0)
@@ -1544,12 +1545,19 @@ def buy_fashion_shop(flow, info, shop_ids=None, password=None):
         already = int(((info.get('shop') or {}).get(str(sid)) or {}).get('buyCount') or 0)
         remain = 999 if cap < 0 else cap - already
         if remain <= 0:
-            print("[玉珠商店] %s %s 已达限购 %d，跳过" % (sid, name, cap))
+            print("[玉珠商店] %s %s 已达限购 %d（已购 %d），跳过" % (sid, name, cap, already))
             continue
-        n = min(want, remain, money // cost)
+        if want > remain:
+            print("[玉珠商店] %s %s 填写 %d 件，但剩余限购 %d 件，按 %d 件购买"
+                  % (sid, name, want, remain, remain))
+        affordable = money // cost
+        n = min(want, remain, affordable)
         if n <= 0:
             print("[玉珠商店] %s %s 玉珠不足（单价 %d，余 %d），跳过" % (sid, name, cost, money))
             continue
+        if n < min(want, remain):
+            print("[玉珠商店] %s %s 玉珠不足：单价 %d，余 %d，本次购买 %d 件"
+                  % (sid, name, cost, money, n))
         r = flow.request('scene.shopHandler.buy',
                          {'shopId': sid, 'count': n, 'password': password})
         if not isinstance(r, dict) or r.get('error') or r.get('code') != 200:
@@ -2589,7 +2597,8 @@ def run_flushou(flow, info):
     if FLUSHOU_MODE not in ("all", "once"):
         raise ValueError("福禄寿执行模式无效")
     vip = int((info.get("vip") or {}).get("level") or 0)
-    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "feature_config", "VIP.json")
+    from game_version import feature_config_path
+    config_path = feature_config_path("VIP")
     with open(config_path, encoding="utf-8-sig") as stream:
         vip_row = json.load(stream).get(str(vip)) or {}
     can_sweep = int(vip_row.get("flsSweep") or 0) > 0
@@ -2860,7 +2869,8 @@ def run_stove(flow, info=None):
         if user.get("ticket") is None:
             raise RuntimeError("[聚灵池] 无法确认点券余额")
         return int(user["ticket"])
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "feature_config", "PetElfLottery.json"), encoding="utf-8") as stream:
+    from game_version import feature_config_path
+    with open(feature_config_path("PetElfLottery"), encoding="utf-8") as stream:
         row = json.load(stream)["1"]
     info = refresh()
     vip = int((info.get("vip") or {}).get("level") or 0)

@@ -170,9 +170,20 @@ def attach(app, notebook, pages):
 
     import union_warehouse as uw
 
-    entries = {('%s（%d）'%(row['name'],item_id)):item_id for item_id,row in sorted(uw.catalog().items())}
+    try:
 
-    item = field(shop,'材料',next(iter(entries)),list(entries))
+        union_catalog = uw.catalog()
+
+    except Exception:
+
+        union_catalog = {}
+
+    entries = {('%s（%d）'%(row['name'],item_id)):item_id for item_id,row in sorted(union_catalog.items())}
+
+    item = field(shop,'材料',next(iter(entries)) if entries else '',list(entries))
+
+    if not entries:
+        ttk.Label(shop,text='缺少 UnionWarehouse.json 配置，购买功能暂不可用；请到“配置更新”页更新配置后重启。',foreground='red',wraplength=650).pack(anchor='w',pady=3)
 
     number = field(shop,'数量','1')
 
@@ -187,11 +198,14 @@ def attach(app, notebook, pages):
     tk.Checkbutton(shop,text='魂石／魂玉不足时，自动售出下方选中材料补足',variable=auto_fund).pack(anchor='w',pady=3)
 
     from union_funding_ui import FundingChoices
-    app.union_funding_choices = FundingChoices(app,shop,uw.catalog())
+    app.union_funding_choices = FundingChoices(app,shop,union_catalog)
     ttk.Label(shop,text='按勾选材料的列表顺序补足；只用兑换货币匹配的材料，跳过本次购买材料。先检查总量是否足够，凑够即停，不使用贡献或点券。',wraplength=650).pack(anchor='w',pady=3)
     warehouse_password = field(shop,'二级密码（未设置可留空）',secret=True)
 
     def args(action):
+
+        if not entries:
+            raise ValueError('缺少 UnionWarehouse.json 配置，无法购买材料；请先更新配置')
 
         result = ['--action',action,'--item',str(entries[item.get()]),'--count',positive(number)]
 

@@ -8,6 +8,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import wish_pool_api as api
 import wish_pool_data as wpd
+from game_version import feature_config_path
 
 TOOLBOX = HERE
 sys.path.insert(0, TOOLBOX)
@@ -145,7 +146,7 @@ def _print_status(st):
     print("可见格子:")
     import json
     from pathlib import Path
-    props=json.loads((Path(HERE)/'feature_config/Prop.json').read_text(encoding='utf-8-sig'))
+    props=json.loads(feature_config_path('Prop').read_text(encoding='utf-8-sig'))
     for c in st["visibleCells"]:
         reward=c["reward"];base=c["base"]
         def label(row):

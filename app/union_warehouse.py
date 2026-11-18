@@ -7,6 +7,8 @@ import json
 
 from pathlib import Path
 
+from game_version import feature_config_path
+
 
 
 HERE = Path(__file__).resolve().parent
@@ -17,7 +19,7 @@ STONE, JADE = 101026007, 101026013
 
 def catalog():
 
-    with (HERE / 'feature_config' / 'UnionWarehouse.json').open(encoding='utf-8') as f:
+    with feature_config_path('UnionWarehouse').open(encoding='utf-8') as f:
 
         rows = json.load(f)
 

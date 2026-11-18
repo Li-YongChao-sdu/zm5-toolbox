@@ -65,6 +65,12 @@ package=OUT/'造五活动助手'
 for p in STAGE.rglob('*'):
     if not p.is_file() or '__pycache__' in p.parts:continue
     dest=package/p.relative_to(STAGE);dest.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(p,dest)
+# 打包模块运行时按 __file__ 指向 _internal，配置表需同时放进 _internal
+internal=package/'_internal'
+if internal.is_dir():
+    data_files=list(STAGE.glob('*.json'))+list((STAGE/'feature_config').glob('*.json'))
+    for p in data_files:
+        dest=internal/p.relative_to(STAGE);dest.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(p,dest)
 (package/'使用说明.txt').write_text('双击“造五活动助手.exe”启动，无需安装Python。\n请保留整个文件夹，不能只移动exe。\n首次启动后自行用账密或Cookie登录。账号、配置和logs日志保存在此文件夹内。\n新手任务位于抓宠后面；庆典每日任务位于活动副本。\n',encoding='utf-8')
 manifest={p.relative_to(package).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
           for p in package.rglob('*') if p.is_file() and p.name!='文件清单.json'}

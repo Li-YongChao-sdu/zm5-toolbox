@@ -1,6 +1,5 @@
 """永久时装、八部天龙：仅签到和领取已完成奖励。"""
 import json
-from pathlib import Path
 from datetime import datetime,timezone,timedelta
 
 def config(name):
@@ -9,7 +8,8 @@ def config(name):
         folder=latest_config_folder()
         if folder is None:raise RuntimeError('未找到完整cg1配置，请先更新配置')
         return json.loads((folder/(name+'.json')).read_text(encoding='utf-8-sig'))
-    return json.loads((Path(__file__).parent/'feature_config'/(name+'.json')).read_text(encoding='utf-8-sig'))
+    from game_version import feature_config_path
+    return json.loads(feature_config_path(name).read_text(encoding='utf-8-sig'))
 
 def run(flow,info,slot,kind,only_claim_ids=None):
     from teacher_trial import enter

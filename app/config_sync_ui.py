@@ -2,7 +2,7 @@
 import os,threading,json
 from pathlib import Path
 import tkinter as tk
-from tkinter import ttk,filedialog
+from tkinter import ttk,filedialog,messagebox
 from game_config_sync import ROOT,sync,import_config
 from game_version import latest_config_folder,xie_status_text
 
@@ -13,7 +13,7 @@ def latest_local():
 
 class ConfigSyncPage:
     def __init__(self,app,notebook):
-        self.app=app;self.running=False;self.lines=[];self.folder=''
+        self.app=app;self.running=False;self.lines=[];self.folder='';self.notified=False
         self.page=ttk.Frame(notebook,padding=12);notebook.add(self.page,text='配置更新')
         local=latest_local()
         self.status=tk.StringVar(value='本地最新：'+(local.name if local else '未找到已解包配置'))
@@ -33,7 +33,15 @@ class ConfigSyncPage:
         ttk.Button(row,text='打开输出目录',command=self.open_folder,width=16).pack(side='left',padx=6)
         self.text=tk.Text(self.page,height=14,wrap='none');self.text.pack(fill='both',expand=True,pady=6)
         self.page.after(500,self.poll_activity)
-        if self.auto.get():self.page.after(1000,self.start)
+        if self.auto.get():
+            self.page.after(1000,self.start)
+            if local is None:self.page.after(1200,self.notice_missing)
+
+    def notice_missing(self):
+        """缺少配置表且自动下载已启动时，只提示一次，避免用户误以为程序卡住。"""
+        if self.notified or latest_local() is not None:return
+        self.notified=True
+        messagebox.showinfo('配置表下载','本地未找到配置表，已开始后台自动下载。\n下载完成后请重启程序；期间抓宠范围、联盟仓库、玉珠商店等功能暂不可用。',parent=self.page)
 
     def save_settings(self):
         self.settings_path.write_text(json.dumps({'auto_check_on_start':self.auto.get()}),encoding='utf-8')

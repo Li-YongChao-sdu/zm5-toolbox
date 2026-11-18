@@ -21,9 +21,11 @@
 import json
 import os
 
+from game_version import feature_config_path
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-DEFAULT_CONFIG_DIR = os.path.join(HERE, "feature_config")
+DEFAULT_CONFIG_DIR = str(feature_config_path('Prop').parent)
 
 # 妖元喂养的伪 level（配表 id）
 ITEM_FEED_ID = 99999

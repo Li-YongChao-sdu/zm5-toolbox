@@ -4,7 +4,6 @@ from pathlib import Path
 from datetime import datetime,timezone,timedelta
 
 ROOT=Path(__file__).resolve().parent
-CONFIG=ROOT/'cg_config_out_cg1_20261012_1'
 TABLES={'bag':'item','warehouse':'warehouseItem','super':'superWareHouseItem'}
 ROUTES={('bag','warehouse'):'scene.recordHandler.bagToWarehouse',
         ('warehouse','bag'):'scene.recordHandler.warehouseToBag',
@@ -12,13 +11,11 @@ ROUTES={('bag','warehouse'):'scene.recordHandler.bagToWarehouse',
         ('super','bag'):'scene.recordHandler.superWarehouseToBag'}
 
 def _config_table(name):
-    """读取配置表；旧版安装包可能漏带该文件，回退到任一包含同名表的配置目录。"""
-    path=CONFIG/name
+    """读取配置表；旧版安装包可能漏带该文件，回退到 feature_config 或任一包含同名表的配置目录。"""
+    from game_version import feature_config_path
+    path=feature_config_path(name)
     if path.is_file():return json.loads(path.read_text(encoding='utf-8-sig'))
-    candidates=[p/name for p in ROOT.glob('cg_config_out_cg1_*') if (p/name).is_file()]
-    if not candidates:
-        raise FileNotFoundError('缺少配置 %s，安装包不完整；请重新解压完整版本，或把该文件补到对应配置目录'%path)
-    return json.loads(max(candidates,key=lambda p:p.parent.name).read_text(encoding='utf-8-sig'))
+    raise FileNotFoundError('缺少配置 %s，安装包不完整；请重新解压完整版本，或把该文件补到对应配置目录'%path)
 
 def super_rules():return _config_table('SuperWarehouse.json')
 

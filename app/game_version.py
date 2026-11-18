@@ -1,5 +1,6 @@
 """邪角色以最新本地 cg1 的 Activity 表为准，不按版本号推算。"""
 import re
+import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -40,6 +41,28 @@ def latest_config_folder(root=None, now=None):
                    for table in ('Pet', 'Shop', 'Dungeon', 'Activity', 'Prop')):
                 candidates.append((match[1], int(match[2]), folder))
     return max(candidates, default=('', 0, None))[-1]
+
+def app_home(root=None):
+    """配置与账号目录：打包后为 exe 同级目录，源码运行为 app 目录。"""
+    if root is not None:
+        return Path(root)
+    if getattr(sys, 'frozen', False):
+        return Path(sys.executable).resolve().parent
+    return ROOT
+
+def feature_config_path(name, root=None):
+    """定位配置表：运行目录 → 模块目录 → 最新完整 cg1 配置目录。"""
+    fname = name if str(name).endswith('.json') else str(name) + '.json'
+    home = app_home(root)
+    for folder in (home / 'feature_config', ROOT / 'feature_config'):
+        path = folder / fname
+        if path.is_file():
+            return path
+    for base in (home, ROOT):
+        folder = latest_config_folder(base)
+        if folder is not None and (folder / fname).is_file():
+            return folder / fname
+    return home / 'feature_config' / fname
 
 def _date(value):
     return datetime.strptime(str(value), '%Y/%m/%d-%H:%M:%S').replace(tzinfo=BEIJING)

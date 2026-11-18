@@ -3,6 +3,7 @@ import json
 import os
 import tkinter as tk
 from tkinter import ttk
+from game_version import feature_config_path
 
 FIELDS = [('hp','hpQualification','生命资质'),('atk','atkQualification','攻击资质'),
           ('def','defQualification','防御资质'),('rehp','reHpQualification','回血资质'),
@@ -11,7 +12,7 @@ PETS = {'天马': (10001, {1:170111101,2:170121101}),
         '灵花': (10002, {1:170511101,2:170521101})}
 
 def load_ranges(pet, stars):
-    with open(os.path.join(os.path.dirname(__file__), 'feature_config', 'Pet.json'), encoding='utf-8') as f:
+    with feature_config_path('Pet').open(encoding='utf-8') as f:
         table = json.load(f)
     rows = [table[str(PETS[pet][1][star])] for star in stars]
     return {key:(min(int(row[attr].split(';')[0]) for row in rows),
@@ -49,7 +50,13 @@ def attach(parent, frame, field, button, positive, app):
     def stars():
         return [1,2] if star.get()=='1星或2星' else [int(star.get()[0])]
     def refresh(*_):
-        defaults = load_ranges(pet.get(),stars())
+        try:
+            defaults = load_ranges(pet.get(),stars())
+        except Exception as exc:
+            for caption in range_labels.values():
+                caption.set('范围：未加载')
+            reference.set('缺少 Pet.json 配置，无法显示资质范围（%s）。请到“配置更新”页更新配置后重启。' % exc)
+            return
         for key, caption in range_labels.items():
             if len(stars()) == 2:
                 one, two = load_ranges(pet.get(),[1])[key], load_ranges(pet.get(),[2])[key]
@@ -62,7 +69,10 @@ def attach(parent, frame, field, button, positive, app):
     refresh()
     app.pet_capture_settings = {'pet':pet,'star':star,'sex':sex,'ranges':ranges,'range_labels':range_labels}
     def args(apply=False):
-        bounds = load_ranges(pet.get(),stars())
+        try:
+            bounds = load_ranges(pet.get(),stars())
+        except Exception as exc:
+            raise ValueError('缺少 Pet.json 配置，无法生成抓宠参数（%s）' % exc)
         argv = ['--stage',str(PETS[pet.get()][0]),'--gourd',str(gourds[gourd.get()]),
                 '--total',positive(attempts),'--per-stage',positive(attempts),
                 '--max-attempts',positive(attempts),'--keep-total',positive(count),

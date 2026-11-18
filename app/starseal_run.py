@@ -23,8 +23,9 @@ TOOLBOX = HERE
 sys.path.insert(0, TOOLBOX)
 
 import feature_account as ta  # noqa: E402
+from game_version import feature_config_path  # noqa: E402
 
-CFG = os.path.join(HERE, "feature_config")
+CFG = str(feature_config_path("Prop").parent)
 OUT = os.path.join(HERE, "starseal_test_out.txt")
 lines = []
 

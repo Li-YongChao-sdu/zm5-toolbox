@@ -20,9 +20,11 @@
 import json
 import os
 
+from game_version import feature_config_path
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-DEFAULT_CONFIG_DIR = os.path.join(HERE, "feature_config")
+DEFAULT_CONFIG_DIR = str(feature_config_path('Prop').parent)
 
 # 兜底值（配置缺失时用）
 FALLBACK_FREE_NUM = 1

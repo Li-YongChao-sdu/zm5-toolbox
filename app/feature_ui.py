@@ -24,7 +24,7 @@ def attach(app, notebook, pages):
 
         target = (app.backup_function_notebook if title in ('抓宠', '联盟仓库') else
 
-                  app.fun_activity_notebook if title in ('幻兽喂养','幻兽派遣') else notebook)
+                  app.fun_activity_notebook if title in ('幻兽喂养','幻兽派遣','许愿池') else notebook)
 
         outer = ttk.Frame(target)
 
@@ -242,7 +242,7 @@ def attach(app, notebook, pages):
     app.ui_settings_fields['庆典任务/允许灵魂备用补药']=(app.var_celebration_spirit_backup,None)
     app.var_celebration_password = field(celebration,'二级密码（不保存）',secret=True)
 
-    box = frame(pages['活动副本'], '许愿池', '先查看当前格子的奖励和消耗，再填 wishId。许愿会消耗对应资源。')
+    box = frame(page('许愿池'), '许愿池设置', '先查看当前各池奖励、已许次数与消耗；手动按池设置次数，排序许愿按道具优先级自动选池并适配1/10次。许愿会消耗灵魂。')
 
     from wish_pool_ui import WishPoolPanel
     app.wish_pool_panel = WishPoolPanel(app,box)

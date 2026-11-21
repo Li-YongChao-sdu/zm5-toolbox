@@ -17,7 +17,16 @@ HERE = Path(__file__).parent
 ROUTES = json.loads((HERE / "main_boss_routes.json").read_text(encoding="utf-8"))
 STAGES = {int(row["mid"]): row["name"] for row in
           json.loads((HERE / "main_custom_stages.json").read_text(encoding="utf-8"))}
-DUNGEON = json.loads((HERE / "cg_config_out_cg1_20261019_1" / "Dungeon.json").read_text(encoding="utf-8"))
+_DUNGEON = None
+
+
+def dungeon_config():
+    """惰性读取 Dungeon.json，避免缺配置时连模块都无法导入。"""
+    global _DUNGEON
+    if _DUNGEON is None:
+        from game_version import config_table_path
+        _DUNGEON = json.loads(config_table_path("Dungeon").read_text(encoding="utf-8"))
+    return _DUNGEON
 
 
 def _response(flow, route, payload):
@@ -222,7 +231,7 @@ def run(mid, times, progress, loot, base_seconds, boss_seconds, round_seconds, p
             after = int(_stage(info, mid).get("passNum") or 0)
             if progress == "increase" and after <= before:
                 last_room = target[-1] if target else mid
-                settles = int((DUNGEON.get(str(last_room)) or {}).get("finishBId") or 0)
+                settles = int((dungeon_config().get(str(last_room)) or {}).get("finishBId") or 0)
                 if settles:
                     raise RuntimeError("第%d次结算后通关次数未增加 (%d→%d)" % (attempt, before, after))
                 print("[一键刷图] %s 的 finishBId=0，官方也不记主线通关，本次仅结算掉落" % last_room, flush=True)

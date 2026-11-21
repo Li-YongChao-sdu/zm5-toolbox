@@ -2,7 +2,7 @@
 import json,threading,time
 from datetime import datetime
 from functools import lru_cache
-from pathlib import Path
+from game_version import config_table_path
 
 def say(stage,message):print('[%s][%s] %s'%(datetime.now().strftime('%H:%M:%S'),stage,message),flush=True)
 def duration(seconds):
@@ -10,7 +10,7 @@ def duration(seconds):
 @lru_cache(maxsize=1)
 def names():
     try:
-        p=Path(__file__).resolve().parent/'cg_config_out_cg1_20261012_1/PetSkill.json'
+        p=config_table_path('PetSkill')
         return {str(k):v.get('name',str(k)) for k,v in json.loads(p.read_text(encoding='utf-8-sig')).items()}
     except (OSError,ValueError):return {}
 def potentials(pet):

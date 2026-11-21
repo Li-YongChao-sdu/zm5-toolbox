@@ -5,7 +5,12 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 ROOT = Path(__file__).resolve().parent
 
-def reference_rows(directory):
+def reference_rows(directory=None):
+    if directory is None:
+        from game_version import latest_config_folder
+        directory = latest_config_folder()
+        if directory is None:
+            raise ValueError('未找到完整配置目录，请先在“配置更新”页更新配置')
     def read(name):
         return json.loads((directory / (name + '.json')).read_text(encoding='utf-8-sig'))
     layers, stages, rewards = read('PetChallengeLayer'), read('PetChallengDungeon'), read('Reward')
@@ -44,7 +49,7 @@ class PetTrialPage:
 
     def show_reference(self):
         try:
-            rows = reference_rows(ROOT / 'cg_config_out_cg1_20261019_1')
+            rows = reference_rows()
         except (OSError, ValueError, KeyError, TypeError) as exc:
             messagebox.showerror('读取配置失败', str(exc), parent=self.page)
             return

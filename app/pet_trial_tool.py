@@ -4,6 +4,7 @@ import json
 import time
 from datetime import datetime
 from pathlib import Path
+from game_version import config_table_path
 
 ROOT = Path(__file__).resolve().parent
 
@@ -33,7 +34,7 @@ def run(flow, slot, action='status', wait_seconds=2, *, report_dir=None, log=pri
         raise ValueError('未知操作')
     if not 0 <= wait_seconds <= 3600:
         raise ValueError('等待时间须为0～3600秒')
-    layers = json.loads((ROOT / 'cg_config_out_cg1_20261019_1/PetChallengeLayer.json').read_text(encoding='utf-8-sig'))
+    layers = json.loads(config_table_path('PetChallengeLayer').read_text(encoding='utf-8-sig'))
     folder = Path(report_dir) if report_dir else ROOT / 'pet_trial_reports'
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / (datetime.now().strftime('%Y%m%d_%H%M%S_%f') + '.json')

@@ -1,6 +1,7 @@
 """时光之舟：每轮兑换一次并使用一次，异常停止，不重发。"""
 import json
 from pathlib import Path
+from game_version import config_table_path
 
 def counter(info, config):
     category = int(config['type'])
@@ -80,7 +81,7 @@ def run(flow, info, slot, energy_id, times, cave_plan=None):
     if energy_id not in CATALOG or not 1 <= times <= 15:raise ValueError('兑换项目或次数无效')
     daily.RECORD_INDEX = slot
     daily.MAX_TIMES = 1
-    shops = json.loads((Path(__file__).resolve().parent / 'cg_config_out_cg1_20261019_1/Shop.json').read_text(encoding='utf-8-sig'))
+    shops = json.loads(config_table_path('Shop').read_text(encoding='utf-8-sig'))
     class CheckedBattleFlow(FreeDailyFlow):
         def request(self, route, params=None, *args, **kwargs):
             reply = super().request(route, params, *args, **kwargs)

@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 from teacher_trial import connect, enter, checked
 from world_boss_damage import sample_expected_hurt, sample_hurt
+from game_version import config_table_path
 
 MODES=('达标后零伤害挂机','持续伤害','直接零伤害挂机','达标后小伤害挂机')
 ROLES=('拿阵法号','挂机号')
@@ -56,10 +57,9 @@ def settlement_summary(state):
 
 def log_settlements(report,log):
     names={}
-    config=Path(__file__).resolve().parent/'cg_config_out_cg1_20261019_1'
     for table in ('Prop','FormationFlag'):
         try:
-            data=json.loads((config/(table+'.json')).read_text(encoding='utf-8-sig'))
+            data=json.loads(config_table_path(table).read_text(encoding='utf-8-sig'))
             if isinstance(data,dict):names.update({str(key):str(value.get('name',key)) for key,value in data.items() if isinstance(value,dict)})
         except (OSError,ValueError):pass
     for state in report['accounts']:

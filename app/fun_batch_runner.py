@@ -117,7 +117,8 @@ def main():
     if not plan['jobs'] or any(j['kind'] not in KINDS for j in plan['jobs']):raise ValueError('批量计划无效')
     from teacher_trial import connect
     from my_daily_policy import FreeDailyFlow
-    shops=json.loads((ROOT/'cg_config_out_cg1_20261019_1/Shop.json').read_text(encoding='utf-8-sig'))
+    from game_version import config_table_path
+    shops=json.loads(config_table_path('Shop').read_text(encoding='utf-8-sig'))
     flow=None
     try:
         raw,_=connect(account,slot);flow=FreeDailyFlow(raw,shops)

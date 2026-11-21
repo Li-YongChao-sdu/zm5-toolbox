@@ -27,7 +27,17 @@ RESIST_BY_TYPE = {i + 1: a for i, a in enumerate(RESIST_ATTRS)}
 TABLE = {'10':'Prop','11':'Equipment','12':'Fashion','13':'Magicweapon','14':'Title','15':'Wing','16':'Feather',
          '17':'Pet','18':'Card','19':'Fairy','20':'MonsterCard','21':'Rune','22':'FormationFlag','24':'PetElf','29':'Emoji'}
 
-DEFAULT_CFG = r'D:\li xicheng\.trae-cn\worktrees\2026-09-18\new-chat-1\cg_config_out_cg1_20261026_1'
+def _default_cfg():
+    """默认使用最新完整配置目录；找不到时返回 None，由命令行给出明确提示。"""
+    try:
+        from game_version import latest_config_folder
+        folder = latest_config_folder()
+        return str(folder) if folder is not None else None
+    except Exception:
+        return None
+
+
+DEFAULT_CFG = _default_cfg()
 DEFAULT_KEYS = {'attack':74,'jump':75,'walkUp':87,'walkLeft':65,'walkDown':83,'walkRight':68,
                 'skill1':89,'skill2':85,'skill3':73,'skill4':79,'skill5':76,'magicWeapon':72}
 
@@ -848,6 +858,7 @@ def main():
     ap.add_argument('--json', action='store_true')
     args = ap.parse_args()
     if not args.capture and not args.report: ap.error('需要 --capture 或 --report')
+    if not args.cfg: ap.error('未找到配置目录，请先在“配置更新”页更新配置，或用 --cfg 指定')
     cfg = Config(args.cfg)
     if args.capture:
         infos, frames, seed = load_capture(args.capture)

@@ -8,6 +8,8 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
+from game_version import config_table_path
+
 ROOT = Path(__file__).resolve().parent
 STONE = '101005001'
 
@@ -32,9 +34,8 @@ def run(flow, slot, *, wait_seconds=25, max_rounds=160, report_dir=None, log=pri
     from bag_warehouse import quantity, sell, state
     if not 0 <= wait_seconds <= 3600 or not 1 <= max_rounds <= 160:
         raise ValueError('等待时间或最大轮数无效')
-    config = ROOT / 'cg_config_out_cg1_20261019_1'
-    props = json.loads((config / 'Prop.json').read_text(encoding='utf-8-sig'))
-    grades = json.loads((config / 'DungeonGrade.json').read_text(encoding='utf-8-sig'))
+    props = json.loads(config_table_path('Prop').read_text(encoding='utf-8-sig'))
+    grades = json.loads(config_table_path('DungeonGrade').read_text(encoding='utf-8-sig'))
     folder = Path(report_dir) if report_dir else ROOT / 'elite_stone_reports'
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / (datetime.now().strftime('%Y%m%d_%H%M%S_%f') + '.json')

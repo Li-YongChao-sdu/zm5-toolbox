@@ -5,7 +5,6 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
 ROOT=Path(__file__).resolve().parent
-CONFIG=ROOT/'cg_config_out_cg1_20261012_1'
 ZONE=timezone(timedelta(hours=8))
 NAMES={0:'普通商店',1:'联盟商店',2:'中秋',4:'竞技商店',5:'宝石',6:'时光',7:'周年/圣诞历史混合',8:'藏宝',9:'斗宠',10:'春节/年兽',11:'充值积分',12:'元宵',13:'药园',14:'白菊绝版',15:'五一',16:'端午',19:'七夕',21:'重阳',23:'星斗',24:'试炼',25:'万妖',26:'经书',27:'暑期',28:'盛典',29:'魔龙',30:'师徒',31:'挑战GM材料',32:'光环',33:'宝券',34:'龙宫',35:'精气/真灵',36:'擂台积分',37:'GM切磋',38:'水晶签到',39:'篇章/妖王精血',41:'仙晶新手',42:'乱斗',44:'白骨',45:'圣兽币礼包',97:'周年集字',98:'特惠',99:'历史混合兑换'}
 MONEY={'ticket':'点券','yuanbao':'元宝','spirit':'灵魂','rechargeMoney':'充值积分','rechargeMoney2':'充值积分2','arenaMoney':'竞技积分','petArenaMoney':'斗宠积分','baoquan':'宝券','gutou':'白骨','yuanxiaoMoney':'元宵积分','workersMoney':'劳动积分','unionMoney':'联盟贡献','petBtlMoney':'乱斗币','dailyTaskMoney':'活跃积分'}
@@ -25,13 +24,20 @@ NAMES.update({17:'新手商店一',18:'新手商店二',20:'老玩家回归',22:
 
 def read(path):return json.loads(Path(path).read_text(encoding='utf-8-sig'))
 
+def config_dir():
+    from game_version import latest_config_folder
+    folder=latest_config_folder()
+    if folder is None:
+        raise RuntimeError('未找到完整配置目录，请先在“配置更新”页更新配置')
+    return folder
+
 def latest_global_config():
     candidates=[p for p in ROOT.glob('cg_config_out_cg1_*') if (p/'GlobalBuy.json').is_file() and (p/'Prop.json').is_file()]
-    return max(candidates,key=lambda p:p.name) if candidates else CONFIG
+    return max(candidates,key=lambda p:p.name) if candidates else config_dir()
 
 def load_catalog(source='Shop'):
     if source not in ('Shop','Double11Shop','GlobalBuy','FestivalFree'):raise ValueError('不支持的商品配置表')
-    directory=latest_global_config() if source in ('GlobalBuy','FestivalFree') else CONFIG
+    directory=latest_global_config() if source in ('GlobalBuy','FestivalFree') else config_dir()
     props=read(directory/'Prop.json')
     if source=='FestivalFree':
         activities=read(directory/'Activity.json');rewards=read(directory/'Reward.json');shops={}
@@ -146,7 +152,7 @@ def main():
     account=read(ROOT/'account.local.json');slot=int(account.get('record_index',0))
     out=ROOT/'shop_test_reports';out.mkdir(exist_ok=True)
     route,params=purchase_request(args.catalog,args.shop)
-    report={'time':datetime.now(ZONE).isoformat(),'slot':slot,'config':(latest_global_config() if args.catalog in ('GlobalBuy','FestivalFree') else CONFIG).name,'catalog':args.catalog,
+    report={'time':datetime.now(ZONE).isoformat(),'slot':slot,'config':(latest_global_config() if args.catalog in ('GlobalBuy','FestivalFree') else config_dir()).name,'catalog':args.catalog,
             'shopId':args.shop,'product':cfg,'price':price(cfg,labels),'route':route,'requested':False}
     path=out/(datetime.now(ZONE).strftime('%Y%m%d_%H%M%S_%f')+f'_shop{args.shop}.json')
     def save():path.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')

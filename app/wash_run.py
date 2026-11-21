@@ -339,11 +339,22 @@ def review_feather_result(row, new_node, raw=None, confirm=True):
         except Exception:
             dump = "(回包解析失败)"
         raise RuntimeError('未读到羽毛新属性。%s' % dump)
+    if not wd.current_attrs(new_node):
+        for key in ('attributeValues', 'attrs', 'attribute', 'attributes'):
+            sub = new_node.get(key)
+            if isinstance(sub, dict) and sub:
+                new_node = dict(new_node)
+                new_node.update(sub)
+                break
+    if not wd.current_attrs(new_node):
+        keys = ', '.join(k for k in (raw or {}) if isinstance((raw or {}).get(k), dict))
+        raise RuntimeError('未读到羽毛新属性（回包 dict 字段: %s）' % (keys or '无'))
     candidate = dict(new_node)
     candidate.setdefault('entityId', row['entityId'])
-    # 洗练回包的 feather 不带属性范围配置，从 old row 继承（同一只羽毛范围不变）
-    if row.get('attrRanges'):
-        candidate['attrRanges'] = row['attrRanges']
+    # 洗练后属性类型可能变化，优先按新羽毛 id 取范围；旧范围仅兜底。
+    ranges = wd.feather_ranges(new_node.get('id')) or row.get('attrRanges') or {}
+    if ranges:
+        candidate['attrRanges'] = ranges
     token = uuid.uuid4().hex
     payload = {'token': token, 'slot': _ACCT['record_index'],
                'entityId': row['entityId'], 'name': row.get('name', ''),

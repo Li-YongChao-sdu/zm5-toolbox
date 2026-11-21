@@ -15,10 +15,7 @@ def _config_dir():
     from game_version import latest_config_folder
     latest=latest_config_folder()
     if latest:return latest
-    for name in ('cg_config_out_cg1_20261026_1','cg_config_out_cg1_20261012_1'):
-        path=ROOT/name
-        if path.exists():return path
-    raise RuntimeError('未找到配置目录')
+    raise RuntimeError('未找到完整配置目录，请先在“配置更新”页更新配置')
 
 
 def _table(name):

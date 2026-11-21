@@ -195,7 +195,8 @@ def export_standard_inputs(files):
             config = max(candidates, key=lambda p: p.name) if candidates else None
             config_basis = 'latest_local_fallback_version_not_supplied'
         if config is None and obj.get('finalPanels'):
-            config = HERE / 'cg_config_out_cg1_20261008_1'
+            from game_version import latest_config_folder
+            config = latest_config_folder()
             config_basis = 'provided_final_panels'
         if config is None:
             raise ValueError(f'找不到快照对应的完整配置 {cg or "（版本未下发）"}，无法安全转换标准版；原始JSON已保留')

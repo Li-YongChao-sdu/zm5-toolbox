@@ -3,11 +3,11 @@ import argparse,json
 from pathlib import Path
 from datetime import datetime
 from bag_warehouse import quantity,state,is_consume
+from game_version import config_table_path
 ROOT=Path(__file__).resolve().parent
-CFG=ROOT/'cg_config_out_cg1_20261019_1'
 KINDS={2:'防具',3:'头盔',4:'武器',5:'木',6:'矿',7:'布'}
 def catalog():
-    return {str(k):v for k,v in json.loads((CFG/'PropExchange.json').read_text(encoding='utf8')).items() if v.get('type') in KINDS}
+    return {str(k):v for k,v in json.loads(config_table_path('PropExchange').read_text(encoding='utf8')).items() if v.get('type') in KINDS}
 def targets(source,config=None):
     config=config if config is not None else catalog();s=config.get(str(source))
     return sorted([v for v in config.values() if s and v['type']==s['type'] and int(v['level'])<int(s['level'])],key=lambda v:int(v['level']))
@@ -24,7 +24,7 @@ def exchange(flow,info,user,source,target,count,refresh):
     bs,bt=quantity(info,'bag',source),quantity(info,'bag',target)
     if bs<count:raise ValueError('背包原材料数量不足')
     if user.get('ticket') is None or info.get('spirit') is None:raise ValueError('未读取完整货币余额')
-    props=json.loads((CFG/'Prop.json').read_text(encoding='utf8'));kind='消耗品' if is_consume({},props.get(str(target),{})) else '材料'
+    props=json.loads(config_table_path('Prop').read_text(encoding='utf8'));kind='消耗品' if is_consume({},props.get(str(target),{})) else '材料'
     cap=state(info,user,props)['capacity']['bag'][kind]
     if bt==0 and (cap['max'] is None or cap['used']>=cap['max']):raise ValueError('目标材料需要新格子，背包空间不足')
     params={'sId':int(source),'tId':int(target),'num':count}

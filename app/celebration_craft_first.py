@@ -70,8 +70,8 @@ def spirit_buy_potions(flow,info,refresh,checked,count,password,label='[备用�
     if count<=0:return
     if not password:raise RuntimeError('%s需要填写二级密码，未购买'%label)
     import json
-    from pathlib import Path
-    row=json.loads((Path(__file__).resolve().parent/'cg_config_out_cg1_20261019_1/Shop.json').read_text(encoding='utf-8-sig')).get('2') or {}
+    from game_version import config_table_path
+    row=json.loads(config_table_path('Shop').read_text(encoding='utf-8-sig')).get('2') or {}
     if row.get('consume_type')!='coin' or row.get('consume_subType')!='spirit' or str(row.get('sell_subType'))!='101009001' or int(row.get('sell_count',0))!=1:raise RuntimeError('%s商品配置不符，未购买'%label)
     cost=int(row['consume_count'])*count
     if int(info.get('spirit',0))<cost:raise RuntimeError('%s灵魂不足（需%s），未购买'%(label,cost))

@@ -47,6 +47,23 @@ def _iter_items(stages):
                 yield item
 
 
+def item_roles(stages=None):
+    """统计每个道具在许愿池里的身份：只做大愿望、只做小愿望，或两者都有。"""
+    stages = stages or wpd.load_stages()
+    roles = {}
+
+    def mark(prop_id, key):
+        if prop_id is None:
+            return
+        row = roles.setdefault(int(prop_id), {"big": False, "small": False})
+        row[key] = True
+
+    for item in _iter_items(stages):
+        mark((item.get("reward") or {}).get("subType"), "big")
+        mark((item.get("base") or {}).get("subType"), "small")
+    return roles
+
+
 def default_items(stages=None, props=None):
     """按 Prop.price、quality 生成初始顺序（高价值在前，去重）。"""
     stages = stages or wpd.load_stages()

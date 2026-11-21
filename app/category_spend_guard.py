@@ -2,6 +2,7 @@
 import json,os,re
 from pathlib import Path
 from datetime import datetime,timezone,timedelta
+from game_version import config_table_path
 ROOT=Path(__file__).resolve().parent
 CATEGORIES={
  'daily':('日常任务1','101'), 'rewards':('日常任务2／领奖','110'),
@@ -10,7 +11,7 @@ CATEGORIES={
  'commerce':('商店／购买／兑换','001')}
 ENV='ZM5_CATEGORY_SPEND_CONTEXT';_spent={};_halted=set()
 
-def config(name):return json.loads((ROOT/'cg_config_out_cg1_20261019_1'/(name+'.json')).read_text(encoding='utf-8-sig'))
+def config(name):return json.loads(config_table_path(name).read_text(encoding='utf-8-sig'))
 def matched(category,bits):return category in CATEGORIES and str(bits)==CATEGORIES[category][1]
 def context():
     raw=os.environ.get(ENV)

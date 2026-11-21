@@ -26,11 +26,11 @@
 import json
 import os
 
-from game_version import feature_config_path
+from game_version import config_table_path
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-DEFAULT_CONFIG_DIR = str(feature_config_path('Prop').parent)
+DEFAULT_CONFIG_DIR = str(config_table_path('Prop').parent)
 
 # 各系统免费洗练所需的二级密码保护（SecondPassword.json 用路由名的 MD5 做键）
 # 说明：服务端要求请求体里带 password 字段，否则返回 code=502 二级密码错误。
@@ -337,6 +337,8 @@ def list_amulets(info):
         seen.add(eid)
         rows.append({"entityId": eid, "name": node.get("name", ""),
                      "level": node.get("level"), "quality": node.get("quality"),
+                     "fiveElements": node.get("fiveElements"),
+                     "growthRate": node.get("growthRate"),
                      "equipped": node is eq.get("amulet")})
     rows.sort(key=lambda r: (-(r["level"] or 0), r["entityId"]))
     return rows
@@ -345,7 +347,7 @@ def list_amulets(info):
 def list_runes(info):
     bag = ((info or {}).get("bag") or {}).get("rune") or {}
     import math
-    with open(os.path.join(HERE, "cg_config_out_cg1_20261019_1", "PowerAttribute.json"), encoding="utf-8-sig") as stream:
+    with open(config_table_path("PowerAttribute"), encoding="utf-8-sig") as stream:
         weights = json.load(stream)["1"]
     power_keys = ("hpMax","mpMax","atk","phyDef","hit","dodge","critical","toughness","lucky","guardian","reHP","reMP")
     sources = [(node, '背包') for node in (bag.values() if isinstance(bag, dict) else [])]
@@ -392,8 +394,8 @@ def list_feathers(info):
     # 加载羽毛配表，取每个属性的洗练范围（"最小值;最大值"）
     feather_cfg = {}
     try:
-        with open(os.path.join(HERE, "cg_config_out_cg1_20261019_1", "Feather.json"),
-                  encoding="utf-8") as f:
+        feather_path = config_table_path("Feather")
+        with open(feather_path, encoding="utf-8") as f:
             feather_cfg = json.load(f)
     except Exception:
         feather_cfg = {}
@@ -421,6 +423,25 @@ def list_feathers(info):
                      "attrRanges": attr_ranges,
                      "pos": location})
     return rows
+
+
+def feather_ranges(feather_id):
+    """按羽毛 id 从配表取各属性的洗练范围（洗练后属性类型可能变化）。"""
+    try:
+        path = config_table_path("Feather")
+        with open(path, encoding="utf-8") as stream:
+            cfg = (json.load(stream) or {}).get(str(feather_id)) or {}
+    except Exception:
+        return {}
+    out = {}
+    for key, value in cfg.items():
+        if isinstance(value, str) and ";" in value:
+            low, high = value.split(";", 1)
+            try:
+                out[key] = (float(low), float(high))
+            except ValueError:
+                pass
+    return out
 
 
 def washed_count(entity_id, info=None, form=None):
@@ -451,6 +472,12 @@ def list_formation_items(info, config_dir=DEFAULT_CONFIG_DIR):
         props = {}
 
     out = {"jingpo": [], "zhenyan": []}
+    import math
+    try:
+        with open(config_table_path("PowerAttribute"), encoding="utf-8-sig") as stream:
+            weights = (json.load(stream) or {}).get("1") or {}
+    except Exception:
+        weights = {}
     for pos, node in form.items():
         if not isinstance(node, dict):
             continue
@@ -477,6 +504,11 @@ def list_formation_items(info, config_dir=DEFAULT_CONFIG_DIR):
                     pass
         # 当前属性值：从佩戴的 node 里取（formation node 直接带 hpMax/dodge 等字段）
         attr_values = {k: node.get(k) for k in lockable if k in node}
+        power = None
+        if weights:
+            power_keys = ("hpMax", "mpMax", "atk", "phyDef", "hit", "dodge", "critical",
+                          "toughness", "lucky", "guardian", "reHP", "reMP")
+            power = math.floor(sum(float(node.get(k) or 0) * float(weights.get(k) or 0) for k in power_keys) + 0.5)
         row = {
             "pos": pos,
             "entityId": node.get("entityId"),
@@ -488,6 +520,7 @@ def list_formation_items(info, config_dir=DEFAULT_CONFIG_DIR):
             "lockable": lockable,
             "attributeValues": attr_values,
             "attrRanges": attr_ranges,
+            "fightPower": power,
             "washNum": cfg.get("washNum"),
             "grade": "精魄" if is_wash == 1 else "阵眼",
             "material": mat,

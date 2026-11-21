@@ -51,7 +51,9 @@ def describe(app,key,modules):
             parts.append('允许其他任务补位' if p.fill.get() or p.value()['strategy']==2 else '不额外补位')
         else:parts.append('未启用奖励偏好')
         return '｜'.join(parts)
-    if key=='RUN_WISH_POOL_RANDOM':return '随机3池，各10次' if value(app.wish_pool_panel,'mode')=='随机许愿' else '手动许愿模式：此项目跳过'
+    if key=='RUN_WISH_POOL_RANDOM':
+        mode=value(app.wish_pool_panel,'mode')
+        return {'排序许愿':'按道具优先级自动选3池，自动适配1/10次','随机许愿':'随机3池，各10次'}.get(mode,'手动许愿模式：此项目跳过')
     if key=='RUN_HALO':return str(value(app,'var_halo_score'))
     if key=='RUN_DEMON_TOWER2':return str(value(app,'var_tower_range'))
     if key=='RUN_MANHUANG':return '%s｜%s'%(value(app,'var_mh_stage'),value(app,'var_mh_mode'))

@@ -1,8 +1,88 @@
 """VIP免费洗练：各系统独立目标、设置和执行入口。"""
+import base64
+import json
 import tkinter as tk
+from pathlib import Path
 from tkinter import ttk, messagebox
 from wash_data import can_lock, auto_replace, five_elements_text
 SYSTEMS = {'法宝':'magic','灵符':'rune','羽毛':'feather','精魄':'jingpo','阵眼':'zhenyan'}
+
+try:
+    import ctypes
+    from ctypes import wintypes
+    _HAS_DPAPI = hasattr(ctypes, 'windll')
+except Exception:
+    ctypes = None;_HAS_DPAPI = False
+
+if _HAS_DPAPI:
+    class _DataBlob(ctypes.Structure):
+        _fields_ = [('cbData', wintypes.DWORD), ('pbData', ctypes.POINTER(ctypes.c_char))]
+else:
+    _DataBlob = None
+
+def _dpapi(text, protect):
+    if not _HAS_DPAPI or not text:
+        return ''
+    try:
+        raw = text.encode('utf-8') if protect else base64.b64decode(text)
+        buf = ctypes.create_string_buffer(raw)
+        blob_in = _DataBlob(len(raw), ctypes.cast(buf, ctypes.POINTER(ctypes.c_char)))
+        blob_out = _DataBlob()
+        fn = ctypes.windll.crypt32.CryptProtectData if protect else ctypes.windll.crypt32.CryptUnprotectData
+        fn.argtypes = [ctypes.POINTER(_DataBlob), wintypes.LPCWSTR, ctypes.POINTER(_DataBlob),
+                       ctypes.c_void_p, ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(_DataBlob)]
+        fn.restype = wintypes.BOOL
+        if not fn(ctypes.byref(blob_in), None, None, None, None, 0, ctypes.byref(blob_out)):
+            return ''
+        try:
+            data = ctypes.string_at(blob_out.pbData, blob_out.cbData)
+            return base64.b64encode(data).decode('ascii') if protect else data.decode('utf-8')
+        finally:
+            ctypes.windll.kernel32.LocalFree(blob_out.pbData)
+    except (OSError, ValueError, UnicodeError):
+        return ''
+
+MEMORY_FILE = Path(__file__).with_name('wash_free_memory.json')
+_MEMORY = None
+
+def _memory():
+    global _MEMORY
+    if _MEMORY is None:
+        try:
+            data = json.loads(MEMORY_FILE.read_text(encoding='utf-8'))
+            _MEMORY = data if isinstance(data, dict) else {}
+        except (OSError, ValueError):
+            _MEMORY = {}
+    return _MEMORY
+
+def _save_memory():
+    try:
+        temp = MEMORY_FILE.with_suffix('.json.tmp')
+        temp.write_text(json.dumps(_memory(), ensure_ascii=False, indent=1), encoding='utf-8')
+        temp.replace(MEMORY_FILE)
+    except OSError:
+        pass
+
+def _account_key(app):
+    try:user = str(app.var_login_user.get()).strip()
+    except Exception:user = ''
+    try:slot = str(int(app.cmb_slot.get()))
+    except Exception:slot = '?'
+    return (user or 'default') + '/' + slot
+
+def _state(app, key):
+    memory = _memory()
+    accounts = memory.setdefault('accounts', {})
+    if not isinstance(accounts, dict):
+        accounts = {};memory['accounts'] = accounts
+    who = _account_key(app)
+    account = accounts.setdefault(who, {})
+    if not isinstance(account, dict):
+        account = {};accounts[who] = account
+    state = account.setdefault(key, {})
+    if not isinstance(state, dict):
+        state = {};account[key] = state
+    return state
 
 ATTR_NAMES = {'hpMax':'生命','mpMax':'魔法','atk':'攻击','phyDef':'防御','hit':'命中',
               'dodge':'闪避','critical':'暴击','toughness':'韧性','lucky':'幸运',
@@ -15,6 +95,34 @@ def build(parent, frame, field, button, app=None):
     sections = {}
     for title, key in SYSTEMS.items():
         sections[key] = build_section(tabs, title, key, frame, field, button, app)
+    shared = next((s['password'].get() for s in sections.values() if s['password'].get()), '')
+    if shared:
+        for s in sections.values():
+            if s['password'].get() != shared:
+                s['password'].set(shared)
+    syncing = [False]
+    def sync_password(source):
+        if syncing[0]:return
+        syncing[0] = True
+        try:
+            text = source.get()
+            for s in sections.values():
+                var = s['password']
+                if var is not source and var.get() != text:
+                    var.set(text)
+        finally:
+            syncing[0] = False
+    for s in sections.values():
+        s['password'].trace_add('write', lambda *_, v=s['password']: sync_password(v))
+    memory = _memory()
+    if memory.get('tab') in sections:
+        tabs.select(sections[memory['tab']]['page'])
+    def remember_tab(*_):
+        title = tabs.tab(tabs.select(), 'text')
+        key = next((k for k, t in SYSTEMS.items() if t == title), None)
+        if key:
+            memory['tab'] = key;_save_memory()
+    tabs.bind('<<NotebookTabChanged>>', remember_tab, add='+')
     if app is not None:
         def tick():
             for section in sections.values():
@@ -24,6 +132,7 @@ def build(parent, frame, field, button, app=None):
     return sections
 
 def build_section(tabs, title, key, frame, field, button, app=None):
+    state = _state(app, key)
     page = ttk.Frame(tabs, padding=6)
     tabs.add(page, text=title)
     hint = '免费洗练直接替换当前词条。' if auto_replace(key) else '查询目标及免费配额后，按本页设置执行一次并处理结果。'
@@ -55,6 +164,9 @@ def build_section(tabs, title, key, frame, field, button, app=None):
         return a if isinstance(a, list) else [x for x in str(a or '').split(';') if x]
     def select(*_):
         target.set(section['objects'].get(choice.get(), ''))
+        eid = target.get().strip()
+        if eid:
+            state['target'] = eid;_save_memory()
         row=section['rows'].get(target.get())
         detail.set(rune_detail(row) if key=='rune' and row else '')
         if lock_frame is not None:
@@ -72,6 +184,13 @@ def build_section(tabs, title, key, frame, field, button, app=None):
                         messagebox.showinfo('锁定限制',
                             '该目标共 %d 个词条，最多锁定 %d 个（需留 1 个给洗练随机）。' % (len(attrs), max_lock),
                             parent=box.winfo_toplevel())
+                    selected = [a for a, v in lock_vars.items() if v.get()]
+                    locks = state.setdefault('locks', {})
+                    if not isinstance(locks, dict):
+                        locks = {};state['locks'] = locks
+                    if selected:locks[eid] = selected
+                    else:locks.pop(eid, None)
+                    _save_memory()
                 return toggle
             for i, attr in enumerate(attrs):
                 var = tk.BooleanVar(master=box, value=False)
@@ -92,9 +211,30 @@ def build_section(tabs, title, key, frame, field, button, app=None):
                     else:
                         label += '  %s' % v
                 ttk.Checkbutton(lock_frame, text=label, variable=var, command=make_toggle(attr)).grid(row=i//2, column=i%2, sticky='w', padx=8, pady=1)
+            saved = (state.get('locks') or {}).get(eid) or []
+            saved = set(saved) if isinstance(saved, list) else set()
+            kept = section.pop('keep_locks', {}) or {}
+            left = max_lock
+            for attr, var in lock_vars.items():
+                if (attr in saved or attr in kept) and left > 0:
+                    var.set(True);left -= 1
     choice.trace_add('write',select)
     password = field(box, '二级密码（未设置可留空）', secret=True)
-    keep = None if auto_replace(key) or key in ('rune','jingpo','zhenyan') else field(box, '结果处理', '保存新词条', ['保存新词条','保留旧词条'])
+    if state.get('password'):
+        plain = _dpapi(state['password'], False)
+        if plain:password.set(plain)
+    def save_password(*_):
+        text = password.get()
+        state['password'] = _dpapi(text, True) if text else ''
+        _save_memory()
+    password.trace_add('write', save_password)
+    keep = None if auto_replace(key) or key in ('feather', 'rune', 'jingpo', 'zhenyan') else field(box, '结果处理', '保存新词条', ['保存新词条','保留旧词条'])
+    if keep is not None:
+        if state.get('keep') in ('保存新词条', '保留旧词条'):
+            keep.set(state['keep'])
+        def save_keep(*_):
+            state['keep'] = keep.get();_save_memory()
+        keep.trace_add('write', save_keep)
     def args(apply=False):
         argv = ['--system',key]
         if app is not None:
@@ -118,7 +258,7 @@ def build_section(tabs, title, key, frame, field, button, app=None):
         return argv
     button(box, '刷新配额与目标列表', 'wash_run.py', lambda:args(False))
     button(box, '免费洗练并查看结果', 'wash_run.py', lambda:args(True))
-    section.update(page=page,password=password,locks=None,keep=keep,args=args)
+    section.update(page=page,password=password,locks=None,keep=keep,args=args,memory=state)
     return section
 
 def signature(app):
@@ -145,14 +285,29 @@ def render(app, payload):
         objects={}
         for row in status['candidates'].get(key,[]):
             eid=str(row['entityId']);name=str(row.get('name') or row.get('id') or '未命名')
-            label=name+(' | 战力 '+str(row['fightPower']) if key=='rune' and row.get('fightPower') is not None else '')+' | '+eid
+            label=name
+            if key in ('rune','jingpo','zhenyan') and row.get('fightPower') is not None:label += ' | 战力 '+str(row['fightPower'])
+            if key=='magic':
+                label += ' | 五行 '+(five_elements_text(row.get('fiveElements')) or '无')
+                if row.get('growthRate') is not None:label += ' | 成长率 '+str(row['growthRate'])
+            label += ' | '+eid
             loc = row.get('location') or row.get('pos')
             if loc and key in ('rune','feather'):label += ' | '+loc
             objects[label]=eid
         section['rows']={str(row['entityId']):row for row in status['candidates'].get(key,[])}
         section['objects']=objects;section['combo'].configure(values=list(objects))
         section['signature']=current
-        section['choice'].set(next((label for label,eid in objects.items() if eid==previous),''))
+        wanted=[previous,str((section.get('memory') or {}).get('target') or '')]
+        label=''
+        for eid in wanted:
+            if eid:
+                label=next((l for l,e in objects.items() if e==eid),'')
+            if label:break
+        old_locks={attr:var.get() for attr,var in (section.get('lock_vars') or {}).items() if var.get()}
+        new_eid=objects.get(label)
+        section['keep_locks']=old_locks if previous and new_eid==previous else {}
+        section['choice'].set(label)
+        section['keep_locks']={}
         q=status['quota'].get(key,{})
         section['quota'].set('VIP%s · 免费可用 %s/%s · 目标 %s 个'%(status['vip'],q.get('freeLeft',0),q.get('freeTotal',0),len(objects)))
 
@@ -186,7 +341,13 @@ def feather_detail(row):
     """
     if not isinstance(row, dict):
         return ''
-    attrs = row.get('attributeValues') or {}
+    attrs = row.get('attributeValues')
+    if not isinstance(attrs, dict) or not attrs:
+        attrs = next((row.get(k) for k in ('attrs', 'attribute', 'attributes')
+                      if isinstance(row.get(k), dict) and row.get(k)), {})
+    if not isinstance(attrs, dict) or not attrs:
+        # 洗练回包的羽毛节点把属性直接放在顶层（atk/dodge/...），没有 attributeValues 包装
+        attrs = {k: row.get(k) for k in ATTR_NAMES if row.get(k) is not None}
     ranges = row.get('attrRanges') or {}
     parts = []
     for k in ATTR_NAMES:

@@ -131,7 +131,7 @@ def new_item(raw):
     for field in ("newAttr", "newMagicWeapon", "magicWeapon", "newRune", "rune",
                   "feather", "formationFlag", "newFlag"):
         node = (raw or {}).get(field)
-        if isinstance(node, dict):
+        if isinstance(node, dict) and node:
             return node
     return None
 

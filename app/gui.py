@@ -34,7 +34,7 @@ from tkinter import ttk, scrolledtext, messagebox
 
 
 
-from game_version import GAME_VERSION, XIE_ROLE_SWITCHES, active_xie_names, active_xie_switches, xie_activity_state, xie_status_text
+from game_version import GAME_VERSION, XIE_ROLE_SWITCHES, active_xie_names, active_xie_switches, xie_activity_state, xie_status_text, config_table_path
 
 
 
@@ -311,29 +311,28 @@ with open(os.path.join(HERE, "main_boss_routes.json"), encoding="utf-8") as _f:
     _MAIN_BOSS_ROUTES = json.load(_f)
 
 # 成长挑战任务/积分档位配置（缺失时不影响启动，只显示 qId）
-_GC_DIR = os.path.join(HERE, "cg_config_out_cg1_20261019_1")
 try:
-    with open(os.path.join(_GC_DIR, "GrowthChallengeTask.json"), encoding="utf-8") as _f:
+    with open(config_table_path("GrowthChallengeTask"), encoding="utf-8") as _f:
         _GROWTH_TASK_CFG = json.load(_f)
 except Exception:
     _GROWTH_TASK_CFG = {}
 try:
-    with open(os.path.join(_GC_DIR, "GrowthChallengeReward.json"), encoding="utf-8") as _f:
+    with open(config_table_path("GrowthChallengeReward"), encoding="utf-8") as _f:
         _GROWTH_REWARD_CFG = json.load(_f)
 except Exception:
     _GROWTH_REWARD_CFG = {}
 try:
-    with open(os.path.join(_GC_DIR, "Prop.json"), encoding="utf-8-sig") as _f:
+    with open(config_table_path("Prop"), encoding="utf-8-sig") as _f:
         _PROP_CFG = json.load(_f)
 except Exception:
     _PROP_CFG = {}
 try:
-    with open(os.path.join(_GC_DIR, "Reward.json"), encoding="utf-8-sig") as _f:
+    with open(config_table_path("Reward"), encoding="utf-8-sig") as _f:
         _REWARD_CFG = json.load(_f)
 except Exception:
     _REWARD_CFG = {}
 try:
-    with open(os.path.join(_GC_DIR, "GrowthHelper.json"), encoding="utf-8-sig") as _f:
+    with open(config_table_path("GrowthHelper"), encoding="utf-8-sig") as _f:
         _GROWTH_HELPER_CFG = json.load(_f)
 except Exception:
     _GROWTH_HELPER_CFG = {}
@@ -396,7 +395,7 @@ def fashion_shop_items():
     global _FASHION_SHOP_ITEMS
     if _FASHION_SHOP_ITEMS is None:
         try:
-            with open(os.path.join(_GC_DIR, "Shop.json"), encoding="utf-8-sig") as _f:
+            with open(config_table_path("Shop"), encoding="utf-8-sig") as _f:
                 _shop = json.load(_f)
         except Exception:
             _shop = {}
@@ -426,16 +425,16 @@ def fashion_shop_label(sid, name, cost, cap, already=None):
     return '%s %s · %d玉珠 · %s' % (sid, name, cost, limit)
 
 
-def brawl_shop_label(sid, name, cost, week_cap, total_cap, week_used=None, total_used=None):
-    """乱斗商店一行文字：单价、每周限购、总限购；查到已购数量时显示剩余。"""
-    parts = ['%s %s · %d乱斗币' % (sid, name, cost)]
-    if week_cap >= 0:
-        parts.append('每周限购%d' % week_cap if week_used is None else
-                     '每周限购%d（已购%d，剩%d）' % (week_cap, week_used, max(0, week_cap - week_used)))
-    if total_cap >= 0:
-        parts.append('总限购%d' % total_cap if total_used is None else
-                     '总限购%d（已购%d，剩%d）' % (total_cap, total_used, max(0, total_cap - total_used)))
-    if week_cap < 0 and total_cap < 0:
+def brawl_shop_label(sid, name, cost, currency, day_cap=-1, week_cap=-1, total_cap=-1,
+                     day_used=None, week_used=None, total_used=None):
+    """乱斗商店一行文字：单价、日/周/总限购；查到已购数量时显示剩余。"""
+    parts = ['%s %s · %d%s' % (sid, name, cost, currency)]
+    for label, cap, used in (('每日限购', day_cap, day_used), ('每周限购', week_cap, week_used),
+                             ('总限购', total_cap, total_used)):
+        if cap >= 0:
+            parts.append('%s%d' % (label, cap) if used is None else
+                         '%s%d（已购%d，剩%d）' % (label, cap, used, max(0, cap - used)))
+    if day_cap < 0 and week_cap < 0 and total_cap < 0:
         parts.append('不限购')
     return ' · '.join(parts)
 
@@ -805,7 +804,7 @@ TASKS += [
 
 
     ('许愿池上期领奖', 'RUN_WISH_POOL_REWARD', False, False, '仅领上期奖励'),
-    ('许愿池（仅随机方案）', 'RUN_WISH_POOL_RANDOM', False, False, '设置为随机许愿时执行3池各10次；手动模式跳过此项目'),
+    ('许愿池（随机/排序方案）', 'RUN_WISH_POOL_RANDOM', False, False, '随机或排序模式执行3池；手动模式跳过'),
 
 
 
@@ -1919,7 +1918,8 @@ class DailyGUI:
                       show='*', width=16).pack(side=tk.LEFT, padx=4)
             ttk.Button(pwd_row, text="购买勾选商品（只花玉珠）",
                        command=lambda: self._start('永久时装·玉珠商店',
-                                                   group_keys=('RUN_FASHION_SHOP',))).pack(
+                                                   group_keys=('RUN_FASHION_SHOP',),
+                                                   force_keys=('RUN_FASHION_SHOP',))).pack(
                 side=tk.LEFT, padx=(6, 0))
             shop_frame = ttk.LabelFrame(
                 fp, text="玉珠商店（限购按已购数量自动扣减；默认只勾选要买的商品）")
@@ -2645,49 +2645,14 @@ class DailyGUI:
 
 
 
-        brawl_shop_frame = ttk.LabelFrame(battle_page, text='乱斗商店（S2·每周限购）')
-        brawl_shop_frame.pack(fill=tk.X, padx=4, pady=6)
-        brawl_shop_head = ttk.Frame(brawl_shop_frame)
-        brawl_shop_head.pack(fill=tk.X, padx=8, pady=(5, 3))
-        self.var_brawl_shop_money = tk.StringVar(value='剩余乱斗币：未查询')
-        ttk.Label(brawl_shop_head, textvariable=self.var_brawl_shop_money).pack(side=tk.LEFT)
-        self.btn_brawl_shop_money = ttk.Button(brawl_shop_head, text='刷新余额/限购',
-                                               command=self._refresh_brawl_shop)
-        self.btn_brawl_shop_money.pack(side=tk.LEFT, padx=(8, 0))
-        ttk.Label(brawl_shop_head, text='只显示当前赛季在售商品；每周限购按服务器计数扣减。',
-                  foreground='gray').pack(side=tk.LEFT, padx=(8, 0))
-        ttk.Label(brawl_shop_head, text='二级密码（未设置留空）').pack(side=tk.LEFT, padx=(12, 2))
+        self._brawl_shops = {}
         self.var_brawl_shop_password = tk.StringVar()
-        ttk.Entry(brawl_shop_head, textvariable=self.var_brawl_shop_password,
-                  show='*', width=14).pack(side=tk.LEFT)
-        self.var_brawl_shop_ids = {}
-        self.var_brawl_shop_qty = {}
-        self.var_brawl_shop_labels = {}
-        self._brawl_shop_meta = {}
-        try:
-            import brawl_shop
-            brawl_items = brawl_shop.active_items()
-        except Exception as _exc:
-            brawl_items = []
-            ttk.Label(brawl_shop_frame,
-                      text='缺少可用 Shop.json 配置（%s）；请到“配置更新”页更新配置后重启。' % _exc,
-                      foreground='red', wraplength=700).pack(anchor=tk.W, padx=8, pady=3)
-        for _sid, _name, _cost, _week, _total in brawl_items:
-            _row = ttk.Frame(brawl_shop_frame)
-            _row.pack(anchor=tk.W, fill=tk.X, padx=8, pady=1)
-            _var = tk.BooleanVar(value=False)
-            _qty = tk.StringVar(value='1')
-            _label = tk.StringVar(value=brawl_shop_label(_sid, _name, _cost, _week, _total))
-            self.var_brawl_shop_ids[_sid] = _var
-            self.var_brawl_shop_qty[_sid] = _qty
-            self.var_brawl_shop_labels[_sid] = _label
-            self._brawl_shop_meta[_sid] = (_name, _cost, _week, _total)
-            ttk.Checkbutton(_row, textvariable=_label, variable=_var).pack(side=tk.LEFT)
-            ttk.Label(_row, text='数量').pack(side=tk.LEFT, padx=(10, 2))
-            ttk.Spinbox(_row, from_=1, to=999, width=5, textvariable=_qty).pack(side=tk.LEFT)
-        if brawl_items:
-            ttk.Button(brawl_shop_frame, text='购买勾选商品（只花乱斗币）',
-                       command=self._buy_brawl_shop).pack(anchor=tk.W, padx=8, pady=(3, 7))
+        self._build_brawl_shop_panel(battle_page, 1, '乱斗商店（S2·每周限购）',
+                                     '只显示当前赛季在售商品；每周限购按服务器计数扣减。', '乱斗币')
+        self._build_brawl_shop_panel(battle_page, 2, '符箓商店（S2·每日限购）',
+                                     '只显示当前赛季在售符箓；每日限购按服务器计数扣减。', '灵魂/兽印')
+        self._build_brawl_shop_panel(battle_page, 3, '天赋商店（S2·永久限购）',
+                                     '只显示当前赛季在售天赋；每种天赋总限购 1 次。', '灵魂/兽印')
 
 
         pvp_frame = ttk.LabelFrame(battle_page, text="斗神大会")
@@ -7806,7 +7771,7 @@ class DailyGUI:
 
 
 
-        lines.append('WISH_POOL_MODE = '+repr('random' if self.wish_pool_panel.mode.get()=='随机许愿' else 'manual'))
+        lines.append('WISH_POOL_MODE = '+repr({'排序许愿':'ranked','随机许愿':'random'}.get(self.wish_pool_panel.mode.get(),'manual')))
         lines.append('WISH_POOL_PLAN = None')
         lines.append('CELEBRATION_SPIRIT_BACKUP = ' + str(self.var_celebration_spirit_backup.get()))
         lines.append('RUN_CARD_CAVE = False')
@@ -7822,7 +7787,7 @@ class DailyGUI:
 
 
 
-            if key=='RUN_WISH_POOL_RANDOM' and self.wish_pool_panel.mode.get()!='随机许愿':
+            if key=='RUN_WISH_POOL_RANDOM' and self.wish_pool_panel.mode.get()=='手动许愿':
                 if enabled:self._append_log('[许愿池] 当前为手动许愿，本次执行项目跳过；手动按钮仍可使用。')
                 enabled=False
             enabled = enabled and not disabled_reason(key)
@@ -8450,8 +8415,48 @@ class DailyGUI:
             name, cost, cap = self._fashion_shop_meta[sid]
             var.set(fashion_shop_label(sid, name, cost, cap, counts.get(str(sid), 0)))
 
+    def _build_brawl_shop_panel(self, parent, tab, title, hint, pay_hint):
+        """在斗神/灵宠乱斗下方增加一个可折叠商店面板。"""
+        import brawl_shop
+        frame = ttk.LabelFrame(parent, text=title)
+        frame.pack(fill=tk.X, padx=4, pady=6)
+        head = ttk.Frame(frame)
+        head.pack(fill=tk.X, padx=8, pady=(5, 3))
+        panel = {'frame': frame, 'tab': tab, 'money': tk.StringVar(value='余额：未查询'),
+                 'ids': {}, 'qty': {}, 'labels': {}, 'meta': {}}
+        ttk.Label(head, textvariable=panel['money']).pack(side=tk.LEFT)
+        panel['button'] = ttk.Button(head, text='刷新余额/限购', command=self._refresh_brawl_shop)
+        panel['button'].pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Label(head, text=hint, foreground='gray').pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Label(head, text='二级密码（未设置留空）').pack(side=tk.LEFT, padx=(12, 2))
+        ttk.Entry(head, textvariable=self.var_brawl_shop_password,
+                  show='*', width=14).pack(side=tk.LEFT)
+        try:
+            items = brawl_shop.active_items(tab)
+        except Exception as exc:
+            items = []
+            ttk.Label(frame, text='缺少可用 Shop.json 配置（%s）；请到“配置更新”页更新配置后重启。' % exc,
+                      foreground='red', wraplength=700).pack(anchor=tk.W, padx=8, pady=3)
+        for sid, name, cost, cur_key, cur_name, day, week, total in items:
+            row = ttk.Frame(frame)
+            row.pack(anchor=tk.W, fill=tk.X, padx=8, pady=1)
+            picked = tk.BooleanVar(value=False)
+            qty = tk.StringVar(value='1')
+            label = tk.StringVar(value=brawl_shop_label(sid, name, cost, cur_name, day, week, total))
+            panel['ids'][sid] = picked
+            panel['qty'][sid] = qty
+            panel['labels'][sid] = label
+            panel['meta'][sid] = (name, cost, cur_key, cur_name, day, week, total)
+            ttk.Checkbutton(row, textvariable=label, variable=picked).pack(side=tk.LEFT)
+            ttk.Label(row, text='数量').pack(side=tk.LEFT, padx=(10, 2))
+            ttk.Spinbox(row, from_=1, to=999, width=5, textvariable=qty).pack(side=tk.LEFT)
+        if items:
+            ttk.Button(frame, text='购买勾选商品（只花%s）' % pay_hint,
+                       command=lambda t=tab: self._buy_brawl_shop(t)).pack(anchor=tk.W, padx=8, pady=(3, 7))
+        self._brawl_shops[tab] = panel
+
     def _refresh_brawl_shop(self):
-        """只读查询乱斗币余额与每周限购。"""
+        """只读登录一次，刷新乱斗/符箓/天赋三个商店的余额与限购。"""
         if self.running:
             messagebox.showinfo('乱斗商店', '有任务正在执行，请稍后再查询。')
             return
@@ -8460,92 +8465,105 @@ class DailyGUI:
         if not os.path.exists(ACCOUNT_FILE):
             messagebox.showerror('乱斗商店', '未找到 account.local.json，请先登录账号。')
             return
+        if not getattr(self, '_brawl_shops', None):
+            return
         slot = int(self.cmb_slot.get()) if hasattr(self, 'cmb_slot') else 0
         self._brawl_shop_token = getattr(self, '_brawl_shop_token', 0) + 1
         token = self._brawl_shop_token
         self._brawl_shop_running = True
-        self.var_brawl_shop_money.set('剩余乱斗币：查询中…（登录游戏服可能需要几十秒）')
-        self.btn_brawl_shop_money.configure(state='disabled')
+        for panel in self._brawl_shops.values():
+            panel['money'].set('余额：查询中…（登录游戏服可能需要几十秒）')
+            panel['button'].configure(state='disabled')
 
         def worker():
             flow = None
             info = None
+            error = None
             try:
                 with open(ACCOUNT_FILE, encoding='utf-8-sig') as f:
                     account = json.load(f)
                 from teacher_trial import connect
                 flow, info = connect(account, slot)
-                text = '剩余乱斗币：%d' % int(info.get('petBtlM') or 0)
             except Exception as exc:
-                text = '剩余乱斗币：查询失败（%s）' % exc
+                error = str(exc)
             finally:
                 if flow is not None:
                     try:
                         flow.disconnect()
                     except Exception:
                         pass
-            self.root.after(0, lambda: self._finish_brawl_shop(text, token, info))
+            self.root.after(0, lambda: self._finish_brawl_shop(token, error, info))
 
         threading.Thread(target=worker, daemon=True).start()
         self.root.after(45000, lambda: self._brawl_shop_timeout(token))
 
-    def _finish_brawl_shop(self, text, token, info=None):
+    def _finish_brawl_shop(self, token, error=None, info=None):
         if token != getattr(self, '_brawl_shop_token', 0):
             return
         self._brawl_shop_token += 1
         self._brawl_shop_running = False
-        self.var_brawl_shop_money.set(text)
-        self.btn_brawl_shop_money.configure(state='normal')
-        self._apply_brawl_shop_limits(info)
+        for tab, panel in self._brawl_shops.items():
+            if error:
+                panel['money'].set('余额：查询失败（%s）' % error)
+            else:
+                panel['money'].set(self._brawl_shop_balance_text(info, tab))
+            panel['button'].configure(state='normal')
+        if info:
+            self._apply_brawl_shop_limits(info)
+
+    def _brawl_shop_balance_text(self, info, tab):
+        import brawl_shop
+        money = brawl_shop.wallet(info)
+        if tab == 1:
+            return '剩余乱斗币：%d' % money['petBtlMoney']
+        return '灵魂：%d ｜ 兽印：%d' % (money['spirit'], money['101724001'])
 
     def _brawl_shop_timeout(self, token):
         """超时只恢复按钮；后台晚到的结果仍会刷新余额和限购。"""
         if token != getattr(self, '_brawl_shop_token', 0):
             return
         self._brawl_shop_running = False
-        self.var_brawl_shop_money.set('剩余乱斗币：查询较慢，仍在后台尝试…')
-        self.btn_brawl_shop_money.configure(state='normal')
+        for panel in self._brawl_shops.values():
+            panel['money'].set('余额：查询较慢，仍在后台尝试…')
+            panel['button'].configure(state='normal')
 
     def _apply_brawl_shop_limits(self, info):
-        """用存档的周计数和总计数刷新每件商品的已购/剩余限购。"""
-        if not info or not getattr(self, '_brawl_shop_meta', None):
+        """用存档的日/周/总计数刷新每件商品的已购/剩余限购。"""
+        if not info or not getattr(self, '_brawl_shops', None):
             return
-        shop = info.get('shop') or {}
-        week_counts = ((info.get('everyWeekSetting') or {}).get('shopBuyCount') or {})
-        for sid, var in self.var_brawl_shop_labels.items():
-            name, cost, week_cap, total_cap = self._brawl_shop_meta[sid]
-            rec = shop.get(str(sid))
-            week_rec = week_counts.get(str(sid))
-            try:
-                total_used = int((rec or {}).get('buyCount') or 0) if isinstance(rec, dict) else int(rec or 0)
-            except (TypeError, ValueError):
-                total_used = 0
-            try:
-                week_used = int((week_rec or {}).get('buyCount') or 0) if isinstance(week_rec, dict) else int(week_rec or 0)
-            except (TypeError, ValueError):
-                week_used = 0
-            var.set(brawl_shop_label(sid, name, cost, week_cap, total_cap, week_used, total_used))
+        import brawl_shop
+        for panel in self._brawl_shops.values():
+            for sid, var in panel['labels'].items():
+                name, cost, cur_key, cur_name, day_cap, week_cap, total_cap = panel['meta'][sid]
+                total_used, week_used, day_used = brawl_shop.used_counts(info, sid)
+                var.set(brawl_shop_label(sid, name, cost, cur_name, day_cap, week_cap, total_cap,
+                                         day_used, week_used, total_used))
 
-    def _buy_brawl_shop(self):
+    def _buy_brawl_shop(self, tab=1):
+        import brawl_shop
+        title = brawl_shop.TAB_NAMES.get(tab, '乱斗商店')
+        panel = getattr(self, '_brawl_shops', {}).get(tab)
+        if panel is None:
+            return
         picked = []
-        for sid, var in self.var_brawl_shop_ids.items():
+        for sid, var in panel['ids'].items():
             if not var.get():
                 continue
             try:
-                count = int(self.var_brawl_shop_qty[sid].get())
+                count = int(panel['qty'][sid].get())
             except ValueError:
-                messagebox.showerror('乱斗商店', '商品 %d 的数量必须是正整数' % sid)
+                messagebox.showerror(title, '商品 %d 的数量必须是正整数' % sid)
                 return
             if count < 1:
-                messagebox.showerror('乱斗商店', '商品 %d 的数量必须大于 0' % sid)
+                messagebox.showerror(title, '商品 %d 的数量必须大于 0' % sid)
                 return
             picked.append((sid, count))
         if not picked:
-            messagebox.showinfo('乱斗商店', '请先勾选要购买的商品。')
+            messagebox.showinfo(title, '请先勾选要购买的商品。')
             return
         if not self._save_selected_slot():
             return
-        args = [os.path.join(HERE, 'brawl_shop.py')]
+        args = [os.path.join(HERE, 'brawl_shop.py'), '--tab', str(tab)]
         for sid, count in picked:
             args += ['--buy', '%d:%d' % (sid, count)]
         password = self.var_brawl_shop_password.get().strip()
@@ -8554,7 +8572,7 @@ class DailyGUI:
         args.append('--apply')
         self._launch(args)
 
-    def _start(self, page_title=None, task_key=None, task_keys=None, free_only=False, group_keys=None):
+    def _start(self, page_title=None, task_key=None, task_keys=None, free_only=False, group_keys=None, force_keys=None):
 
 
 
@@ -8689,6 +8707,8 @@ class DailyGUI:
 
             page_key_set = set(group_keys if group_keys is not None else TASK_PAGES[page_title])
             active_keys = set(page_key_set)
+            if force_keys:
+                forced_keys.update(force_keys)
 
 
 
@@ -8700,7 +8720,7 @@ class DailyGUI:
 
 
 
-            if not any(self.var_checks[key].get() for key in page_key_set):
+            if not force_keys and not any(self.var_checks[key].get() for key in page_key_set):
 
 
 

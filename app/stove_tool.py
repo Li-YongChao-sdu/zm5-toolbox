@@ -4,11 +4,12 @@ import json
 from datetime import datetime
 from pathlib import Path
 from bag_warehouse import quantity
+from game_version import config_table_path
 
 ROOT=Path(__file__).resolve().parent
 
 def table(name):
-    return json.loads((ROOT/'cg_config_out_cg1_20261019_1'/(name+'.json')).read_text(encoding='utf-8-sig'))
+    return json.loads(config_table_path(name).read_text(encoding='utf-8-sig'))
 
 def checked(reply):
     if not isinstance(reply,dict) or reply.get('code')!=200 or reply.get('error'):

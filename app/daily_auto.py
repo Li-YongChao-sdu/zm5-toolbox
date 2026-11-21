@@ -14,7 +14,7 @@
 import time, random, json, os
 from arena_selection import MODES as ARENA_MODES, choose_opponent, opponent_power
 from collections import defaultdict
-from game_version import GAME_VERSION, XIE_ROLE_SWITCHES, active_xie_names, active_xie_switches, xie_status_text
+from game_version import GAME_VERSION, XIE_ROLE_SWITCHES, active_xie_names, active_xie_switches, xie_status_text, config_table_path
 from daily_task_quota import quota_from_info
 from pypomelo.login4399 import fetch_game_token
 from pypomelo.flow import GameLoginFlow
@@ -801,8 +801,7 @@ def _new_player_tasks():
     """新手有礼配置（NewPlayerTask.json）：980xxx 任务 + 981001~981006 当天礼包。"""
     global _NEW_PLAYER_TASK_CFG
     if _NEW_PLAYER_TASK_CFG is None:
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            "cg_config_out_cg1_20261019_1", "NewPlayerTask.json")
+        path = config_table_path("NewPlayerTask")
         with open(path, encoding="utf-8") as f:
             _NEW_PLAYER_TASK_CFG = {int(k): v for k, v in json.load(f).items()}
     return _NEW_PLAYER_TASK_CFG
@@ -1039,8 +1038,6 @@ def claim_growth_dungeon_tasks(flow, info, qids=_USE_IDS):
 
 
 # ---------------- 成长挑战（新手活动）总控 ----------------
-_CFG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "cg_config_out_cg1_20261019_1")
 
 # 十绝阵任务：qId -> 要求累计通关次数（GrowthChallengeTask.json 831029~831034）
 _GROWTH_HALO_TASKS = [(831029, 1), (831030, 3), (831031, 7), (831032, 15),
@@ -1063,7 +1060,7 @@ _ALL_GROWTH_QUEST_IDS = list(range(831001, 831048))  # 831001~831047 共47个（
 
 
 def _load_cfg(name):
-    with open(os.path.join(_CFG_DIR, name), "r", encoding="utf-8") as f:
+    with open(config_table_path(name), "r", encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -1465,7 +1462,7 @@ def fashion_shop_items():
     global _FASHION_SHOP_CACHE
     if _FASHION_SHOP_CACHE is None:
         try:
-            with open(os.path.join(_CFG_DIR, "Shop.json"), encoding="utf-8-sig") as f:
+            with open(config_table_path("Shop"), encoding="utf-8-sig") as f:
                 shop = json.load(f)
         except Exception as exc:
             print("[玉珠商店] 读取 Shop.json 失败：%s" % exc)
@@ -3800,7 +3797,7 @@ def main():
         (RUN_PET_ARENA_REWARD, 'pet_arena_reward', 'do_claim'),
         (RUN_MONTHCARD_REWARD, 'monthcard_run', 'do_claim'),
         (RUN_WISH_POOL_REWARD, 'wish_pool_run', 'claim_prev'),
-        (RUN_WISH_POOL_RANDOM and WISH_POOL_MODE=='random', 'wish_pool_random', 'do_wish'),
+        (RUN_WISH_POOL_RANDOM and WISH_POOL_MODE in ('random','ranked'), 'wish_pool_modes', 'run_selected'),
     ]:
         if enabled:
             run_extension_daily(flow, module_name, action)

@@ -124,7 +124,10 @@ def main():
                 config = next((p for p in candidates if (p / 'Pet.json').is_file()), None)
                 if config is None:
                     if obj.get('finalPanels'):
-                        config = HERE / 'cg_config_out_cg1_20261008_1'
+                        from game_version import latest_config_folder
+                        config = latest_config_folder()
+                        if config is None:
+                            raise ValueError('找不到快照配置且本地没有完整配置，请用 --config 指定对应目录')
                     else:
                         raise ValueError(f'找不到快照配置 {cg}，请用 --config 指定对应目录，避免版本混算')
             result = convert(obj, cat, config)

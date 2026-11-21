@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 from bag_warehouse import quantity
+from game_version import config_table_path
 
 ROOT = Path(__file__).resolve().parent
 FIELDS = {'physical': '体质', 'bone': '根骨', 'capacity': '潜力',
@@ -11,7 +12,7 @@ FIELDS = {'physical': '体质', 'bone': '根骨', 'capacity': '潜力',
           'defQualification': '防御资质', 'reHpQualification': '回血资质'}
 
 def table(name):
-    return json.loads((ROOT/'cg_config_out_cg1_20261019_1'/(name+'.json')).read_text(encoding='utf-8-sig'))
+    return json.loads(config_table_path(name).read_text(encoding='utf-8-sig'))
 
 def checked(reply):
     if not isinstance(reply, dict) or reply.get('code') != 200 or reply.get('error'):

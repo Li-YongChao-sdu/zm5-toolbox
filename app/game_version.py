@@ -64,6 +64,35 @@ def feature_config_path(name, root=None):
             return folder / fname
     return home / 'feature_config' / fname
 
+def config_table_path(name, root=None):
+    """定位游戏数值表：优先最新完整 cg1，缺失时回退 feature_config。"""
+    fname = name if str(name).endswith('.json') else str(name) + '.json'
+    for base in (app_home(root), ROOT):
+        folder = latest_config_folder(base)
+        if folder is not None and (folder / fname).is_file():
+            return folder / fname
+    return feature_config_path(fname, root)
+
+
+def config_folder_date(folder):
+    """从 cg_config_out_cg1_YYYYMMDD_N 目录名解析配置日期。"""
+    match = re.fullmatch(r'cg_config_out_cg1_(\d{8})_\d+', Path(folder).name)
+    return datetime.strptime(match.group(1), '%Y%m%d').date() if match else None
+
+
+def config_is_stale(folder=None, now=None, days=8, hour=12):
+    """本地配置日期 + days 天的 hour 点（北京时间）之后视为过期。"""
+    folder = folder or latest_config_folder()
+    if folder is None:
+        return True
+    config_date = config_folder_date(folder)
+    if config_date is None:
+        return True
+    deadline = datetime(config_date.year, config_date.month, config_date.day,
+                        hour, tzinfo=BEIJING) + timedelta(days=days)
+    return beijing_now(now) >= deadline
+
+
 def _date(value):
     return datetime.strptime(str(value), '%Y/%m/%d-%H:%M:%S').replace(tzinfo=BEIJING)
 

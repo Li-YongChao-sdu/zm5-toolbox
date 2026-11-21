@@ -4,7 +4,7 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import ttk,filedialog,messagebox
 from game_config_sync import ROOT,sync,import_config
-from game_version import latest_config_folder,xie_status_text
+from game_version import latest_config_folder,xie_status_text,config_is_stale
 
 
 def latest_local():
@@ -15,17 +15,20 @@ class ConfigSyncPage:
     def __init__(self,app,notebook):
         self.app=app;self.running=False;self.lines=[];self.folder='';self.notified=False
         self.page=ttk.Frame(notebook,padding=12);notebook.add(self.page,text='配置更新')
-        local=latest_local()
+        local=latest_local();stale=config_is_stale(local) if local else False
         self.status=tk.StringVar(value='本地最新：'+(local.name if local else '未找到已解包配置'))
         ttk.Label(self.page,textvariable=self.status,wraplength=900).pack(fill='x')
-        ttk.Label(self.page,text='检查本周 cg1 及热更序号，或选择本地 cg1 文件自动解包。限时活动按最新 Activity 表及关联配置的北京时间开放区间判断；更新后原页面和“我的日常”立即生效。过期或未开放入口隐藏，后台停止执行；轮回挑战与领奖分别判断。',foreground='#a06000',wraplength=900).pack(fill='x',pady=4)
+        ttk.Label(self.page,text='检查本周 cg1 及热更序号，或选择本地 cg1 文件自动解包。本地配置超过 8 天（以配置日期当天中午 12 点起算）会在启动时自动更新。限时活动按最新 Activity 表及关联配置的北京时间开放区间判断；更新后原页面和“我的日常”立即生效。过期或未开放入口隐藏，后台停止执行；轮回挑战与领奖分别判断。',foreground='#a06000',wraplength=900).pack(fill='x',pady=4)
         self.settings_path=ROOT/'config_sync_settings.json'
         try:settings=json.loads(self.settings_path.read_text(encoding='utf-8'))
         except (OSError,ValueError):settings={}
         if not isinstance(settings,dict):settings={}
-        self.auto=tk.BooleanVar(value=settings.get('auto_check_on_start') is True or local is None)
+        saved_auto=settings.get('auto_check_on_start') is True
+        self.auto=tk.BooleanVar(value=saved_auto or local is None or stale)
         if local is None:
             self.status.set('本地未找到配置表：启动后自动从官方资源服下载并解压')
+        elif stale:
+            self.status.set('本地最新：%s（已超过 8 天，启动后自动更新）'%local.name)
         ttk.Checkbutton(self.page,text='启动时自动检查并解析本周 cg1',variable=self.auto,command=self.save_settings).pack(anchor='w')
         row=ttk.Frame(self.page);row.pack(fill='x',pady=4)
         self.start_button=ttk.Button(row,text='检查并更新配置',command=self.start,width=20);self.start_button.pack(side='left')
@@ -36,6 +39,13 @@ class ConfigSyncPage:
         if self.auto.get():
             self.page.after(1000,self.start)
             if local is None:self.page.after(1200,self.notice_missing)
+            elif stale and not saved_auto:self.page.after(1200,self.notice_stale)
+
+    def notice_stale(self):
+        """本地配置过期且未勾选自动检查时，提示本次启动会强制更新。"""
+        if self.notified or not config_is_stale(latest_local()):return
+        self.notified=True
+        messagebox.showinfo('配置表更新','本地配置已超过 8 天，已开始后台自动下载更新。\n下载完成后请重启程序。',parent=self.page)
 
     def notice_missing(self):
         """缺少配置表且自动下载已启动时，只提示一次，避免用户误以为程序卡住。"""

@@ -11,7 +11,11 @@ DEFINITIONS=(
 )
 BY_KEY={r[0]:r for r in DEFINITIONS}
 def catalog(base):return list(base)+[(label,key,False,False,note) for key,label,kind,page,note in DEFINITIONS]
-def pages(base):return {**base,'趣味活动':tuple(BY_KEY)}
+def pages(base):
+    moved=tuple(k for k in ('RUN_WISH_POOL_REWARD','RUN_WISH_POOL_RANDOM') if k not in BY_KEY)
+    out={**base,'趣味活动':tuple(BY_KEY)+moved}
+    if moved and '活动副本' in out:out['活动副本']=tuple(k for k in out['活动副本'] if k not in moved)
+    return out
 def build_plan(app,keys,account,slot):
     jobs=[];errors={}
     for key,label,kind,page,note in DEFINITIONS:

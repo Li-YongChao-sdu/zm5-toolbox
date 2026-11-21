@@ -3,11 +3,11 @@ import json
 from pathlib import Path
 from datetime import datetime
 from bag_warehouse import quantity,sell
+from game_version import config_table_path
 ROOT=Path(__file__).resolve().parent
 def sale_candidates(before,after,rewards,boss=False,small=False,card_rewards=None,medicine=False):
-    cfg=ROOT/'cg_config_out_cg1_20261019_1'
-    exchange=json.loads((cfg/'PropExchange.json').read_text(encoding='utf8'))
-    props=json.loads((cfg/'Prop.json').read_text(encoding='utf8'))
+    exchange=json.loads(config_table_path('PropExchange').read_text(encoding='utf8'))
+    props=json.loads(config_table_path('Prop').read_text(encoding='utf8'))
     kinds=({2,3,4} if boss else set())|({5,6,7} if small else set())
     candidates=[]
     for key,amount in rewards.items():

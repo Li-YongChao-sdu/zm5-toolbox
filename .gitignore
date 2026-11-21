@@ -16,6 +16,7 @@ data/*
 
 # 本机状态与运行输出
 app/ui_settings.json
+app/wash_free_memory.json
 app/my_daily_favorites.json
 app/halo_team.json
 app/dice_farm_log.json

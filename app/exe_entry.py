@@ -58,6 +58,9 @@ def main():
         sys.argv = [str(script)] + sys.argv[3:]
         runpy.run_path(str(script), run_name='__main__')
         return
+    if os.name=='nt':
+        from game_config_sync import ensure_config
+        ensure_config()
     if os.name=='nt' and frozen:
         import ctypes
         console=ctypes.windll.kernel32.GetConsoleWindow()

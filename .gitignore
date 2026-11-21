@@ -16,6 +16,10 @@ data/*
 
 # 本机状态与运行输出
 app/ui_settings.json
+app/arena_prefs.local.json
+app/config_sync_settings.json
+app/config_sync_pause.json
+app/union_batch_settings.json.bak_*
 app/wash_free_memory.json
 app/my_daily_favorites.json
 app/halo_team.json

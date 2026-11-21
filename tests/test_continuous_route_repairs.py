@@ -97,8 +97,7 @@ class RepairsTests(unittest.TestCase):
                     return {'code': 200, 'give': [{'type': 'coin', 'subType': 'petArenaMoney', 'count': 100},
                                                  {'type': 'item', 'subType': '101005001', 'count': 2}]}
                 raise AssertionError(route)
-        directory = Path(r'C:\Users\huawei\Documents\Codex\2026-10-25\no-module-named-requests\work\continuous_tests_20261106')
-        with tempfile.TemporaryDirectory(dir=directory) as temp:
+        with tempfile.TemporaryDirectory() as temp:
             ok, _, report = pet_arena_reward.do_claim(Flow(), {}, slot=0, report_dir=temp)
         self.assertTrue(ok)
         self.assertEqual(report['phase'], 'verified')

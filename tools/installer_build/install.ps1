@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $appName = '造五活动助手'
 $version = '1.01'
 $src = Join-Path $PSScriptRoot 'app'
@@ -19,14 +19,41 @@ $resolvedDest = (Resolve-Path -LiteralPath $dest).ProviderPath
 if (-not [string]::Equals($resolvedDest, $expectedDest, [StringComparison]::OrdinalIgnoreCase)) {
     throw '安装目录校验失败，停止升级'
 }
-$preserved = @('accounts', 'account.local.json', 'account.enc', 'accounts.pwd', 'ui_settings.json')
-# 覆盖旧版本程序文件，保留账号、加密文件、密码缓存与界面设置
+$preserved = @(
+    'accounts',
+    'account*.local.json',
+    'account.enc',
+    'accounts.pwd',
+    'ui_settings.json',
+    'gui_config.py',
+    'halo_team.json',
+    'manhuang_team.json',
+    'arena_prefs.local.json',
+    'config_sync_settings.json',
+    'config_sync_pause.json',
+    'cg_config_out_cg1_*',
+    'logs',
+    'union_batch_settings.json',
+    'union_accounts'
+)
+function Test-Preserved([string]$Name) {
+    foreach ($pattern in $preserved) {
+        if ($Name -like $pattern) { return $true }
+    }
+    return $false
+}
+# 覆盖旧版本程序文件，保留账号、已下载配置、界面/队伍设置与日志
 Get-ChildItem -LiteralPath $dest -Force |
-    Where-Object { $_.Name -notin $preserved } |
+    Where-Object { -not (Test-Preserved $_.Name) } |
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-Get-ChildItem -LiteralPath $src -Force |
-    Where-Object { $_.Name -notin $preserved } |
-    Copy-Item -Destination $dest -Recurse -Force
+# 用户文件已存在时保留；全新安装时复制默认文件。配置表不在安装包里带，
+# 避免半成品目录挡住启动前自动下载。
+Get-ChildItem -LiteralPath $src -Force | ForEach-Object {
+    if ($_.Name -like 'cg_config_out_cg1_*') { return }
+    $target = Join-Path $dest $_.Name
+    if ((Test-Preserved $_.Name) -and (Test-Path -LiteralPath $target)) { return }
+    Copy-Item -LiteralPath $_.FullName -Destination $dest -Recurse -Force
+}
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'uninstall.ps1') -Destination $dest -Force
 
 # 卸载入口

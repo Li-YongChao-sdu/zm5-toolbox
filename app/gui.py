@@ -11129,6 +11129,9 @@ if __name__ == "__main__":
 
 
 
+    from game_config_sync import ensure_config
+    ensure_config()
+
     root = tk.Tk()
 
 

@@ -3,10 +3,10 @@
 版本规则：以 2026-10-26 为基准每 7 天递增，周内热更时文件名序号 1→2→3。
 输出目录：cg_config_out_cg1_<日期>_<序号>
 """
-import json,lzma,struct,urllib.request,zlib,re,tempfile
-from datetime import date,timedelta
+import json,lzma,struct,urllib.request,zlib,re,tempfile,os
+from datetime import date,datetime,timedelta
 from pathlib import Path
-from game_version import beijing_now
+from game_version import beijing_now,latest_config_folder,config_is_stale,BEIJING
 
 ROOT=Path(__file__).resolve().parent
 BASE='https://sda.4399.com/4399swf/upload_swf/ftp22/csya/20170622/1/assets/data/'
@@ -127,6 +127,67 @@ def unpack(data,out):
     return header,names,skipped
 
 
+PAUSE_FILE='config_sync_pause.json'
+
+
+def _config_key(name):
+    """从 cg1_日期_序号.swf 或配置目录名提取 (日期, 序号)。"""
+    match=re.search(r'(\d{8})_(\d+)',Path(name).name)
+    return (match.group(1),int(match.group(2))) if match else None
+
+
+def _pause_path(dest_root=None):
+    return Path(dest_root or ROOT)/PAUSE_FILE
+
+
+def paused_until(dest_root=None):
+    """返回本周暂停检查的截止时间；未暂停或已到期返回 None。"""
+    try:
+        data=json.loads(_pause_path(dest_root).read_text(encoding='utf-8'))
+        until=datetime.fromisoformat(data['until'])
+    except (OSError,ValueError,KeyError,TypeError):
+        return None
+    if until.tzinfo is None:
+        until=until.replace(tzinfo=BEIJING)
+    return until if beijing_now()<until else None
+
+
+def _clear_pause(dest_root=None):
+    try:
+        _pause_path(dest_root).unlink()
+    except OSError:
+        pass
+
+
+def _next_check(item,local):
+    """服务器没有新包时，等到下一个配置日中午 12 点再检查。"""
+    today=beijing_now().date()
+    dates=[]
+    for name in (item.get('name'),local.name):
+        key=_config_key(name)
+        if key:
+            dates.append(datetime.strptime(key[0],'%Y%m%d').date())
+    base=max(dates) if dates else today
+    check=ANCHOR
+    while check<=base:
+        check+=timedelta(days=STEP)
+    while check<today:
+        check+=timedelta(days=STEP)
+    until=datetime(check.year,check.month,check.day,12,tzinfo=BEIJING)
+    while until<=beijing_now():
+        until+=timedelta(days=STEP)
+    return until
+
+
+def _write_pause(dest_root,until,item,local):
+    data={'until':until.isoformat(),'checked_at':beijing_now().isoformat(),
+          'server':item['name'],'local':local.name}
+    try:
+        _pause_path(dest_root).write_text(json.dumps(data,ensure_ascii=False),encoding='utf-8')
+    except OSError:
+        pass
+
+
 def install_config(data,name,dest_root=None,log=print):
     """完整解包和校验后才发布目录，失败不破坏已有可用配置。"""
     if not re.fullmatch(r'cg1_\d{8}_[1-9]\d*\.swf',name):
@@ -151,6 +212,7 @@ def install_config(data,name,dest_root=None,log=print):
             stage.rename(folder)
     log('解包完成：%d 张表（跳过非 JSON %d 张）→ %s'%(len(names),len(skipped),folder))
     log('关键表校验通过：'+'/'.join(KEY_TABLES))
+    _clear_pause(root)
     return {'name':name,'folder':str(folder),'tables':len(names),'skipped':skipped}
 
 def import_config(path,dest_root=None,log=print):
@@ -158,13 +220,54 @@ def import_config(path,dest_root=None,log=print):
     return install_config(path.read_bytes(),path.name,dest_root,log)
 
 def sync(dest_root=None,log=print):
-    """下载并解包本周最新配置，返回 {name,folder,tables,skipped}。"""
+    """下载并解包本周最新配置；服务器没有新包时暂停到下周再检查。"""
     item=discover()
     if not item:raise RuntimeError('未发现可用配置（已回溯 %d 周）'%8)
+    root=Path(dest_root or ROOT)
+    local=latest_config_folder(root)
+    if local is not None:
+        server_key=_config_key(item['name']);local_key=_config_key(local.name)
+        if server_key and local_key and server_key<=local_key:
+            until=_next_check(item,local)
+            _write_pause(root,until,item,local)
+            log('服务器最新仍为 %s，本地已是 %s；本周暂停检查，下次 %s'
+                %(item['name'],local.name,until.strftime('%m-%d %H:%M')))
+            return {'name':item['name'],'folder':str(local),'tables':0,'skipped':[],
+                    'up_to_date':True,'paused_until':until.isoformat()}
+    _clear_pause(root)
     log('最新配置：%s（%.1f MB）'%(item['name'],item['size']/1048576))
     data=fetch(item['name'])
     log('下载完成：%d 字节'%len(data))
     return install_config(data,item['name'],dest_root,log)
+
+
+def _startup_log(text):
+    try:print(text,flush=True)
+    except Exception:pass
+
+
+def ensure_config():
+    """GUI 启动前确保配置表存在且未过期；失败时继续，由界面后台重试。"""
+    if os.environ.get('ZM5_CONFIG_PREFLIGHT_DONE')=='1':return
+    os.environ['ZM5_CONFIG_PREFLIGHT_DONE']='1'
+    local=latest_config_folder()
+    if local is not None and not config_is_stale(local):return
+    if local is not None and paused_until() is not None:
+        _startup_log('配置表本周已检查，服务器暂无新包，直接启动。')
+        os.environ['ZM5_CONFIG_PREFLIGHT']='1'
+        return
+    _startup_log('正在检查并更新配置表，请稍候...')
+    try:
+        result=sync(log=_startup_log)
+    except Exception as exc:
+        _startup_log('配置表更新失败：%s'%exc)
+        _startup_log('继续启动，界面会在后台重试。')
+        return
+    os.environ['ZM5_CONFIG_PREFLIGHT']='1'
+    if result.get('up_to_date'):
+        _startup_log('服务器暂无新包，使用本地配置启动。')
+    else:
+        _startup_log('配置表已更新到 %s，启动程序。'%result['name'])
 
 
 if __name__=='__main__':

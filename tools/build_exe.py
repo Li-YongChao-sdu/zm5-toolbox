@@ -12,10 +12,14 @@ ROOT=Path(__file__).resolve().parent.parent/'app'
 WORK=Path(__file__).resolve().parent/'build_exe_20261004'
 OUT=Path(__file__).resolve().parent/'exe_20261004_verified'
 STAGE=WORK/'source'
-STAGE.mkdir(parents=True, exist_ok=True)
+if STAGE.exists():shutil.rmtree(STAGE)
+STAGE.mkdir(parents=True)
 pending=['gui.py','exe_entry.py']
 seen=set()
-excluded={'gui_config.py','account.local.json','account.enc','accounts.pwd','文件清单.json'}
+excluded={'gui_config.py','account.local.json','account.enc','accounts.pwd','文件清单.json',
+          'ui_settings.json','halo_team.json','manhuang_team.json','arena_prefs.local.json',
+          'my_daily_favorites.json','config_sync_settings.json','config_sync_pause.json',
+          'union_batch_settings.json'}
 while pending:
     rel=pending.pop()
     if rel in seen or rel in excluded: continue
@@ -40,13 +44,7 @@ while pending:
     dest=STAGE/rel;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(source,dest)
 for p in (ROOT/'feature_config').glob('*.json'):
     dest=STAGE/'feature_config'/p.name;dest.parent.mkdir(exist_ok=True);shutil.copy2(p,dest)
-# 仅收集直接字符串引用会漏掉配置目录内的道具表/超级仓库表，逐目录补带
-for folder in ROOT.glob('cg_config_out_cg1_*'):
-    if not folder.is_dir():continue
-    for name in ('Prop.json','SuperWarehouse.json'):
-        p=folder/name
-        if not p.is_file():continue
-        dest=STAGE/folder.name/name;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(p,dest)
+# 配置表不随包分发：安装器会跳过 cg_config_out_*，由启动前预检下载完整配置。
 assert not any(Path(p).name.startswith('_probe') for p in seen), 'Production depends on probe'
 hidden=sorted(p[:-3].replace('/','.') for p in seen if p.endswith('.py') and not p.endswith('__init__.py'))
 required={'new_player_daily.py','celebration_daily.py','new_player_rewards.py','supply_filter.py','nine_tower.py','ptlogin_login.py','feature_ui.py'}

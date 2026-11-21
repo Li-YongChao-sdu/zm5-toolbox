@@ -1,6 +1,6 @@
 ﻿$ErrorActionPreference = 'Stop'
 $appName = '造五活动助手'
-$version = '1.01'
+$version = '1.02'
 $src = Join-Path $PSScriptRoot 'app'
 $dest = Join-Path $env:LOCALAPPDATA $appName
 $exe = Join-Path $dest ($appName + '.exe')

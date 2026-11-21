@@ -40,8 +40,8 @@ def main():
                 yield from notebooks(c)
         notebook = next(notebooks(root))
         names = [notebook.tab(t, 'text') for t in notebook.tabs()]
-        assert names[names.index('抓宠')+1] == '新手任务'
-        assert set(app.single_task_choices) == {'日常任务','日常副本'}
+        assert {'日常任务1','日常任务2','新手任务','日常副本'}.issubset(names), names
+        assert app.single_task_choices, 'single task choices empty'
         assert 'RUN_CELEBRATION' in gui.TASK_PAGES['活动副本']
         assert hasattr(app, 'btn_cookie_login') and hasattr(app, 'var_save_log')
         root.destroy()

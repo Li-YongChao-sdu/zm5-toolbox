@@ -1,7 +1,7 @@
-Title=zm5 Toolbox 1.01 Setup
-Text=Install zm5 Toolbox 1.01 to your user folder.
+Title=zm5 Toolbox 1.02 Setup
+Text=Install zm5 Toolbox 1.02 to your user folder.
 Setup=install.cmd
-SetupTitle=Installing zm5 Toolbox 1.01
+SetupTitle=Installing zm5 Toolbox 1.02
 Silent=1
 Overwrite=1
 TempMode

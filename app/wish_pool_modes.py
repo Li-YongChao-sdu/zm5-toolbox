@@ -25,7 +25,8 @@ def run_selected(flow,info):
     elif mode=='ranked':
         plan=ranked_plan(flow,da.RECORD_INDEX,da.UID)
         if plan is None:return True,'本期没有需要补许的池子（已达目标或名额已满）',None
-    return backend.do_wish(flow,info,slot=da.RECORD_INDEX,manual=plan if mode!='random' else None)
+    labels={'manual':'手动许愿','ranked':'排序许愿','random':'随机许愿'}
+    return backend.do_wish(flow,info,slot=da.RECORD_INDEX,manual=plan if mode!='random' else None,label=labels[mode])
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('--query',action='store_true');p.add_argument('--mode',choices=['manual','random','ranked'],default='manual');p.add_argument('--plan');p.add_argument('--uid',required=True);p.add_argument('--slot',type=int,required=True);a=p.parse_args()
@@ -46,7 +47,8 @@ def main():
                 if plan is None:raise ValueError('本期没有需要补许的池子（已达目标或名额已满）')
             else:
                 plan=None
-            ok,message,_=backend.do_wish(flow,info,slot=a.slot,manual=plan);print(('[OK] ' if ok else '[--] ')+message,flush=True)
+            labels={'manual':'手动许愿','ranked':'排序许愿','random':'随机许愿'}
+            ok,message,_=backend.do_wish(flow,info,slot=a.slot,manual=plan,label=labels[a.mode]);print(('[OK] ' if ok else '[--] ')+message,flush=True)
             state=backend.read(flow,a.slot)
         state.update(uid=a.uid,slot=a.slot)
         print('__WISH_POOL_STATE__'+json.dumps(state,ensure_ascii=False),flush=True)

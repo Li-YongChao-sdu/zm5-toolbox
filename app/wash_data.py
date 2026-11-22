@@ -380,17 +380,22 @@ def list_runes(info):
 
 
 def list_feathers(info):
-    """背包羽毛 + 身上翅膀镶嵌的羽毛（p1/p2.equipments.wing.inlayInfo）。"""
-    bag = ((info or {}).get("bag") or {}).get("feather") or {}
-    sources = [(node, "背包") for node in (bag.values() if isinstance(bag, dict) else [])]
-    for player in ("p1", "p2"):
-        wing = ((((info or {}).get(player) or {}).get("equipments") or {}).get("wing"))
-        if isinstance(wing, dict):
-            inlay = wing.get("inlayInfo") or wing.get("inlay") or []
-            nodes = inlay if isinstance(inlay, list) else (inlay.values() if isinstance(inlay, dict) else [])
-            for pos, node in enumerate(nodes):
-                if isinstance(node, dict):
-                    sources.append((node, "%s·翅膀·孔位%s" % (player, pos)))
+    """只扫描背包里未穿戴翅膀的镶嵌羽毛。"""
+    sources = []
+    wings = ((info or {}).get("bag") or {}).get("wing") \
+        or ((info or {}).get("bag") or {}).get("wings") or {}
+    nodes = wings.values() if isinstance(wings, dict) else wings if isinstance(wings, list) else []
+    for index, wing in enumerate(nodes):
+        if not isinstance(wing, dict):
+            continue
+        inlay = wing.get("inlayInfo") or wing.get("inlay") or []
+        if not isinstance(inlay, (dict, list)):
+            continue
+        wing_name = str(wing.get("name") or wing.get("id") or ("#%s" % index))
+        rows = inlay.items() if isinstance(inlay, dict) else enumerate(inlay)
+        for pos, node in rows:
+            if isinstance(node, dict):
+                sources.append((node, "背包·%s·孔位%s" % (wing_name, pos)))
     # 加载羽毛配表，取每个属性的洗练范围（"最小值;最大值"）
     feather_cfg = {}
     try:

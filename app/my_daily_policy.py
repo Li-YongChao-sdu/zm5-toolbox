@@ -21,7 +21,9 @@ def configure(module,keys,catalog):
         setattr(module,key,False)
     module.RUN_ACTIVITY=any(k.startswith('RUN_ACT_') for k in selected)
     module.ARENA_PAID_EXTRA_TIMES=0;module.PET_ARENA_PAID_EXTRA_TIMES=0
-    module.PAID_CONFIRM_BITS='000';module.NIGHTMARE_CARD_STRATEGY='free'
+    module.PAID_CONFIRM_BITS='000'
+    if getattr(module,'NIGHTMARE_CARD_STRATEGY','free') not in ('free','static','dynamic'):
+        module.NIGHTMARE_CARD_STRATEGY='free'
     return selected
 
 class FreeDailyFlow:

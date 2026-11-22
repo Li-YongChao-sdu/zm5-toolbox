@@ -50,7 +50,7 @@ def manual_cells(current,plan):
     if len(set(current['positions'])|seen)>current['maximum']:raise ValueError('本期最多参与%s个不同池子'%current['maximum'])
     return chosen
 
-def do_wish(flow,info,*,slot=None,report_dir=None,manual=None):
+def do_wish(flow,info,*,slot=None,report_dir=None,manual=None,label='随机许愿'):
     if slot is None:
         import daily_auto as da
         slot=da.RECORD_INDEX
@@ -82,12 +82,12 @@ def do_wish(flow,info,*,slot=None,report_dir=None,manual=None):
                 for consume in reply.get('consume') or []:
                     if consume.get('type')!='coin' or consume.get('subType')!='spirit':raise RuntimeError('出现非灵魂消耗')
                 event['phase']='verified';save()
-                print('[随机许愿] %s：%s/%s，灵魂-%s'%(cell['pool'],used+1,goal,cost),flush=True);time.sleep(2)
+                print('[%s] %s：%s/%s，灵魂-%s'%(label,cell['pool'],used+1,goal,cost),flush=True);time.sleep(2)
         report.update(phase='complete',after=read(flow,slot));save()
         return True,'许愿完成：%s个池，本次%s次；已有次数计入目标，受角色等级上限限制。记录：%s'%(len(selected),len(report['wishes']),path),report
     except Exception as exc:
         report.update(phase='stopped',error_type=type(exc).__name__);save()
-        return False,'随机许愿停止：%s；结果不明不重发。记录：%s'%(exc,path),report
+        return False,'%s停止：%s；结果不明不重发。记录：%s'%(label,exc,path),report
 
 if __name__=='__main__':
     from wish_pool_run import connect,entry

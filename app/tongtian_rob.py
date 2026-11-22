@@ -83,7 +83,9 @@ def _ships(response, level, power, own_uid, full_reward_only=False):
             candidates.append({"uid": uid, "good_id": int(ship["goodId"]), "tier": int(ship["goodId"]) % 1000,
                                "robbed": len(robbed), "start_ms": start_ms,
                                "end_ms": end_ms, "now_ms": now_ms,
-                               "server_offset_ms": now_ms - time.time()*1000,"level":other_level})
+                               "server_offset_ms": now_ms - time.time()*1000,"level":other_level,
+                               "power": other_power,
+                               "owner": user.get("name") or user.get("roleName") or ""})
         except (KeyError, TypeError, ValueError, json.JSONDecodeError):
             continue
     # 大船优先；同档优先完整的两次被抢机会；再选最早脱离保护期的船。

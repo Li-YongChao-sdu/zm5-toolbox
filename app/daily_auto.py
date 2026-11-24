@@ -272,11 +272,15 @@ RUN_DRAGON_TREASURE_TASKS = True  # 龙宫寻宝: 领取已完成任务奖励, �
 RUN_CLOUD_LADDER = True   # 夺宝云梯: 免费1次
 RUN_DOG_CARD = False      # 账号共享每日普通抽狗卡；服务端判定剩余次数
 RUN_ELITE_STONE = False  # 日常：精英免费翻牌获取每日4个万能强化石
+RUN_THANKSGIVING_LOGIN = False
+RUN_TURKEY_BOUNTY = False
 RUN_MAGIC_RABBIT = False  # 主线追加魔玉兔，每日活动次数上限2
 RUN_MAGIC_CRYSTAL = False  # 魔法水晶球：手动领取至每日11个
 PICKUP_SUPPLIES = False  # 全局逐件拾取：默认不领取萝卜/蟠桃/蓝瓶/蓝壶
 RUN_RELIC_TREASURE = False # 遗迹寻宝: 目前暂未开放
 RUN_STOVE = True          # 聚灵池/炼丹炉: 免费炼制
+WANXIANG_MODE = 'manual'
+PET_PVE_MODE = 'manual'
 RUN_WANXIANG = True        # 万象古树(1400600): 每天免费2次, 开共享宝箱
 # 竞技场/斗宠大会分别控制免费次数用尽后的点券续战(20点券/场)。
 # 默认均关闭; 开启时按各自次数上限执行。
@@ -1815,6 +1819,25 @@ def _agg_drops(bag, drops):
         bag[key] += d.get("count", 0)
 
 
+def _elite_wallet(flow):
+    reply = flow.request('connector.roleHandler.getUserInfo', {})
+    user = reply.get('user') if isinstance(reply, dict) else None
+    if not isinstance(user, dict) or reply.get('code') != 200 or reply.get('error'):
+        raise RuntimeError('[精英] 无法核对点券和元宝，停止')
+    if any(user.get(key) is None for key in ('ticket', 'yuanbao')):
+        raise RuntimeError('[精英] 余额字段缺失，停止')
+    return {key: int(user[key]) for key in ('ticket', 'yuanbao')}
+
+
+def _check_elite_cost(flow, before, reply, phase):
+    after = _elite_wallet(flow)
+    consume = reply.get('consume') or [] if isinstance(reply, dict) else []
+    paid = any(isinstance(item, dict) and str(item.get('subType')) in ('ticket', 'yuanbao')
+               for item in consume)
+    if paid or after != before:
+        raise RuntimeError('[精英] %s出现非预期点券/元宝消耗或余额变化，停止且不重发' % phase)
+
+
 def clear_dungeon(flow, info, mid, label, open_chest=False, quota=None, claim_card=False,
                   max_runs=None, sell_boss=False, sell_small=False, sell_medicine=False,
                   raise_forest_power=False):
@@ -1852,7 +1875,10 @@ def clear_dungeon(flow, info, mid, label, open_chest=False, quota=None, claim_ca
         cparam = {"mid": mid, "rnd": my_rnd}
         if is_forest:
             cparam["costGem"] = 0
+        elite_wallet_before = _elite_wallet(flow) if mid in ELITE_STAGES else None
         r1 = flow.request("scene.copyHandler.createSinglePlayerCopy", cparam)
+        if elite_wallet_before is not None:
+            _check_elite_cost(flow, elite_wallet_before, r1, '开局')
         if isinstance(r1, dict) and r1.get("error"):
             if is_forest and raise_forest_power and n == 0:
                 from forest_auto import is_power_rejection, ForestPowerInsufficient
@@ -1959,6 +1985,8 @@ def clear_dungeon(flow, info, mid, label, open_chest=False, quota=None, claim_ca
                 print("[%s] BOSS房 %s 未进入，回退结算入口关: %s" % (label, bmid, b1))
         if not sky_done:
             r2 = flow.request("scene.copyHandler.finishSingleCopy", finish_args)
+            if elite_wallet_before is not None:
+                _check_elite_cost(flow, elite_wallet_before, r2, '结算')
             if not isinstance(r2, dict) or r2.get("code") != 200 or r2.get("error"):
                 print("[%s] 停止: %s" % (label, r2)); break
             _agg_drops(round_rewards, [d for d in (r2.get('give') or []) if isinstance(d, dict)])
@@ -1971,6 +1999,8 @@ def clear_dungeon(flow, info, mid, label, open_chest=False, quota=None, claim_ca
             if not isinstance(cards, dict) or cards.get("code") != 200 or not cards.get("items"):
                 raise RuntimeError("[%s] 取牌面失败，已停止后续精英关: %s" % (label, cards))
             turned = flow.request("scene.copyHandler.turnCard", {})
+            if elite_wallet_before is not None:
+                _check_elite_cost(flow, elite_wallet_before, turned, '免费翻牌')
             if not isinstance(turned, dict) or turned.get("code") != 200:
                 raise RuntimeError("[%s] 免费翻牌失败，已停止后续精英关: %s" % (label, turned))
             if turned.get("consume"):
@@ -2014,6 +2044,9 @@ def run_nightmare(flow, info, max_runs=2):
         print("[噩梦] 关卡设置无效，跳过: %s" % mid)
         return
     if str(NIGHTMARE_MODE).lower() == "sweep":
+        if mid == 40270:
+            from new_sweep import run as run_new_sweep
+            return run_new_sweep(flow, RECORD_INDEX, mid)
         power_min = _sweep_power_min(mid)
         if power_min <= 0:
             print("[噩梦] %s 没有扫荡配置，自动回退手打" % mid)
@@ -2926,6 +2959,9 @@ def buy_mystery_shop(flow):
 
 def run_wanxiang(flow, info):
     """丹熏山免费次数来自共享宝箱，不使用历史 dailyCount 判断。"""
+    if WANXIANG_MODE == 'sweep':
+        from new_sweep import run as run_new_sweep
+        return run_new_sweep(flow, RECORD_INDEX, 300113)
     mid = int(STAGE_OVERRIDE.get("wanxiang") or 300113)
     if mid != 300113:
         raise ValueError("万象古树目前只支持丹熏山(300113)")
@@ -3669,7 +3705,11 @@ def main():
         if RUN_PET_PVE_FIRST:
             _step('万兽秘境首通', run_pet_pve, flow, RECORD_INDEX, 'first')
         if RUN_PET_PVE_DAILY:
-            _step('万兽秘境免费挑战', run_pet_pve, flow, RECORD_INDEX, 'daily')
+            if PET_PVE_MODE == 'sweep':
+                from new_sweep import run as run_new_sweep
+                _step('万兽秘境免费扫荡', run_new_sweep, flow, RECORD_INDEX, 2200106)
+            else:
+                _step('万兽秘境免费挑战', run_pet_pve, flow, RECORD_INDEX, 'daily')
     if RUN_PET_TOWER:
         _step('宠物塔', run_pet_tower, flow, info)
     if RUN_STAR_MAZE:
@@ -3707,6 +3747,12 @@ def main():
             info.update(refreshed)
         except Exception as exc:
             print('[魔法水晶球] 本项停止：%s' % exc)
+    if RUN_THANKSGIVING_LOGIN:
+        from thanksgiving_login import claim
+        _step('感恩节五日登录', claim, flow, RECORD_INDEX)
+    if RUN_TURKEY_BOUNTY:
+        from turkey_activity import run as run_turkey_bounty
+        _step('火鸡悬赏令', run_turkey_bounty, flow, info, RECORD_INDEX)
     if RUN_MAGIC_RABBIT:
         def _magic_rabbit():
             from rabbit_activity import run as run_magic_rabbit

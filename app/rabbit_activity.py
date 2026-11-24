@@ -17,17 +17,36 @@ def run(flow,info,slot):
     stages=[s for s in cfg['stages'] if int((_dungeon_rec(info,s['mid']) or {}).get('passNum') or 0)>0 and level>=int(s['rolelevel'])]
     if not stages:
         print('[魔玉兔] 没有已通关的适用主线，跳过');return
-    stage=max(stages,key=lambda s:(float(s['probability']),s['mid']))
+    from game_version import config_table_path
+    from activity_stage_selection import choose_normal_stage
+    from teacher_trial import checked
+    dungeon_table=json.loads(config_table_path('Dungeon').read_text(encoding='utf-8-sig'))
+    stage=choose_normal_stage(stages,info,dungeon_table)
+    if stage is None:
+        print('[魔玉兔] 没有可免费进入的已通关普通主线，跳过')
+        return
     print('[魔玉兔] %s（%s），今日%s/%s；只捡活动怪奖励'%(stage['name'],stage['mid'],used,limit))
     for _ in range(limit-used):
-        points=(flow.request('connector.roleHandler.getUserInfo',{}).get('user') or {}).get('ticket')
+        fresh=enter(flow,slot)
+        info.clear();info.update(fresh)
+        if int((info.get('everyDaySetting') or {}).get('dungeonActivityCnt',0))>=limit:
+            return
+        stage=choose_normal_stage(stages,info,dungeon_table)
+        if stage is None:
+            print('[魔玉兔] 没有可免费进入的普通主线，停止')
+            return
+        user=checked(flow.request('connector.roleHandler.getUserInfo',{}),'余额')['user']
+        points={key:user[key] for key in ('ticket','yuanbao')}
         if points is None:raise RuntimeError('无法核对点券')
         active=None
         try:
             rnd,created=_create(flow,stage['mid']);active=(created,rnd)
+            if created.get('consume'):
+                raise RuntimeError('主线开局出现非预期消耗，停止核查')
             drops=created.get('drops') or []
             targets=[(i,d) for i,d in enumerate(drops) if str(d.get('monsterId'))==str(stage['monsterId'])]
             if not targets:
+                _finish(flow,*active,win=False);active=None
                 print('[魔玉兔] 本次未下发活动怪掉落，停止');return
             for i,d in targets:
                 salt=random.randint(1,10000)
@@ -40,11 +59,10 @@ def run(flow,info,slot):
             time.sleep(25)
             _finish(flow,*active,win=True);active=None
         finally:
-            if active:
-                try:_finish(flow,*active,win=False)
-                except Exception:pass
+            # 超时或异常时不重发结算请求。
             after=enter(flow,slot)
-            end=(flow.request('connector.roleHandler.getUserInfo',{}).get('user') or {}).get('ticket')
+            user=checked(flow.request('connector.roleHandler.getUserInfo',{}),'余额')['user']
+            end={key:user[key] for key in ('ticket','yuanbao')}
             info.clear();info.update(after)
             if end!=points:raise RuntimeError('魔玉兔执行后点券变化，停止')
         current=int((info.get('everyDaySetting') or {}).get('dungeonActivityCnt') or 0)

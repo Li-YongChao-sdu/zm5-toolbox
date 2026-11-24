@@ -673,7 +673,7 @@ TASKS = [
 
 
 
-    ("噩梦关卡",         "RUN_DEMON_TOWER",   True,  False, "共享宝箱最多2次，默认手打七星殿；可切换扫荡（40270无扫荡配置自动手打）"),
+    ("噩梦关卡",         "RUN_DEMON_TOWER",   True,  False, "共享宝箱最多2次，默认手打七星殿；可切换扫荡；七星殿需满足新版扫荡条件"),
 
 
 
@@ -711,7 +711,9 @@ TASKS = [
 
 
 
-    ("魔玉兔", "RUN_MAGIC_RABBIT", False, False, "每日活动上限2次；自动选已通关主线，只领取活动怪奖励；需背包空间"),
+    ("感恩节五日登录", "RUN_THANKSGIVING_LOGIN", False, False, "仅领取当天可领的免费奖励，每日一次"),
+    ("火鸡悬赏令", "RUN_TURKEY_BOUNTY", False, False, "按最新配置完成剩余次数；已通关普通主线优先高概率，仅领取火鸡掉落，不自动开烤盘"),
+    ("魔玉兔", "RUN_MAGIC_RABBIT", False, False, "每日活动上限2次；只选可免费进入的已通关普通主线，只领取活动怪奖励；需背包空间"),
     ("万能强化石（每日4个）", "RUN_ELITE_STONE", False, False, "从精英碧玉径顺序免费翻牌；不拾取场景掉落，保留强化石，其余新增可售道具自动出售；今日4个即停"),
     ("魔法水晶球（每日11个）", "RUN_MAGIC_CRYSTAL", False, False, "实时检测今日数量；手动打最新主线上一关，按2/1个续领至11；今日已达10个则停止"),
 
@@ -931,7 +933,7 @@ TASK_PAGES = {
 
 
 
-        "RUN_MAGIC_RABBIT", "RUN_MAGIC_CRYSTAL", "RUN_WISH_POOL_REWARD", "RUN_WISH_POOL_RANDOM", "RUN_CELEBRATION", "RUN_CELEBRATION_ONLINE", "RUN_CLIMB_HIGH",
+        "RUN_THANKSGIVING_LOGIN", "RUN_TURKEY_BOUNTY", "RUN_MAGIC_RABBIT", "RUN_MAGIC_CRYSTAL", "RUN_WISH_POOL_REWARD", "RUN_WISH_POOL_RANDOM", "RUN_CELEBRATION", "RUN_CELEBRATION_ONLINE", "RUN_CLIMB_HIGH",
 
 
 
@@ -2740,6 +2742,11 @@ class DailyGUI:
 
 
 
+        pve_sweep_frame=ttk.LabelFrame(pages['日常副本'],text='万兽秘境 · 第6关重复挑战方式')
+        pve_sweep_frame.pack(fill=tk.X,padx=4,pady=5)
+        self.var_pet_pve_mode=tk.StringVar(value='手打')
+        ttk.Combobox(pve_sweep_frame,textvariable=self.var_pet_pve_mode,values=['手打','扫荡'],state='readonly',width=8).pack(side=tk.LEFT,padx=8,pady=6)
+        ttk.Label(pve_sweep_frame,text='默认手打；扫荡每次5能量，仅剩余免费次数；首通任务始终手打').pack(side=tk.LEFT)
         self.var_forest_mode = tk.StringVar(value="sweep")
 
 
@@ -3116,7 +3123,7 @@ class DailyGUI:
         ttk.Combobox(nightmare_row, textvariable=self.var_nightmare_mode,
                      values=["手打", "扫荡"], width=6,
                      state="readonly").pack(side=tk.LEFT)
-        ttk.Label(nightmare_row, text="扫荡=共享次数+10能量，不翻牌；40270自动手打",
+        ttk.Label(nightmare_row, text="扫荡=共享次数+10能量，不翻牌；七星殿支持扫荡，需三星及274.7万战力",
                   foreground="gray").pack(side=tk.LEFT, padx=6)
 
 
@@ -4571,7 +4578,7 @@ class DailyGUI:
 
 
             ttk.Combobox(f, textvariable=var, values=opts, width=22, state="readonly").pack(side=tk.LEFT, padx=2)
-            if key in ("sky", "nine", "ten"):
+            if key in ("sky", "nine", "ten", "wanxiang"):
                 ttk.Label(f, text="模式:").pack(side=tk.LEFT, padx=(8, 0))
                 mode = tk.StringVar(value="手打")
                 setattr(self, "var_%s_mode" % key, mode)
@@ -7929,6 +7936,8 @@ class DailyGUI:
 
         lines.append('FOREST_AUTO_CRYSTAL = '+str(self.forest_crystal_controls.is_low_vip() and self.var_forest_auto_crystal.get()))
         lines.append('FOREST_MODE = ' + repr(self.var_forest_mode.get()))
+        lines.append('WANXIANG_MODE = '+repr('sweep' if self.var_wanxiang_mode.get()=='扫荡' else 'manual'))
+        lines.append('PET_PVE_MODE = '+repr('sweep' if self.var_pet_pve_mode.get()=='扫荡' else 'manual'))
         lines.append('SKY_MODE = ' + repr('sweep' if self.var_sky_mode.get() == '扫荡' else 'manual'))
         lines.append('NINE_MODE = ' + repr('sweep' if self.var_nine_mode.get() == '扫荡' else 'manual'))
         lines.append('TEN_MODE = ' + repr('sweep' if self.var_ten_mode.get() == '扫荡' else 'manual'))

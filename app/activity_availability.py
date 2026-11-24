@@ -17,6 +17,8 @@ RULES = {
     'RUN_DRAGON_TREASURE_TASKS': {'ref': ('DragonTreasureHelper', 'activityId'), 'names': ('龙宫寻宝',)},
     'RUN_MID_AUTUMN': {'names': ('中秋博饼',)},
     'RUN_CLOUD_LADDER': {'ref': ('CloudLadderHelp', 'activityId'), 'names': ('登云梯',)},
+    'RUN_THANKSGIVING_LOGIN': {'ref': ('Common', 'landingRewardOther')},
+    'RUN_TURKEY_BOUNTY': {'ref': ('ActivityCommon', 'catchChickId')},
     'RUN_MAGIC_RABBIT': {'names': ('魔玉兔悬赏',)},
     'RUN_RELIC_TREASURE': {'ref': ('Common', 'relicTreasureActivityId'), 'names': ('遗迹寻宝',)},
     'RUN_XUANTA_EVENT': {'task': '玄塔有灵'},

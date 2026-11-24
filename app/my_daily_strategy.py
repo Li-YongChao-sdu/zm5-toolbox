@@ -13,7 +13,9 @@ def summary(app,key,modules=None):
 
 def describe(app,key,modules):
     if key=='RUN_PET_PVE_FIRST':return '补齐未首通关卡至第6关；首通免次数'
-    if key=='RUN_PET_PVE_DAILY':return '仅重复第6关，完成当天剩余免费次数；无点券消耗'
+    if key=='RUN_PET_PVE_DAILY':return value(app,'var_pet_pve_mode','手打')+'｜第6关剩余免费次数；扫荡每次5能量，无点券消耗'
+    if key=='RUN_TURKEY_BOUNTY':return '最新配置剩余次数；已通关普通主线优先高概率，仅拾取火鸡奖励，不自动开烤盘'
+    if key=='RUN_WANXIANG':return value(app,'var_wanxiang_mode','手打')+'｜耳鼠共享剩余免费次数；扫荡每次10能量'
     row=modules.get(key,{});page=row.get('page','')
     if key in ('RUN_ARENA','RUN_PET_ARENA'):
         from arena_target_ui import MODE_CHOICES
